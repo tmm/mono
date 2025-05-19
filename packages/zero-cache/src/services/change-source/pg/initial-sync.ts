@@ -41,6 +41,7 @@ import {
   initReplicationState,
   ZERO_VERSION_COLUMN_NAME,
 } from '../../replicator/schema/replication-state.ts';
+import {CopyRunner} from './copy-runner.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
 import {getPublicationInfo, type PublicationInfo} from './schema/published.ts';
@@ -70,12 +71,12 @@ export async function initialSync(
   }
   const {tableCopyWorkers: numWorkers} = syncOptions;
   const sql = pgClient(lc, upstreamURI);
-  const copyPool = pgClient(
-    lc,
-    upstreamURI,
-    {max: numWorkers},
-    'json-as-string',
-  );
+  // The typeClient's reason for existence is to configure the type
+  // parsing for the copy workers, which skip JSON parsing for efficiency.
+  const typeClient = pgClient(lc, upstreamURI, {}, 'json-as-string');
+  // Fire off an innocuous request to initialize a connection and thus fetch
+  // the array types that will be used to parse the COPY stream.
+  void typeClient`SELECT 1`.execute();
   const replicationSession = pgClient(lc, upstreamURI, {
     ['fetch_types']: false, // Necessary for the streaming protocol
     connection: {replication: 'database'}, // https://www.postgresql.org/docs/current/protocol-replication.html
@@ -122,7 +123,21 @@ export async function initialSync(
     const start = performance.now();
     let numTables: number;
     let numRows: number;
-    const copiers = startTableCopyWorkers(lc, copyPool, snapshot, numWorkers);
+    const copyRunner = new CopyRunner(
+      lc,
+      () =>
+        pgClient(lc, upstreamURI, {
+          // No need to fetch array types for these connections, as pgClient
+          // streams the COPY data as text, and type parsing is done in the
+          // the RowTransform, which gets its types from the typeClient.
+          // This eliminates one round trip when each db
+          // connection is established.
+          ['fetch_types']: false,
+          connection: {['application_name']: 'initial-sync-copy-worker'},
+        }),
+      numWorkers,
+      snapshot,
+    );
     let published: PublicationInfo;
     try {
       // Retrieve the published schema at the consistent_point.
@@ -140,8 +155,8 @@ export async function initialSync(
 
       const rowCounts = await Promise.all(
         tables.map(table =>
-          copiers.processReadTask((db, lc) =>
-            copy(lc, table, copyPool, db, tx, initialVersion),
+          copyRunner.run((db, lc) =>
+            copy(lc, table, typeClient, db, tx, initialVersion),
           ),
         ),
       );
@@ -153,7 +168,7 @@ export async function initialSync(
         `Created indexes (${(performance.now() - indexStart).toFixed(3)} ms)`,
       );
     } finally {
-      copiers.setDone();
+      copyRunner.close();
     }
 
     await addReplica(sql, shard, slotName, initialVersion, published);
@@ -176,12 +191,7 @@ export async function initialSync(
   } finally {
     await replicationSession.end();
     await sql.end();
-    // Postgres sometimes hangs on COMMIT after running COPY TO, even though
-    // the latter successfully completes. The completion of the COMMIT is
-    // unimportant for a READONLY transaction, especially given that the
-    // copiers have all completed their work. As a workaround, avoid
-    // blocking on closing this client. The connection do eventually close.
-    void copyPool.end().catch(e => lc.error?.('error closing copyPool', e));
+    await typeClient.end();
   }
 }
 
