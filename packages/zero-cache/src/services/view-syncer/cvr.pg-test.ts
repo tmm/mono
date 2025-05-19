@@ -399,6 +399,8 @@ describe('view-syncer/cvr', () => {
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
           transformationHash: 'twoHash',
+          queryArgs: null,
+          queryName: null,
           transformationVersion: null,
           patchVersion: '1a9:02',
           internal: null,
@@ -444,6 +446,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         ['oneHash']: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           transformationHash: 'twoHash',
           clientState: {
@@ -495,6 +498,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: 'twoHash',
           transformationVersion: null,
           patchVersion: '1a9:02',
@@ -549,6 +554,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         oneHash: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           transformationHash: 'twoHash',
           clientState: {
@@ -719,6 +725,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: 'twoHash',
           transformationVersion: null,
           patchVersion: '1a9:02',
@@ -777,6 +785,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         oneHash: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           transformationHash: 'twoHash',
           transformationVersion: undefined,
@@ -964,7 +973,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         lmids: {
           id: 'lmids',
-          internal: true,
+          type: 'internal',
           ast: {
             table: `${APP_ID}_${SHARD_NUM}.clients`,
             schema: '',
@@ -988,6 +997,7 @@ describe('view-syncer/cvr', () => {
         },
         oneHash: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           transformationHash: 'twoHash',
           transformationVersion: undefined,
@@ -1002,6 +1012,7 @@ describe('view-syncer/cvr', () => {
         },
         threeHash: {
           id: 'threeHash',
+          type: 'client',
           ast: {table: 'comments'},
           clientState: {
             barClient: {
@@ -1018,6 +1029,7 @@ describe('view-syncer/cvr', () => {
         },
         fourHash: {
           id: 'fourHash',
+          type: 'client',
           ast: {table: 'users'},
           clientState: {
             fooClient: {
@@ -1075,6 +1087,8 @@ describe('view-syncer/cvr', () => {
             table: 'users',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: null,
           patchVersion: null,
@@ -1104,6 +1118,8 @@ describe('view-syncer/cvr', () => {
             ],
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: true,
           patchVersion: null,
@@ -1116,6 +1132,8 @@ describe('view-syncer/cvr', () => {
             table: 'comments',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: null,
           patchVersion: null,
@@ -1128,6 +1146,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: null,
           patchVersion: '1a9:02',
@@ -1265,6 +1285,8 @@ describe('view-syncer/cvr', () => {
       queries: [
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
           transformationHash: 'twoHash',
@@ -1385,6 +1407,8 @@ describe('view-syncer/cvr', () => {
       queries: [
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
           transformationHash: null,
@@ -1395,6 +1419,8 @@ describe('view-syncer/cvr', () => {
         },
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'already-deleted',
           clientAST: {table: 'issues'}, // TODO(arv): Maybe nullable
           patchVersion: '189',
@@ -1405,6 +1431,8 @@ describe('view-syncer/cvr', () => {
         },
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'catchup-delete',
           clientAST: {table: 'issues'}, // TODO(arv): Maybe nullable
           patchVersion: '19z',
@@ -1682,6 +1710,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         oneHash: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           clientState: {
             fooClient: {
@@ -1735,6 +1764,8 @@ describe('view-syncer/cvr', () => {
           clientAST: {
             table: 'issues',
           },
+          queryArgs: null,
+          queryName: null,
           clientGroupID: 'abc123',
           deleted: true,
           internal: null,
@@ -1747,6 +1778,8 @@ describe('view-syncer/cvr', () => {
           clientAST: {
             table: 'issues',
           },
+          queryArgs: null,
+          queryName: null,
           clientGroupID: 'abc123',
           deleted: true,
           internal: null,
@@ -1759,6 +1792,8 @@ describe('view-syncer/cvr', () => {
           clientAST: {
             table: 'issues',
           },
+          queryArgs: null,
+          queryName: null,
           clientGroupID: 'abc123',
           deleted: false,
           internal: null,
@@ -1860,6 +1895,8 @@ describe('view-syncer/cvr', () => {
       queries: [
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
           transformationHash: 'serverOneHash',
@@ -1870,6 +1907,8 @@ describe('view-syncer/cvr', () => {
         },
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'already-deleted',
           clientAST: {table: 'issues'}, // TODO(arv): Maybe nullable
           patchVersion: '189',
@@ -1880,6 +1919,8 @@ describe('view-syncer/cvr', () => {
         },
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'catchup-delete',
           clientAST: {table: 'issues'}, // TODO(arv): Maybe nullable
           patchVersion: '19z',
@@ -2059,6 +2100,16 @@ describe('view-syncer/cvr', () => {
       [
         {
           "patch": {
+            "id": "catchup-delete",
+            "op": "del",
+            "type": "query",
+          },
+          "toVersion": {
+            "stateVersion": "19z",
+          },
+        },
+        {
+          "patch": {
             "ast": {
               "table": "issues",
             },
@@ -2069,16 +2120,6 @@ describe('view-syncer/cvr', () => {
           "toVersion": {
             "minorVersion": 1,
             "stateVersion": "1aa",
-          },
-        },
-        {
-          "patch": {
-            "id": "catchup-delete",
-            "op": "del",
-            "type": "query",
-          },
-          "toVersion": {
-            "stateVersion": "19z",
           },
         },
         {
@@ -2125,6 +2166,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         oneHash: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           clientState: {
             fooClient: {
@@ -2165,6 +2207,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: true,
           internal: null,
           patchVersion: '189',
@@ -2177,6 +2221,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: true,
           internal: null,
           patchVersion: '19z',
@@ -2189,6 +2235,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: null,
           patchVersion: '1aa:01',
@@ -2313,6 +2361,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryName: null,
+          queryArgs: null,
           deleted: true,
           internal: null,
           patchVersion: '189',
@@ -2325,6 +2375,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryName: null,
+          queryArgs: null,
           deleted: true,
           internal: null,
           patchVersion: '19z',
@@ -2337,6 +2389,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryName: null,
+          queryArgs: null,
           deleted: false,
           internal: null,
           patchVersion: '1aa:01',
@@ -2372,6 +2426,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: 'serverOneHash',
           transformationVersion: '1aa',
           patchVersion: '1aa:01',
@@ -2381,6 +2437,8 @@ describe('view-syncer/cvr', () => {
         {
           clientGroupID: 'abc123',
           queryHash: 'twoHash',
+          queryArgs: null,
+          queryName: null,
           clientAST: {table: 'issues'},
           transformationHash: 'serverTwoHash',
           transformationVersion: '1aa',
@@ -2391,6 +2449,8 @@ describe('view-syncer/cvr', () => {
         {
           clientGroupID: 'abc123',
           queryHash: 'already-deleted',
+          queryArgs: null,
+          queryName: null,
           clientAST: {table: 'issues'},
           patchVersion: '189',
           transformationHash: null,
@@ -2401,6 +2461,8 @@ describe('view-syncer/cvr', () => {
         {
           clientGroupID: 'abc123',
           queryHash: 'catchup-delete',
+          queryArgs: null,
+          queryName: null,
           clientAST: {table: 'issues'},
           patchVersion: '19z',
           transformationHash: null,
@@ -2615,6 +2677,16 @@ describe('view-syncer/cvr', () => {
       [
         {
           "patch": {
+            "id": "catchup-delete",
+            "op": "del",
+            "type": "query",
+          },
+          "toVersion": {
+            "stateVersion": "19z",
+          },
+        },
+        {
+          "patch": {
             "ast": {
               "table": "issues",
             },
@@ -2639,16 +2711,6 @@ describe('view-syncer/cvr', () => {
           "toVersion": {
             "minorVersion": 1,
             "stateVersion": "1aa",
-          },
-        },
-        {
-          "patch": {
-            "id": "catchup-delete",
-            "op": "del",
-            "type": "query",
-          },
-          "toVersion": {
-            "stateVersion": "19z",
           },
         },
         {
@@ -2712,6 +2774,7 @@ describe('view-syncer/cvr', () => {
       queries: {
         oneHash: {
           id: 'oneHash',
+          type: 'client',
           ast: {table: 'issues'},
           clientState: {
             fooClient: {
@@ -2726,6 +2789,7 @@ describe('view-syncer/cvr', () => {
         },
         twoHash: {
           id: 'twoHash',
+          type: 'client',
           ast: {table: 'issues'},
           clientState: {
             fooClient: {
@@ -2772,6 +2836,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: true,
           internal: null,
           patchVersion: '189',
@@ -2784,6 +2850,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: true,
           internal: null,
           patchVersion: '19z',
@@ -2796,6 +2864,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: null,
           patchVersion: '1aa:01',
@@ -2808,6 +2878,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: false,
           internal: null,
           patchVersion: '1aa:01',
@@ -2908,6 +2980,8 @@ describe('view-syncer/cvr', () => {
         {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
+          queryArgs: null,
+          queryName: null,
           clientAST: {table: 'issues'},
           transformationHash: 'serverOneHash',
           transformationVersion: '1aa',
@@ -2918,6 +2992,8 @@ describe('view-syncer/cvr', () => {
         {
           clientGroupID: 'abc123',
           queryHash: 'already-deleted',
+          queryArgs: null,
+          queryName: null,
           clientAST: {table: 'issues'},
           patchVersion: '189',
           transformationHash: null,
@@ -2928,6 +3004,8 @@ describe('view-syncer/cvr', () => {
         {
           clientGroupID: 'abc123',
           queryHash: 'catchup-delete',
+          queryArgs: null,
+          queryName: null,
           clientAST: {table: 'issues'},
           patchVersion: '19z',
           transformationHash: null,
@@ -3160,6 +3238,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: true,
           internal: null,
           patchVersion: '189',
@@ -3172,6 +3252,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: true,
           internal: null,
           patchVersion: '19z',
@@ -3185,6 +3267,8 @@ describe('view-syncer/cvr', () => {
           },
           clientGroupID: 'abc123',
           deleted: true,
+          queryArgs: null,
+          queryName: null,
           internal: null,
           patchVersion: '1ba:01',
           queryHash: 'oneHash',
@@ -3272,6 +3356,8 @@ describe('view-syncer/cvr', () => {
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
           transformationHash: 'serverOneHash',
+          queryArgs: null,
+          queryName: null,
           transformationVersion: '1aa',
           patchVersion: '1aa:01',
           internal: null,
@@ -3282,6 +3368,8 @@ describe('view-syncer/cvr', () => {
           queryHash: 'twoHash',
           clientAST: {table: 'issues'},
           transformationHash: 'serverTwoHash',
+          queryArgs: null,
+          queryName: null,
           transformationVersion: '1aa',
           patchVersion: '1aa:01',
           internal: null,
@@ -3289,6 +3377,8 @@ describe('view-syncer/cvr', () => {
         },
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'already-deleted',
           clientAST: {table: 'issues'},
           patchVersion: '189',
@@ -3299,6 +3389,8 @@ describe('view-syncer/cvr', () => {
         },
         {
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           queryHash: 'catchup-delete',
           clientAST: {table: 'issues'},
           patchVersion: '19z',
@@ -3429,6 +3521,7 @@ describe('view-syncer/cvr', () => {
             "transformationVersion": {
               "stateVersion": "1aa",
             },
+            "type": "client",
           },
           "twoHash": {
             "ast": {
@@ -3453,6 +3546,7 @@ describe('view-syncer/cvr', () => {
             "transformationVersion": {
               "stateVersion": "1aa",
             },
+            "type": "client",
           },
         },
         "replicaVersion": "120",
@@ -3567,6 +3661,16 @@ describe('view-syncer/cvr', () => {
       [
         {
           "patch": {
+            "id": "catchup-delete",
+            "op": "del",
+            "type": "query",
+          },
+          "toVersion": {
+            "stateVersion": "19z",
+          },
+        },
+        {
+          "patch": {
             "ast": {
               "table": "issues",
             },
@@ -3591,16 +3695,6 @@ describe('view-syncer/cvr', () => {
           "toVersion": {
             "minorVersion": 1,
             "stateVersion": "1aa",
-          },
-        },
-        {
-          "patch": {
-            "id": "catchup-delete",
-            "op": "del",
-            "type": "query",
-          },
-          "toVersion": {
-            "stateVersion": "19z",
           },
         },
         {
@@ -3708,6 +3802,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: 'serverOneHash',
           transformationVersion: '1aa',
           patchVersion: '1aa:01',
@@ -3932,6 +4028,8 @@ describe('view-syncer/cvr', () => {
             table: 'issues',
           },
           clientGroupID: 'abc123',
+          queryArgs: null,
+          queryName: null,
           deleted: null,
           internal: null,
           patchVersion: '1aa:01',
@@ -4019,6 +4117,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4166,6 +4266,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4231,6 +4333,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4371,6 +4475,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4436,6 +4542,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4637,6 +4745,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4702,6 +4812,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -4856,6 +4968,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -5013,6 +5127,8 @@ describe('view-syncer/cvr', () => {
             clientGroupID: 'abc123',
             queryHash: 'oneHash',
             clientAST: {table: 'issues'},
+            queryArgs: null,
+            queryName: null,
             transformationHash: null,
             transformationVersion: null,
             patchVersion: null,
@@ -5096,6 +5212,7 @@ describe('view-syncer/cvr', () => {
               "patchVersion": undefined,
               "transformationHash": undefined,
               "transformationVersion": undefined,
+              "type": "client",
             },
           },
           "replicaVersion": "120",
@@ -5120,6 +5237,7 @@ describe('view-syncer/cvr', () => {
         lastActive: now,
         queries: {
           oneHash: {
+            type: 'client',
             ast: {
               table: 'issues',
             },
@@ -5175,6 +5293,8 @@ describe('view-syncer/cvr', () => {
             clientGroupID: 'abc123',
             queryHash: 'oneHash',
             clientAST: {table: 'issues'},
+            queryArgs: null,
+            queryName: null,
             transformationHash: null,
             transformationVersion: null,
             patchVersion: null,
@@ -5241,6 +5361,7 @@ describe('view-syncer/cvr', () => {
               },
             },
           },
+          type: 'client',
           id: 'oneHash',
           patchVersion: undefined,
           transformationHash: undefined,
@@ -5257,6 +5378,7 @@ describe('view-syncer/cvr', () => {
           ast: {
             table: 'issues',
           },
+          type: 'client',
           clientState: {
             fooClient: {
               inactivatedAt: now,
@@ -5301,6 +5423,8 @@ describe('view-syncer/cvr', () => {
             clientGroupID: 'abc123',
             queryHash: 'oneHash',
             clientAST: {table: 'issues'},
+            queryArgs: null,
+            queryName: null,
             transformationHash: 'oneHashTransformed',
             transformationVersion: '1a9:01',
             patchVersion: null,
@@ -5353,48 +5477,49 @@ describe('view-syncer/cvr', () => {
       );
       const cvr = await cvrStore.load(lc, LAST_CONNECT);
       expect(cvr).toMatchInlineSnapshot(`
-        {
-          "clientSchema": null,
-          "clients": {
-            "fooClient": {
-              "desiredQueryIDs": [
-                "oneHash",
-              ],
-              "id": "fooClient",
-            },
-          },
-          "id": "abc123",
-          "lastActive": 1742256000000,
-          "queries": {
-            "oneHash": {
-              "ast": {
-                "table": "issues",
+          {
+            "clientSchema": null,
+            "clients": {
+              "fooClient": {
+                "desiredQueryIDs": [
+                  "oneHash",
+                ],
+                "id": "fooClient",
               },
-              "clientState": {
-                "fooClient": {
-                  "inactivatedAt": undefined,
-                  "ttl": -1,
-                  "version": {
-                    "minorVersion": 1,
-                    "stateVersion": "1a9",
+            },
+            "id": "abc123",
+            "lastActive": 1742256000000,
+            "queries": {
+              "oneHash": {
+                "ast": {
+                  "table": "issues",
+                },
+                "clientState": {
+                  "fooClient": {
+                    "inactivatedAt": undefined,
+                    "ttl": -1,
+                    "version": {
+                      "minorVersion": 1,
+                      "stateVersion": "1a9",
+                    },
                   },
                 },
-              },
-              "id": "oneHash",
-              "patchVersion": undefined,
-              "transformationHash": "oneHashTransformed",
-              "transformationVersion": {
-                "minorVersion": 1,
-                "stateVersion": "1a9",
+                "id": "oneHash",
+                "patchVersion": undefined,
+                "transformationHash": "oneHashTransformed",
+                "transformationVersion": {
+                  "minorVersion": 1,
+                  "stateVersion": "1a9",
+                },
+                "type": "client",
               },
             },
-          },
-          "replicaVersion": "120",
-          "version": {
-            "stateVersion": "1aa",
-          },
-        }
-      `);
+            "replicaVersion": "120",
+            "version": {
+              "stateVersion": "1aa",
+            },
+          }
+        `);
 
       const updater = new CVRConfigDrivenUpdater(cvrStore, cvr, SHARD);
       expect(
@@ -5428,6 +5553,7 @@ describe('view-syncer/cvr', () => {
         lastActive: now,
         queries: {
           oneHash: {
+            type: 'client',
             ast: {
               table: 'issues',
             },
@@ -5486,6 +5612,8 @@ describe('view-syncer/cvr', () => {
             clientGroupID: 'abc123',
             queryHash: 'oneHash',
             clientAST: {table: 'issues'},
+            queryArgs: null,
+            queryName: null,
             transformationHash: null,
             transformationVersion: null,
             patchVersion: null,
@@ -5615,6 +5743,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -5709,68 +5839,69 @@ describe('view-syncer/cvr', () => {
       Date.now(),
     );
     expect(updated).toMatchInlineSnapshot(`
-      {
-        "clientSchema": null,
-        "clients": {
-          "client-a": {
-            "desiredQueryIDs": [
-              "oneHash",
-            ],
-            "id": "client-a",
-          },
-          "client-c": {
-            "desiredQueryIDs": [
-              "oneHash",
-            ],
-            "id": "client-c",
-          },
-        },
-        "id": "abc123",
-        "lastActive": 1709683200000,
-        "queries": {
-          "oneHash": {
-            "ast": {
-              "table": "issues",
+        {
+          "clientSchema": null,
+          "clients": {
+            "client-a": {
+              "desiredQueryIDs": [
+                "oneHash",
+              ],
+              "id": "client-a",
             },
-            "clientState": {
-              "client-a": {
-                "inactivatedAt": undefined,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1a9",
-                },
-              },
-              "client-b": {
-                "inactivatedAt": 1709683200000,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1aa",
-                },
-              },
-              "client-c": {
-                "inactivatedAt": undefined,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1a9",
-                },
-              },
+            "client-c": {
+              "desiredQueryIDs": [
+                "oneHash",
+              ],
+              "id": "client-c",
             },
-            "id": "oneHash",
-            "patchVersion": undefined,
-            "transformationHash": undefined,
-            "transformationVersion": undefined,
           },
-        },
-        "replicaVersion": "120",
-        "version": {
-          "minorVersion": 1,
-          "stateVersion": "1aa",
-        },
-      }
-    `);
+          "id": "abc123",
+          "lastActive": 1709683200000,
+          "queries": {
+            "oneHash": {
+              "ast": {
+                "table": "issues",
+              },
+              "clientState": {
+                "client-a": {
+                  "inactivatedAt": undefined,
+                  "ttl": -1,
+                  "version": {
+                    "minorVersion": 1,
+                    "stateVersion": "1a9",
+                  },
+                },
+                "client-b": {
+                  "inactivatedAt": 1709683200000,
+                  "ttl": -1,
+                  "version": {
+                    "minorVersion": 1,
+                    "stateVersion": "1aa",
+                  },
+                },
+                "client-c": {
+                  "inactivatedAt": undefined,
+                  "ttl": -1,
+                  "version": {
+                    "minorVersion": 1,
+                    "stateVersion": "1a9",
+                  },
+                },
+              },
+              "id": "oneHash",
+              "patchVersion": undefined,
+              "transformationHash": undefined,
+              "transformationVersion": undefined,
+              "type": "client",
+            },
+          },
+          "replicaVersion": "120",
+          "version": {
+            "minorVersion": 1,
+            "stateVersion": "1aa",
+          },
+        }
+      `);
     expect(flushed).toMatchInlineSnapshot(`
       {
         "clients": 1,
@@ -5848,7 +5979,9 @@ describe('view-syncer/cvr', () => {
             "deleted": false,
             "internal": null,
             "patchVersion": null,
+            "queryArgs": null,
             "queryHash": "oneHash",
+            "queryName": null,
             "transformationHash": null,
             "transformationVersion": null,
           },
@@ -5929,6 +6062,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'abc123',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -5939,6 +6074,8 @@ describe('view-syncer/cvr', () => {
           clientGroupID: 'def456',
           queryHash: 'oneHash',
           clientAST: {table: 'issues'},
+          queryArgs: null,
+          queryName: null,
           transformationHash: null,
           transformationVersion: null,
           patchVersion: null,
@@ -6028,59 +6165,60 @@ describe('view-syncer/cvr', () => {
     const cvr = await cvrStore.load(lc, LAST_CONNECT);
 
     expect(cvr).toMatchInlineSnapshot(`
-      {
-        "clientSchema": null,
-        "clients": {
-          "client-a": {
-            "desiredQueryIDs": [
-              "oneHash",
-            ],
-            "id": "client-a",
-          },
-          "client-c": {
-            "desiredQueryIDs": [
-              "oneHash",
-            ],
-            "id": "client-c",
-          },
-        },
-        "id": "abc123",
-        "lastActive": 1713830400000,
-        "queries": {
-          "oneHash": {
-            "ast": {
-              "table": "issues",
+        {
+          "clientSchema": null,
+          "clients": {
+            "client-a": {
+              "desiredQueryIDs": [
+                "oneHash",
+              ],
+              "id": "client-a",
             },
-            "clientState": {
-              "client-a": {
-                "inactivatedAt": undefined,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1a9",
+            "client-c": {
+              "desiredQueryIDs": [
+                "oneHash",
+              ],
+              "id": "client-c",
+            },
+          },
+          "id": "abc123",
+          "lastActive": 1713830400000,
+          "queries": {
+            "oneHash": {
+              "ast": {
+                "table": "issues",
+              },
+              "clientState": {
+                "client-a": {
+                  "inactivatedAt": undefined,
+                  "ttl": -1,
+                  "version": {
+                    "minorVersion": 1,
+                    "stateVersion": "1a9",
+                  },
+                },
+                "client-c": {
+                  "inactivatedAt": undefined,
+                  "ttl": -1,
+                  "version": {
+                    "minorVersion": 1,
+                    "stateVersion": "1a9",
+                  },
                 },
               },
-              "client-c": {
-                "inactivatedAt": undefined,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1a9",
-                },
-              },
+              "id": "oneHash",
+              "patchVersion": undefined,
+              "transformationHash": undefined,
+              "transformationVersion": undefined,
+              "type": "client",
             },
-            "id": "oneHash",
-            "patchVersion": undefined,
-            "transformationHash": undefined,
-            "transformationVersion": undefined,
           },
-        },
-        "replicaVersion": "120",
-        "version": {
-          "stateVersion": "1aa",
-        },
-      }
-    `);
+          "replicaVersion": "120",
+          "version": {
+            "stateVersion": "1aa",
+          },
+        }
+      `);
 
     const updater = new CVRConfigDrivenUpdater(cvrStore, cvr, SHARD);
 
@@ -6167,7 +6305,9 @@ describe('view-syncer/cvr', () => {
             "deleted": null,
             "internal": null,
             "patchVersion": null,
+            "queryArgs": null,
             "queryHash": "oneHash",
+            "queryName": null,
             "transformationHash": null,
             "transformationVersion": null,
           },
@@ -6179,7 +6319,9 @@ describe('view-syncer/cvr', () => {
             "deleted": null,
             "internal": null,
             "patchVersion": null,
+            "queryArgs": null,
             "queryHash": "oneHash",
+            "queryName": null,
             "transformationHash": null,
             "transformationVersion": null,
           },
@@ -6242,59 +6384,60 @@ describe('view-syncer/cvr', () => {
     `);
 
     expect(updated).toMatchInlineSnapshot(`
-      {
-        "clientSchema": null,
-        "clients": {
-          "client-a": {
-            "desiredQueryIDs": [
-              "oneHash",
-            ],
-            "id": "client-a",
-          },
-          "client-c": {
-            "desiredQueryIDs": [
-              "oneHash",
-            ],
-            "id": "client-c",
-          },
-        },
-        "id": "abc123",
-        "lastActive": 1713834000000,
-        "queries": {
-          "oneHash": {
-            "ast": {
-              "table": "issues",
-            },
-            "clientState": {
-              "client-a": {
-                "inactivatedAt": undefined,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1a9",
+              {
+                "clientSchema": null,
+                "clients": {
+                  "client-a": {
+                    "desiredQueryIDs": [
+                      "oneHash",
+                    ],
+                    "id": "client-a",
+                  },
+                  "client-c": {
+                    "desiredQueryIDs": [
+                      "oneHash",
+                    ],
+                    "id": "client-c",
+                  },
                 },
-              },
-              "client-c": {
-                "inactivatedAt": undefined,
-                "ttl": -1,
-                "version": {
-                  "minorVersion": 1,
-                  "stateVersion": "1a9",
+                "id": "abc123",
+                "lastActive": 1713834000000,
+                "queries": {
+                  "oneHash": {
+                    "ast": {
+                      "table": "issues",
+                    },
+                    "clientState": {
+                      "client-a": {
+                        "inactivatedAt": undefined,
+                        "ttl": -1,
+                        "version": {
+                          "minorVersion": 1,
+                          "stateVersion": "1a9",
+                        },
+                      },
+                      "client-c": {
+                        "inactivatedAt": undefined,
+                        "ttl": -1,
+                        "version": {
+                          "minorVersion": 1,
+                          "stateVersion": "1a9",
+                        },
+                      },
+                    },
+                    "id": "oneHash",
+                    "patchVersion": undefined,
+                    "transformationHash": undefined,
+                    "transformationVersion": undefined,
+                    "type": "client",
+                  },
                 },
-              },
-            },
-            "id": "oneHash",
-            "patchVersion": undefined,
-            "transformationHash": undefined,
-            "transformationVersion": undefined,
-          },
-        },
-        "replicaVersion": "120",
-        "version": {
-          "stateVersion": "1aa",
-        },
-      }
-    `);
+                "replicaVersion": "120",
+                "version": {
+                  "stateVersion": "1aa",
+                },
+              }
+            `);
 
     {
       const cvr = await cvrStore.load(lc, LAST_CONNECT);
@@ -6365,7 +6508,9 @@ describe('view-syncer/cvr', () => {
               "deleted": null,
               "internal": null,
               "patchVersion": null,
+              "queryArgs": null,
               "queryHash": "oneHash",
+              "queryName": null,
               "transformationHash": null,
               "transformationVersion": null,
             },

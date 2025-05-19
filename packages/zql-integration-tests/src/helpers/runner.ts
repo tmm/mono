@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {afterAll, expect} from 'vitest';
 import {testLogConfig} from '../../../otel/src/test-log-config.ts';
+import {unreachable} from '../../../shared/src/asserts.ts';
 import {wrapIterable} from '../../../shared/src/iterables.ts';
 import type {JSONValue, ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
@@ -1001,6 +1002,8 @@ function assignRandomValues(schema: TableSchema, row: Row): Row {
       case 'null':
         newRow[col] = null;
         break;
+      default:
+        unreachable(colSchema);
     }
   }
   return newRow;

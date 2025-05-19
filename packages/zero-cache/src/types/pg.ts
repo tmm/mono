@@ -179,8 +179,17 @@ export function pgClient(
     }
   };
   const url = new URL(connectionURI);
-  const ssl =
+  const sslFlag =
     url.searchParams.get('ssl') ?? url.searchParams.get('sslmode') ?? 'prefer';
+
+  let ssl: boolean | 'prefer' | {rejectUnauthorized: boolean};
+  if (sslFlag === 'disable' || sslFlag === 'false') {
+    ssl = false;
+  } else if (sslFlag === 'no-verify') {
+    ssl = {rejectUnauthorized: false};
+  } else {
+    ssl = sslFlag as 'prefer';
+  }
 
   // Set connections to expire between 5 and 10 minutes to free up state on PG.
   const maxLifetimeSeconds = randInt(5 * 60, 10 * 60);
@@ -188,19 +197,19 @@ export function pgClient(
     ...postgresTypeConfig(jsonAsString),
     onnotice,
     ['max_lifetime']: maxLifetimeSeconds,
-    ssl: ssl === 'disable' || ssl === 'false' ? false : (ssl as 'prefer'),
+    ssl,
     ...options,
   });
 }
 
-export const typeNameByOID: Record<number, string> = Object.fromEntries(
-  Object.entries(OID).map(([name, oid]) => [
-    oid,
-    name.startsWith('_') ? `${name.substring(1)}[]` : name,
-  ]),
+export const typeNameByOID: Record<number, string> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(OID).map(([name, oid]) => [
+      oid,
+      name.startsWith('_') ? `${name.substring(1)}[]` : name,
+    ]),
+  ),
 );
-
-Object.freeze(typeNameByOID);
 
 export const pgToZqlNumericTypeMap = Object.freeze({
   'smallint': 'number',
@@ -270,12 +279,20 @@ export const pgToZqlTypeMap = Object.freeze({
 export function dataTypeToZqlValueType(
   pgType: string,
   isEnum: boolean,
+  isArray: boolean,
 ): ValueType | undefined {
+  // We treat pg arrays as JSON values.
+  if (isArray) {
+    return 'json';
+  }
+
   const valueType = (pgToZqlTypeMap as Record<string, ValueType>)[
     formatTypeForLookup(pgType)
   ];
-  if (valueType === undefined && isEnum) {
-    return 'string';
+  if (valueType === undefined) {
+    if (isEnum) {
+      return 'string';
+    }
   }
   return valueType;
 }
