@@ -33,6 +33,7 @@ const ZERO_SCHEMA_VERSIONS_SPEC: PublishedTableSpec = {
       dataType: 'int4',
       typeOID: 23,
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 1,
     },
@@ -41,6 +42,7 @@ const ZERO_SCHEMA_VERSIONS_SPEC: PublishedTableSpec = {
       dataType: 'int4',
       typeOID: 23,
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 2,
     },
@@ -67,6 +69,7 @@ const ZERO_PERMISSIONS_SPEC: PublishedTableSpec = {
       dataType: 'jsonb',
       typeOID: 3802,
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 1,
     },
@@ -75,6 +78,7 @@ const ZERO_PERMISSIONS_SPEC: PublishedTableSpec = {
       dataType: 'text',
       typeOID: 25,
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 2,
     },
@@ -103,6 +107,7 @@ const ZERO_CLIENTS_SPEC: PublishedTableSpec = {
       typeOID: 25,
       notNull: true,
       dflt: null,
+      elemPgTypeClass: null,
     },
     clientID: {
       pos: 2,
@@ -111,6 +116,7 @@ const ZERO_CLIENTS_SPEC: PublishedTableSpec = {
       typeOID: 25,
       notNull: true,
       dflt: null,
+      elemPgTypeClass: null,
     },
     lastMutationID: {
       pos: 3,
@@ -119,6 +125,7 @@ const ZERO_CLIENTS_SPEC: PublishedTableSpec = {
       typeOID: 20,
       notNull: true,
       dflt: null,
+      elemPgTypeClass: null,
     },
     userID: {
       pos: 4,
@@ -127,6 +134,7 @@ const ZERO_CLIENTS_SPEC: PublishedTableSpec = {
       typeOID: 25,
       notNull: false,
       dflt: null,
+      elemPgTypeClass: null,
     },
   },
   oid: expect.any(Number),
@@ -142,6 +150,7 @@ const REPLICATED_ZERO_SCHEMA_VERSIONS_SPEC: LiteTableSpec = {
       characterMaximumLength: null,
       dataType: 'int4',
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 1,
     },
@@ -149,6 +158,7 @@ const REPLICATED_ZERO_SCHEMA_VERSIONS_SPEC: LiteTableSpec = {
       characterMaximumLength: null,
       dataType: 'int4',
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 2,
     },
@@ -156,6 +166,7 @@ const REPLICATED_ZERO_SCHEMA_VERSIONS_SPEC: LiteTableSpec = {
       characterMaximumLength: null,
       dataType: 'bool|NOT_NULL',
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 3,
     },
@@ -169,6 +180,7 @@ const REPLICATED_ZERO_PERMISSIONS_SPEC: LiteTableSpec = {
       characterMaximumLength: null,
       dataType: 'jsonb',
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 1,
     },
@@ -176,6 +188,7 @@ const REPLICATED_ZERO_PERMISSIONS_SPEC: LiteTableSpec = {
       characterMaximumLength: null,
       dataType: 'TEXT',
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 2,
     },
@@ -183,6 +196,7 @@ const REPLICATED_ZERO_PERMISSIONS_SPEC: LiteTableSpec = {
       characterMaximumLength: null,
       dataType: 'bool|NOT_NULL',
       dflt: null,
+      elemPgTypeClass: null,
       notNull: false,
       pos: 3,
     },
@@ -198,6 +212,7 @@ const REPLICATED_ZERO_CLIENTS_SPEC: LiteTableSpec = {
       dataType: 'text|NOT_NULL',
       notNull: false,
       dflt: null,
+      elemPgTypeClass: null,
     },
     clientID: {
       pos: 2,
@@ -205,6 +220,7 @@ const REPLICATED_ZERO_CLIENTS_SPEC: LiteTableSpec = {
       dataType: 'text|NOT_NULL',
       notNull: false,
       dflt: null,
+      elemPgTypeClass: null,
     },
     lastMutationID: {
       pos: 3,
@@ -212,6 +228,7 @@ const REPLICATED_ZERO_CLIENTS_SPEC: LiteTableSpec = {
       dataType: 'int8|NOT_NULL',
       notNull: false,
       dflt: null,
+      elemPgTypeClass: null,
     },
     userID: {
       pos: 4,
@@ -219,6 +236,7 @@ const REPLICATED_ZERO_CLIENTS_SPEC: LiteTableSpec = {
       dataType: 'TEXT',
       notNull: false,
       dflt: null,
+      elemPgTypeClass: null,
     },
   },
   name: `${APP_ID}_${SHARD_NUM}.clients`,
@@ -334,6 +352,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             orgID: {
               pos: 2,
@@ -342,6 +361,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             isAdmin: {
               pos: 3,
@@ -350,6 +370,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 16,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bigint: {
               pos: 4,
@@ -358,6 +379,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 20,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             timestamp: {
               pos: 5,
@@ -366,6 +388,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 1184,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bytes: {
               pos: 6,
@@ -374,6 +397,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 17,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             intArray: {
               pos: 7,
@@ -382,6 +406,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 1007,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: 'b',
             },
             json: {
               pos: 8,
@@ -390,6 +415,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 114,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             jsonb: {
               pos: 9,
@@ -398,6 +424,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 3802,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             date: {
               pos: 10,
@@ -406,6 +433,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 1082,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             time: {
               pos: 11,
@@ -414,6 +442,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 1083,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             serial: {
               pos: 12,
@@ -429,6 +458,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'enumz',
               typeOID: expect.any(Number),
               dflt: null,
+              elemPgTypeClass: null,
               notNull: false,
             },
             // Confirming: https://www.postgresql.org/docs/current/ddl-generated-columns.html
@@ -449,6 +479,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4',
               typeOID: 23,
               dflt: null,
+              elemPgTypeClass: null,
               notNull: true,
             },
             shortID2: {
@@ -457,6 +488,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4',
               typeOID: 23,
               dflt: null,
+              elemPgTypeClass: null,
               notNull: true,
             },
             num: {
@@ -465,6 +497,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'numeric',
               typeOID: 1700,
               dflt: null,
+              elemPgTypeClass: null,
               notNull: false,
             },
             ['column.with.dots']: {
@@ -473,6 +506,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'text',
               typeOID: 25,
               dflt: null,
+              elemPgTypeClass: null,
               notNull: false,
             },
           },
@@ -493,6 +527,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             orgID: {
               pos: 2,
@@ -500,6 +535,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             isAdmin: {
               pos: 3,
@@ -507,6 +543,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'bool',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bigint: {
               pos: 4,
@@ -514,6 +551,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int8',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             timestamp: {
               pos: 5,
@@ -521,6 +559,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'timestamptz',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bytes: {
               pos: 6,
@@ -528,13 +567,15 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'bytea',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             intArray: {
               pos: 7,
               characterMaximumLength: null,
-              dataType: 'int4[]',
+              dataType: 'int4[]|TEXT_ARRAY',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: 'b',
             },
             json: {
               pos: 8,
@@ -542,6 +583,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'json',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             jsonb: {
               pos: 9,
@@ -549,6 +591,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'jsonb',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             date: {
               pos: 10,
@@ -556,6 +599,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'date',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             time: {
               pos: 11,
@@ -563,6 +607,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'time',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             serial: {
               pos: 12,
@@ -570,12 +615,14 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             enumz: {
               pos: 13,
               characterMaximumLength: null,
               dataType: 'enumz|TEXT_ENUM',
               dflt: null,
+              elemPgTypeClass: null,
               notNull: false,
             },
             shortID: {
@@ -584,6 +631,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             shortID2: {
               pos: 15,
@@ -591,6 +639,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             num: {
               pos: 16,
@@ -598,6 +647,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'numeric',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['column.with.dots']: {
               pos: 17,
@@ -605,6 +655,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 18,
@@ -612,6 +663,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'issues',
@@ -795,6 +847,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 25,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bigint: {
               pos: 2,
@@ -803,6 +856,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 20,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             timestamp: {
               pos: 3,
@@ -811,6 +865,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 1184,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bytes: {
               pos: 4,
@@ -819,6 +874,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 17,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             jsonb: {
               pos: 5,
@@ -827,6 +883,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 3802,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           oid: expect.any(Number),
@@ -846,6 +903,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'text|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bigint: {
               pos: 2,
@@ -853,6 +911,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int8',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             timestamp: {
               pos: 3,
@@ -860,6 +919,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'timestamptz',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             bytes: {
               pos: 4,
@@ -867,6 +927,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'bytea',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             jsonb: {
               pos: 5,
@@ -874,6 +935,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'jsonb',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 6,
@@ -881,6 +943,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'foo',
@@ -970,6 +1033,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             // Note: password is not published
             handle: {
@@ -979,6 +1043,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 25,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           oid: expect.any(Number),
@@ -1000,6 +1065,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             // Note: password is not published
             handle: {
@@ -1008,6 +1074,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 3,
@@ -1015,6 +1082,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'users',
@@ -1109,6 +1177,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             // Note: password is not published
             handle: {
@@ -1118,6 +1187,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 25,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           oid: expect.any(Number),
@@ -1142,6 +1212,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             // Note: password is not published
             handle: {
@@ -1150,6 +1221,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 3,
@@ -1157,6 +1229,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'users',
@@ -1256,6 +1329,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             orgID: {
               pos: 2,
@@ -1264,6 +1338,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             other: {
               pos: 3,
@@ -1272,6 +1347,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 25,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             isAdmin: {
               pos: 4,
@@ -1280,6 +1356,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 16,
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           oid: expect.any(Number),
@@ -1300,6 +1377,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             orgID: {
               pos: 2,
@@ -1307,6 +1385,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             other: {
               pos: 3,
@@ -1314,6 +1393,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             isAdmin: {
               pos: 4,
@@ -1321,6 +1401,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'bool',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 5,
@@ -1328,6 +1409,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'issues',
@@ -1417,6 +1499,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 23,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           oid: expect.any(Number),
@@ -1438,6 +1521,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 2,
@@ -1445,6 +1529,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'giant',
@@ -1529,6 +1614,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 25,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             name: {
               pos: 2,
@@ -1537,6 +1623,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               typeOID: 1043,
               notNull: true,
               dflt: null,
+              elemPgTypeClass: null,
             },
             order: {
               pos: 3,
@@ -1580,6 +1667,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'text|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             name: {
               pos: 2,
@@ -1587,6 +1675,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'varchar|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             order: {
               pos: 3,
@@ -1594,6 +1683,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             createdAt: {
               pos: 4,
@@ -1601,6 +1691,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'timestamp|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             updatedAt: {
               pos: 5,
@@ -1608,6 +1699,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'timestamp|NOT_NULL',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
             ['_0_version']: {
               pos: 6,
@@ -1615,6 +1707,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
               dataType: 'TEXT',
               notNull: false,
               dflt: null,
+              elemPgTypeClass: null,
             },
           },
           name: 'funk',
