@@ -20,7 +20,6 @@ import {
   mapPostgresToLiteIndex,
 } from '../../../db/pg-to-lite.ts';
 import type {IndexSpec, PublishedTableSpec} from '../../../db/specs.ts';
-import {importSnapshot, TransactionPool} from '../../../db/transaction-pool.ts';
 import type {LexiVersion} from '../../../types/lexi-version.ts';
 import {
   JSON_STRINGIFIED,
@@ -268,26 +267,6 @@ async function createReplicationSlot(
   )[0];
   lc.info?.(`Created replication slot ${slotName}`, slot);
   return slot;
-}
-
-function startTableCopyWorkers(
-  lc: LogContext,
-  db: PostgresDB,
-  snapshot: string,
-  numWorkers: number,
-): TransactionPool {
-  const {init} = importSnapshot(snapshot);
-  const tableCopiers = new TransactionPool(
-    lc,
-    Mode.READONLY,
-    init,
-    undefined,
-    numWorkers,
-  );
-  tableCopiers.run(db);
-
-  lc.info?.(`Started ${numWorkers} workers to copy tables`);
-  return tableCopiers;
 }
 
 function createLiteTables(tx: Database, tables: PublishedTableSpec[]) {
