@@ -339,7 +339,9 @@ async function copy(
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
 
   // Preallocate the buffer of values to reduce memory allocation churn.
-  let pendingValues: LiteValueType[] = Array.from({length: MAX_BUFFERED_ROWS});
+  const pendingValues: LiteValueType[] = Array.from({
+    length: MAX_BUFFERED_ROWS,
+  });
   let pendingRows = 0;
   let pendingSize = 0;
 
@@ -381,7 +383,7 @@ async function copy(
     new Writable({
       objectMode: true,
 
-      write: async (
+      write: (
         row: RowTransformOutput,
         _encoding: string,
         callback: (error?: Error) => void,
@@ -411,7 +413,7 @@ async function copy(
         }
       },
 
-      final: async (callback: (error?: Error) => void) => {
+      final: (callback: (error?: Error) => void) => {
         try {
           flush();
           callback();
