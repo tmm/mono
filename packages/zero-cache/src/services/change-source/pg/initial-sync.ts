@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {setDefaultHighWaterMark, Writable} from 'node:stream';
+import {Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {Database} from '../../../../../zqlite/src/db.ts';
@@ -148,8 +148,6 @@ export async function initialSync(
       const numTables = tables.length;
       createLiteTables(tx, tables);
 
-      setDefaultHighWaterMark(false, 8 * MB);
-      setDefaultHighWaterMark(true, MAX_BUFFERED_ROWS);
       const rowCounts = await Promise.all(
         tables.map(table =>
           copyRunner.run((db, lc) =>
