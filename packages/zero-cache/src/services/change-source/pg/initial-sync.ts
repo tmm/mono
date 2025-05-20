@@ -23,7 +23,7 @@ import type {IndexSpec, PublishedTableSpec} from '../../../db/specs.ts';
 import type {LexiVersion} from '../../../types/lexi-version.ts';
 import {
   JSON_STRINGIFIED,
-  liteValues,
+  liteValue,
   type LiteValueType,
 } from '../../../types/lite.ts';
 import {liteTableName} from '../../../types/names.ts';
@@ -370,45 +370,6 @@ async function copy(
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
 
-  const write = async (
-    row: RowTransformOutput,
-    _encoding: string,
-    callback: (error?: Error) => void,
-  ) => {
-    try {
-      const vals = liteValues(row.values, columnSpecs, JSON_STRINGIFIED);
-      let i = 0;
-      for (; i < vals.length; i++) {
-        pendingValues[pendingRows * valuesPerRow + i] = vals[i];
-      }
-      pendingValues[pendingRows * valuesPerRow + i] = initialVersion;
-
-      pendingRows++;
-      pendingSize += row.size;
-      if (
-        pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
-        pendingSize >= BUFFERED_SIZE_THRESHOLD
-      ) {
-        const values = pendingValues;
-        const rows = pendingRows;
-        const size = pendingSize;
-
-        // Allocate a new array for the next batch.
-        pendingValues = Array.from({length: MAX_BUFFERED_ROWS});
-        pendingRows = 0;
-        pendingSize = 0;
-
-        // Wait for the last flush to finish.
-        await lastFlush;
-        // Then schedule the next to start in the next tick.
-        lastFlush = runAfterIO(() => flush(values, rows, size));
-      }
-      callback();
-    } catch (e) {
-      callback(e instanceof Error ? e : new Error(String(e)));
-    }
-  };
-
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
     new TextTransform(),
@@ -416,21 +377,53 @@ async function copy(
     new Writable({
       objectMode: true,
 
-      writev: async (
-        chunks: {chunk: RowTransformOutput; encoding: BufferEncoding}[],
+      write: async (
+        row: RowTransformOutput,
+        _encoding: string,
         callback: (error?: Error) => void,
       ) => {
-        lc.debug?.(`received ${chunks.length} rows to write`);
-        for (const {chunk, encoding} of chunks) {
-          await write(chunk, encoding, () => {});
+        try {
+          let i = 0;
+          for (; i < row.values.length; i++) {
+            pendingValues[pendingRows * valuesPerRow + i] = liteValue(
+              row.values[i],
+              columnSpecs[i].dataType,
+              JSON_STRINGIFIED,
+            );
+          }
+          pendingValues[pendingRows * valuesPerRow + i] = initialVersion;
+
+          pendingRows++;
+          pendingSize += row.size;
+          if (
+            pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
+            pendingSize >= BUFFERED_SIZE_THRESHOLD
+          ) {
+            const values = pendingValues;
+            const rows = pendingRows;
+            const size = pendingSize;
+
+            // Allocate a new array for the next batch.
+            pendingValues = Array.from({length: MAX_BUFFERED_ROWS});
+            pendingRows = 0;
+            pendingSize = 0;
+
+            // Wait for the last flush to finish.
+            await lastFlush;
+            // Then schedule the flush to start after responding to I/O callbacks
+            // to receive more data.
+            lastFlush = runAfterIO(() => flush(values, rows, size));
+          }
+          callback();
+        } catch (e) {
+          callback(e instanceof Error ? e : new Error(String(e)));
         }
-        callback();
       },
 
       final: async (callback: (error?: Error) => void) => {
         try {
           await lastFlush;
-          await flush(pendingValues, pendingRows, pendingSize);
+          flush(pendingValues, pendingRows, pendingSize);
           callback();
         } catch (e) {
           callback(e instanceof Error ? e : new Error(String(e)));
@@ -449,17 +442,13 @@ async function copy(
 
 function runAfterIO(fn: () => void): Promise<void> {
   return new Promise((resolve, reject) => {
-    setTimeout(
-      () =>
-        setImmediate(() => {
-          try {
-            fn();
-            resolve();
-          } catch (e) {
-            reject(e);
-          }
-        }),
-      0,
-    );
+    setImmediate(() => {
+      try {
+        fn();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    });
   });
 }
