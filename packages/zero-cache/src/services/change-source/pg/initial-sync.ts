@@ -288,7 +288,7 @@ function createLiteIndices(tx: Database, indices: IndexSpec[]) {
 export const INSERT_BATCH_SIZE = 50;
 
 const MB = 1024 * 1024;
-const BUFFERED_ROWS_THRESHOLD = 10_000;
+const MAX_BUFFERED_ROWS = 10_000;
 const BUFFERED_SIZE_THRESHOLD = 8 * MB;
 
 async function copy(
@@ -334,21 +334,24 @@ async function copy(
 
   const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
-  let pendingValues: LiteValueType[] = [];
+
+  // Preallocate the buffer of values to reduce memory allocation churn.
+  let pendingValues: LiteValueType[] = Array.from({length: MAX_BUFFERED_ROWS});
   let pendingRows = 0;
   let pendingSize = 0;
 
-  function flush(values: LiteValueType[], rows: number, size: number) {
+  // eslint-disable-next-line require-await
+  async function flush(values: LiteValueType[], rows: number, size: number) {
     const start = performance.now();
     const total = rows;
 
-    let l = 0;
     for (; rows > INSERT_BATCH_SIZE; rows -= INSERT_BATCH_SIZE) {
-      insertBatchStmt.run(values.slice(l, (l += valuesPerBatch)));
+      insertBatchStmt.run(values.slice(0, valuesPerBatch));
+      values = values.slice(valuesPerBatch); // Allow earlier values to be GC'ed
       totalRows += INSERT_BATCH_SIZE;
     }
     // Insert the remaining rows individually.
-    for (; rows > 0; rows--) {
+    for (let l = 0; rows > 0; rows--) {
       insertStmt.run(values.slice(l, (l += valuesPerRow)));
       totalRows++;
     }
@@ -379,20 +382,25 @@ async function copy(
         callback: (error?: Error) => void,
       ) => {
         try {
-          pendingValues.push(
-            ...liteValues(row.values, columnSpecs, JSON_STRINGIFIED),
-            initialVersion,
-          );
+          const vals = liteValues(row.values, columnSpecs, JSON_STRINGIFIED);
+          let i = 0;
+          for (; i < vals.length; i++) {
+            pendingValues[pendingRows * valuesPerRow + i] = vals[i];
+          }
+          pendingValues[pendingRows * valuesPerRow + i] = initialVersion;
+
           pendingRows++;
           pendingSize += row.size;
           if (
-            pendingRows >= BUFFERED_ROWS_THRESHOLD ||
+            pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
             pendingSize >= BUFFERED_SIZE_THRESHOLD
           ) {
             const values = pendingValues;
             const rows = pendingRows;
             const size = pendingSize;
-            pendingValues = [];
+
+            // Allocate a new array for the next batch.
+            pendingValues = Array.from({length: MAX_BUFFERED_ROWS});
             pendingRows = 0;
             pendingSize = 0;
 
@@ -410,7 +418,7 @@ async function copy(
       final: async (callback: (error?: Error) => void) => {
         try {
           await lastFlush;
-          flush(pendingValues, pendingRows, pendingSize);
+          await flush(pendingValues, pendingRows, pendingSize);
           callback();
         } catch (e) {
           callback(e instanceof Error ? e : new Error(String(e)));
@@ -427,15 +435,19 @@ async function copy(
   return totalRows;
 }
 
-function runAfterIO(fn: () => void): Promise<void> {
+function runAfterIO(fn: () => Promise<void>): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    setTimeout(() => {
-      try {
-        fn();
-        resolve();
-      } catch (e) {
-        reject(e);
-      }
-    }, 0);
+    setTimeout(
+      () =>
+        setImmediate(async () => {
+          try {
+            await fn();
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        }),
+      0,
+    );
   });
 }
