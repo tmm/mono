@@ -3,7 +3,6 @@ import type {LogContext} from '@rocicorp/logger';
 import {setDefaultHighWaterMark, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
-import {promiseVoid} from '../../../../../shared/src/resolved-promises.ts';
 import {Database} from '../../../../../zqlite/src/db.ts';
 import {
   createIndexStatement,
@@ -43,7 +42,7 @@ import {
 import {CopyRunner} from './copy-runner.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
-import {getPublicationInfo, type PublicationInfo} from './schema/published.ts';
+import {getPublicationInfo} from './schema/published.ts';
 import {
   addReplica,
   dropShard,
@@ -120,8 +119,6 @@ export async function initialSync(
 
     // Run up to MAX_WORKERS to copy of tables at the replication slot's snapshot.
     const start = performance.now();
-    let numTables: number;
-    let numRows: number;
     const copyRunner = new CopyRunner(
       lc,
       () =>
@@ -137,10 +134,9 @@ export async function initialSync(
       numWorkers,
       snapshot,
     );
-    let published: PublicationInfo;
     try {
       // Retrieve the published schema at the consistent_point.
-      published = await sql.begin(Mode.READONLY, async tx => {
+      const published = await sql.begin(Mode.READONLY, async tx => {
         await tx.unsafe(/* sql*/ `SET TRANSACTION SNAPSHOT '${snapshot}'`);
         return getPublicationInfo(tx, publications);
       });
@@ -149,7 +145,7 @@ export async function initialSync(
 
       // Now that tables have been validated, kick off the copiers.
       const {tables, indexes} = published;
-      numTables = tables.length;
+      const numTables = tables.length;
       createLiteTables(tx, tables);
 
       setDefaultHighWaterMark(false, 8 * MB);
@@ -161,24 +157,29 @@ export async function initialSync(
           ),
         ),
       );
-      numRows = rowCounts.reduce((sum, count) => sum + count, 0);
+      const total = rowCounts.reduce(
+        (acc, curr) => ({
+          rows: acc.rows + curr.rows,
+          flushTime: acc.flushTime + curr.flushTime,
+        }),
+        {rows: 0, flushTime: 0},
+      );
 
       const indexStart = performance.now();
       createLiteIndices(tx, indexes);
+      const index = performance.now() - indexStart;
+      lc.info?.(`Created indexes (${index.toFixed(3)} ms)`);
+
+      await addReplica(sql, shard, slotName, initialVersion, published);
+
+      const elapsed = performance.now() - start;
       lc.info?.(
-        `Created indexes (${(performance.now() - indexStart).toFixed(3)} ms)`,
+        `Synced ${total.rows.toLocaleString()} rows of ${numTables} tables in ${publications} up to ${lsn} ` +
+          `(flush: ${total.flushTime.toFixed(3)}, index: ${index.toFixed(3)}, total: ${elapsed.toFixed(3)} ms)`,
       );
     } finally {
       copyRunner.close();
     }
-
-    await addReplica(sql, shard, slotName, initialVersion, published);
-
-    lc.info?.(
-      `Synced ${numRows.toLocaleString()} rows of ${numTables} tables in ${publications} up to ${lsn} (${(
-        performance.now() - start
-      ).toFixed(3)} ms)`,
-    );
   } catch (e) {
     // If initial-sync did not succeed, make a best effort to drop the
     // orphaned replication slot to avoid running out of slots in
@@ -302,7 +303,9 @@ async function copy(
   initialVersion: LexiVersion,
 ) {
   const start = performance.now();
-  let totalRows = 0;
+  let rows = 0;
+  let flushTime = 0;
+
   const tableName = liteTableName(table);
   const orderedColumns = Object.entries(table.columns);
 
@@ -342,31 +345,34 @@ async function copy(
   let pendingRows = 0;
   let pendingSize = 0;
 
-  function flush(values: LiteValueType[], rows: number, size: number) {
+  function flush() {
     const start = performance.now();
-    const total = rows;
+    const totalRows = pendingRows;
+    const totalSize = pendingSize;
 
     let l = 0;
-    for (; rows > INSERT_BATCH_SIZE; rows -= INSERT_BATCH_SIZE) {
-      insertBatchStmt.run(values.slice(l, (l += valuesPerBatch)));
-      totalRows += INSERT_BATCH_SIZE;
+    for (; pendingRows > INSERT_BATCH_SIZE; pendingRows -= INSERT_BATCH_SIZE) {
+      insertBatchStmt.run(pendingValues.slice(l, (l += valuesPerBatch)));
     }
     // Insert the remaining rows individually.
-    for (; rows > 0; rows--) {
-      insertStmt.run(values.slice(l, (l += valuesPerRow)));
-      totalRows++;
+    for (; pendingRows > 0; pendingRows--) {
+      insertStmt.run(pendingValues.slice(l, (l += valuesPerRow)));
     }
+    for (let i = 0; i < totalRows; i++) {
+      // Reuse the array and unreference the values to allow GC.
+      // This is faster than allocating a new array every time.
+      pendingValues[i] = undefined as unknown as LiteValueType;
+    }
+    pendingSize = 0;
+    rows += totalRows;
+
+    const elapsed = performance.now() - start;
+    flushTime += elapsed;
+
     lc.debug?.(
-      `flushed ${total} ${tableName} rows (${size} bytes) in ${(performance.now() - start).toFixed(3)} ms`,
+      `flushed ${totalRows} ${tableName} rows (${totalSize} bytes) in ${elapsed.toFixed(3)} ms`,
     );
   }
-
-  // Each flush is scheduled to runAfterIO(), or specifically, after the
-  // stream `callback` is invoked, to signal Postgres to send more data
-  // *before* blocking the CPU to flush the rows to the replica. This
-  // essentially allows the CPU latency of the SQLite operation to overlap
-  // with the I/O latency of receiving data from upstream.
-  let lastFlush = promiseVoid;
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
 
@@ -399,20 +405,7 @@ async function copy(
             pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
             pendingSize >= BUFFERED_SIZE_THRESHOLD
           ) {
-            const values = pendingValues;
-            const rows = pendingRows;
-            const size = pendingSize;
-
-            // Allocate a new array for the next batch.
-            pendingValues = Array.from({length: MAX_BUFFERED_ROWS});
-            pendingRows = 0;
-            pendingSize = 0;
-
-            // Wait for the last flush to finish.
-            await lastFlush;
-            // Then schedule the flush to start after responding to I/O callbacks
-            // to receive more data.
-            lastFlush = runAfterIO(() => flush(values, rows, size));
+            flush();
           }
           callback();
         } catch (e) {
@@ -422,8 +415,7 @@ async function copy(
 
       final: async (callback: (error?: Error) => void) => {
         try {
-          await lastFlush;
-          flush(pendingValues, pendingRows, pendingSize);
+          flush();
           callback();
         } catch (e) {
           callback(e instanceof Error ? e : new Error(String(e)));
@@ -432,23 +424,10 @@ async function copy(
     }),
   );
 
+  const elapsed = performance.now() - start;
   lc.info?.(
-    `Finished copying ${totalRows} rows into ${tableName} (${(
-      performance.now() - start
-    ).toFixed(3)} ms)`,
+    `Finished copying ${rows} rows into ${tableName} ` +
+      `(flush: ${flushTime.toFixed(3)} ms) (total: ${elapsed.toFixed(3)} ms) `,
   );
-  return totalRows;
-}
-
-function runAfterIO(fn: () => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    setImmediate(() => {
-      try {
-        fn();
-        resolve();
-      } catch (e) {
-        reject(e);
-      }
-    });
-  });
+  return {rows, flushTime};
 }
