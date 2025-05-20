@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Writable} from 'node:stream';
+import {setDefaultHighWaterMark, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {promiseVoid} from '../../../../../shared/src/resolved-promises.ts';
@@ -152,6 +152,8 @@ export async function initialSync(
       numTables = tables.length;
       createLiteTables(tx, tables);
 
+      setDefaultHighWaterMark(false, 8 * MB);
+      setDefaultHighWaterMark(true, MAX_BUFFERED_ROWS);
       const rowCounts = await Promise.all(
         tables.map(table =>
           copyRunner.run((db, lc) =>
@@ -340,8 +342,7 @@ async function copy(
   let pendingRows = 0;
   let pendingSize = 0;
 
-  // eslint-disable-next-line require-await
-  async function flush(values: LiteValueType[], rows: number, size: number) {
+  function flush(values: LiteValueType[], rows: number, size: number) {
     const start = performance.now();
     const total = rows;
 
@@ -349,7 +350,6 @@ async function copy(
       insertBatchStmt.run(values.slice(0, valuesPerBatch));
       values = values.slice(valuesPerBatch); // Allow earlier values to be GC'ed
       totalRows += INSERT_BATCH_SIZE;
-      await nextTickAfterIO();
     }
     // Insert the remaining rows individually.
     for (let l = 0; rows > 0; rows--) {
@@ -370,50 +370,61 @@ async function copy(
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
 
+  const write = async (
+    row: RowTransformOutput,
+    _encoding: string,
+    callback: (error?: Error) => void,
+  ) => {
+    try {
+      const vals = liteValues(row.values, columnSpecs, JSON_STRINGIFIED);
+      let i = 0;
+      for (; i < vals.length; i++) {
+        pendingValues[pendingRows * valuesPerRow + i] = vals[i];
+      }
+      pendingValues[pendingRows * valuesPerRow + i] = initialVersion;
+
+      pendingRows++;
+      pendingSize += row.size;
+      if (
+        pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
+        pendingSize >= BUFFERED_SIZE_THRESHOLD
+      ) {
+        const values = pendingValues;
+        const rows = pendingRows;
+        const size = pendingSize;
+
+        // Allocate a new array for the next batch.
+        pendingValues = Array.from({length: MAX_BUFFERED_ROWS});
+        pendingRows = 0;
+        pendingSize = 0;
+
+        // Wait for the last flush to finish.
+        await lastFlush;
+        // Then schedule the next to start in the next tick.
+        lastFlush = runAfterIO(() => flush(values, rows, size));
+      }
+      callback();
+    } catch (e) {
+      callback(e instanceof Error ? e : new Error(String(e)));
+    }
+  };
+
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-    new TextTransform(),
+    new TextTransform(lc),
     await RowTransform.create(dbClient, columnSpecs),
     new Writable({
       objectMode: true,
 
-      write: async (
-        row: RowTransformOutput,
-        _encoding: string,
+      writev: async (
+        chunks: {chunk: RowTransformOutput; encoding: BufferEncoding}[],
         callback: (error?: Error) => void,
       ) => {
-        try {
-          const vals = liteValues(row.values, columnSpecs, JSON_STRINGIFIED);
-          let i = 0;
-          for (; i < vals.length; i++) {
-            pendingValues[pendingRows * valuesPerRow + i] = vals[i];
-          }
-          pendingValues[pendingRows * valuesPerRow + i] = initialVersion;
-
-          pendingRows++;
-          pendingSize += row.size;
-          if (
-            pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
-            pendingSize >= BUFFERED_SIZE_THRESHOLD
-          ) {
-            const values = pendingValues;
-            const rows = pendingRows;
-            const size = pendingSize;
-
-            // Allocate a new array for the next batch.
-            pendingValues = Array.from({length: MAX_BUFFERED_ROWS});
-            pendingRows = 0;
-            pendingSize = 0;
-
-            // Wait for the last flush to finish.
-            await lastFlush;
-            // Then schedule the next to start in the next tick.
-            lastFlush = runAfterIO(() => flush(values, rows, size));
-          }
-          callback();
-        } catch (e) {
-          callback(e instanceof Error ? e : new Error(String(e)));
+        lc.debug?.(`received ${chunks.length} rows to write`);
+        for (const {chunk, encoding} of chunks) {
+          await write(chunk, encoding, () => {});
         }
+        callback();
       },
 
       final: async (callback: (error?: Error) => void) => {
@@ -436,12 +447,19 @@ async function copy(
   return totalRows;
 }
 
-function runAfterIO(fn: () => Promise<void>): Promise<void> {
+function runAfterIO(fn: () => void): Promise<void> {
   return new Promise((resolve, reject) => {
-    setTimeout(() => setImmediate(() => fn().then(resolve, reject)), 0);
+    setTimeout(
+      () =>
+        setImmediate(() => {
+          try {
+            fn();
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        }),
+      0,
+    );
   });
-}
-
-function nextTickAfterIO(): Promise<void> {
-  return new Promise(resolve => setTimeout(() => setImmediate(resolve), 0));
 }

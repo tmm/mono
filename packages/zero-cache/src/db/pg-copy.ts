@@ -1,3 +1,4 @@
+import type {LogContext} from '@rocicorp/logger';
 import {Transform} from 'node:stream';
 import {assert, assertArray} from '../../../shared/src/asserts.ts';
 import type {JSONValue} from '../types/bigint-json.ts';
@@ -12,12 +13,14 @@ import {getTypeParsers, type TypeParser} from './pg-type-parser.ts';
  * transform, so the next step in the pipeline is free to modify it directly.
  */
 export class TextTransform extends Transform {
+  readonly #lc: LogContext;
   #currRow: (string | null)[] = [];
   #currCol: string = '';
   #escaped = false;
 
-  constructor() {
+  constructor(lc: LogContext) {
     super({objectMode: true});
+    this.#lc = lc;
   }
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -26,6 +29,7 @@ export class TextTransform extends Transform {
     encoding: BufferEncoding,
     callback: (e?: Error) => void,
   ) {
+    let rows = 0;
     try {
       const text = chunk.toString(encoding);
 
@@ -76,12 +80,14 @@ export class TextTransform extends Transform {
               // Row is also done on \n
               this.push(this.#currRow);
               this.#currRow = [];
+              rows++;
             }
             break;
         }
       }
       // flush segment
       l < r && (this.#currCol += text.substring(l, r));
+      this.#lc.debug?.(`parsed ${rows} rows from ${chunk.length} bytes`);
       callback();
     } catch (e) {
       callback(e instanceof Error ? e : new Error(String(e)));
