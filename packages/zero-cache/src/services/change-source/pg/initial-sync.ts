@@ -346,13 +346,13 @@ async function copy(
     const start = performance.now();
     const total = rows;
 
+    let l = 0;
     for (; rows > INSERT_BATCH_SIZE; rows -= INSERT_BATCH_SIZE) {
-      insertBatchStmt.run(values.slice(0, valuesPerBatch));
-      values = values.slice(valuesPerBatch); // Allow earlier values to be GC'ed
+      insertBatchStmt.run(values.slice(l, (l += valuesPerBatch)));
       totalRows += INSERT_BATCH_SIZE;
     }
     // Insert the remaining rows individually.
-    for (let l = 0; rows > 0; rows--) {
+    for (; rows > 0; rows--) {
       insertStmt.run(values.slice(l, (l += valuesPerRow)));
       totalRows++;
     }
