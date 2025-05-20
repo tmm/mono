@@ -411,7 +411,7 @@ async function copy(
 
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-    new TextTransform(lc),
+    new TextTransform(),
     await RowTransform.create(dbClient, columnSpecs),
     new Writable({
       objectMode: true,
