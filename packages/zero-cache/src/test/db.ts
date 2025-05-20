@@ -24,6 +24,8 @@ const defaultOnNotice: OnNoticeFn = n => {
   n.severity !== 'NOTICE' && console.log(n);
 };
 
+process.env['SINGLE_PROCESS'] = '1';
+
 class TestDBs {
   readonly sql = postgres(CONNECTION_URI, {
     onnotice: n => n.severity !== 'NOTICE' && console.log(n),

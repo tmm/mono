@@ -1,8 +1,10 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Writable} from 'node:stream';
+import {resolver} from '@rocicorp/resolver';
+import {Readable, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
+import {must} from '../../../../../shared/src/must.ts';
 import {Database} from '../../../../../zqlite/src/db.ts';
 import {
   createIndexStatement,
@@ -26,11 +28,8 @@ import {
   type LiteValueType,
 } from '../../../types/lite.ts';
 import {liteTableName} from '../../../types/names.ts';
-import {
-  pgClient,
-  type PostgresDB,
-  type PostgresTransaction,
-} from '../../../types/pg.ts';
+import {pgClient, type PostgresDB} from '../../../types/pg.ts';
+import {childWorker} from '../../../types/processes.ts';
 import type {ShardConfig} from '../../../types/shards.ts';
 import {ALLOWED_APP_ID_CHARACTERS} from '../../../types/shards.ts';
 import {id} from '../../../types/sql.ts';
@@ -40,6 +39,11 @@ import {
   ZERO_VERSION_COLUMN_NAME,
 } from '../../replicator/schema/replication-state.ts';
 import {CopyRunner} from './copy-runner.ts';
+import type {
+  CopyDoneMessage,
+  CopyMessage,
+  RowsMessage,
+} from './copy-streamer.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
 import {getPublicationInfo} from './schema/published.ts';
@@ -118,6 +122,23 @@ export async function initialSync(
     initChangeLog(tx);
 
     // Run up to MAX_WORKERS to copy of tables at the replication slot's snapshot.
+    const t0 = performance.now();
+    const {promise: streamerReady, resolve} = resolver();
+    lc.debug?.('starting copy-streamer');
+    const copyStreamer = childWorker(
+      './services/change-source/pg/copy-streamer.ts',
+      undefined,
+      snapshot,
+      '--upstream-db',
+      upstreamURI,
+      '--replica-file',
+      'foo',
+    ).once('message', resolve);
+    await streamerReady;
+    lc.info?.(
+      `copy streamer ready (${(performance.now() - t0).toFixed(3)} ms)`,
+    );
+
     const start = performance.now();
     const copyRunner = new CopyRunner(
       lc,
@@ -148,13 +169,45 @@ export async function initialSync(
       const numTables = tables.length;
       createLiteTables(tx, tables);
 
-      const rowCounts = await Promise.all(
-        tables.map(table =>
-          copyRunner.run((db, lc) =>
-            copy(lc, table, typeClient, db, tx, initialVersion),
-          ),
-        ),
+      const streams = new Map(
+        tables.map(t => [
+          liteTableName(t),
+          new Readable({objectMode: true, read: () => {}}),
+        ]),
       );
+      copyStreamer.onMessageType<RowsMessage>('rows', ({table, buffers}) => {
+        const stream = must(streams.get(table));
+        for (const buffer of buffers) {
+          stream.push(buffer);
+        }
+      });
+      copyStreamer.onMessageType<CopyDoneMessage>('copyDone', ({table}) => {
+        must(streams.get(table)).push(null);
+        streams.delete(table);
+      });
+
+      const appliers = tables.map(
+        table =>
+          // copyRunner.run((db, lc) =>
+          copy(
+            lc,
+            table,
+            typeClient,
+            must(streams.get(liteTableName(table))),
+            tx,
+            initialVersion,
+          ),
+        // ),
+      );
+      tables.forEach(table =>
+        copyStreamer.send<CopyMessage>([
+          'copy',
+          {table: liteTableName(table), query: getCopyQuery(table)},
+        ]),
+      );
+      const rowCounts = await Promise.all(appliers);
+      copyStreamer.send(['stop', {}]);
+
       const total = rowCounts.reduce(
         (acc, curr) => ({
           rows: acc.rows + curr.rows,
@@ -292,11 +345,26 @@ const MB = 1024 * 1024;
 const MAX_BUFFERED_ROWS = 10_000;
 const BUFFERED_SIZE_THRESHOLD = 8 * MB;
 
+function getCopyQuery(table: PublishedTableSpec) {
+  const orderedColumns = Object.entries(table.columns);
+  const selectColumns = orderedColumns.map(([c]) => id(c)).join(',');
+  const filterConditions = Object.values(table.publications)
+    .map(({rowFilter}) => rowFilter)
+    .filter(f => !!f); // remove nulls
+  const selectStmt =
+    /*sql*/ `
+    SELECT ${selectColumns} FROM ${id(table.schema)}.${id(table.name)}` +
+    (filterConditions.length === 0
+      ? ''
+      : /*sql*/ ` WHERE ${filterConditions.join(' OR ')}`);
+  return `COPY (${selectStmt}) TO STDOUT`;
+}
+
 async function copy(
   lc: LogContext,
   table: PublishedTableSpec,
   dbClient: PostgresDB,
-  from: PostgresTransaction,
+  from: Readable,
   to: Database,
   initialVersion: LexiVersion,
 ) {
@@ -339,7 +407,9 @@ async function copy(
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
 
   // Preallocate the buffer of values to reduce memory allocation churn.
-  let pendingValues: LiteValueType[] = Array.from({length: MAX_BUFFERED_ROWS});
+  const pendingValues: LiteValueType[] = Array.from({
+    length: MAX_BUFFERED_ROWS,
+  });
   let pendingRows = 0;
   let pendingSize = 0;
 
@@ -364,24 +434,28 @@ async function copy(
     pendingSize = 0;
     rows += totalRows;
 
-    const elapsed = performance.now() - start;
+    const end = performance.now();
+    const elapsed = end - start;
     flushTime += elapsed;
 
     lc.debug?.(
       `flushed ${totalRows} ${tableName} rows (${totalSize} bytes) in ${elapsed.toFixed(3)} ms`,
+      start,
+      end,
     );
   }
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
 
   await pipeline(
-    await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
+    // await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
+    from,
     new TextTransform(),
     await RowTransform.create(dbClient, columnSpecs),
     new Writable({
       objectMode: true,
 
-      write: async (
+      write: (
         row: RowTransformOutput,
         _encoding: string,
         callback: (error?: Error) => void,
@@ -411,7 +485,7 @@ async function copy(
         }
       },
 
-      final: async (callback: (error?: Error) => void) => {
+      final: (callback: (error?: Error) => void) => {
         try {
           flush();
           callback();

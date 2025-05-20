@@ -24,6 +24,10 @@ export const MESSAGE_TYPES = {
   subscribe: 'subscribe',
   notify: 'notify',
   ready: 'ready',
+  copy: 'copy',
+  rows: 'rows',
+  copyDone: 'copyDone',
+  stop: 'stop',
 } as const;
 
 export type Message<Payload> = [keyof typeof MESSAGE_TYPES, Payload];
