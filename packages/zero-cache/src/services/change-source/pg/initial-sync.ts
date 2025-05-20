@@ -349,6 +349,7 @@ async function copy(
       insertBatchStmt.run(values.slice(0, valuesPerBatch));
       values = values.slice(valuesPerBatch); // Allow earlier values to be GC'ed
       totalRows += INSERT_BATCH_SIZE;
+      await nextTickAfterIO();
     }
     // Insert the remaining rows individually.
     for (let l = 0; rows > 0; rows--) {
@@ -436,18 +437,11 @@ async function copy(
 }
 
 function runAfterIO(fn: () => Promise<void>): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    setTimeout(
-      () =>
-        setImmediate(async () => {
-          try {
-            await fn();
-            resolve();
-          } catch (e) {
-            reject(e);
-          }
-        }),
-      0,
-    );
+  return new Promise((resolve, reject) => {
+    setTimeout(() => setImmediate(() => fn().then(resolve, reject)), 0);
   });
+}
+
+function nextTickAfterIO(): Promise<void> {
+  return new Promise(resolve => setTimeout(() => setImmediate(resolve), 0));
 }
