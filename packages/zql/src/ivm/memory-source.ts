@@ -251,27 +251,29 @@ export class MemorySource implements Source {
     const conn = this.#connections[callingConnectionIndex];
     const {sort: requestedSort} = conn;
 
-    // If there is a constraint, we need an index sorted by it first.
-    const indexSort: OrderPart[] = [];
-    if (req.constraint) {
-      for (const key of Object.keys(req.constraint)) {
-        indexSort.push([key, 'asc']);
-      }
-    }
-
     const pkConstraint = primaryKeyConstraintFromFilters(
       conn.filters?.condition,
       this.#primaryKey,
     );
+    // The primary key constraint will be more limiting than the constraint
+    // so swap out to that if it exists.
+    const fetchOrPkConstraint = pkConstraint ?? req.constraint;
+
+    // If there is a constraint, we need an index sorted by it first.
+    const indexSort: OrderPart[] = [];
+    if (fetchOrPkConstraint) {
+      for (const key of Object.keys(fetchOrPkConstraint)) {
+        indexSort.push([key, 'asc']);
+      }
+    }
 
     // For the special case of constraining by PK, we don't need to worry about
     // any requested sort since there can only be one result. Otherwise we also
     // need the index sorted by the requested sort.
     if (
       this.#primaryKey.length > 1 ||
-      !req.constraint ||
-      (!constraintMatchesPrimaryKey(req.constraint, this.#primaryKey) &&
-        !pkConstraint)
+      !fetchOrPkConstraint ||
+      !constraintMatchesPrimaryKey(fetchOrPkConstraint, this.#primaryKey)
     ) {
       indexSort.push(...requestedSort);
     }
@@ -294,14 +296,12 @@ export class MemorySource implements Source {
     // comparator accomplishes this. The right thing is probably to teach the
     // btree library to support this concept.
     let scanStart: RowBound | undefined;
-    // The primary key constraint will be more limiting than the constraint
-    // so swap out to that if it exists.
-    const constraint = pkConstraint ?? req.constraint;
-    if (constraint) {
+
+    if (fetchOrPkConstraint) {
       scanStart = {};
       for (const [key, dir] of indexSort) {
-        if (hasOwn(constraint, key)) {
-          scanStart[key] = constraint[key];
+        if (hasOwn(fetchOrPkConstraint, key)) {
+          scanStart[key] = fetchOrPkConstraint[key];
         } else {
           if (req.reverse) {
             scanStart[key] = dir === 'asc' ? maxValue : minValue;
@@ -318,6 +318,9 @@ export class MemorySource implements Source {
     const withOverlay = generateWithOverlay(
       startAt,
       pkConstraint ? once(rowsIterable) : rowsIterable,
+      // use `req.constraint` here and not `fetchOrPkConstraint` since `fetchOrPkConstraint` could be the
+      // primary key constraint. The primary key constraint comes from filters and is acting as a filter
+      // rather than as the fetch constraint.
       req.constraint,
       this.#overlay,
       this.#splitEditOverlay,
@@ -328,6 +331,8 @@ export class MemorySource implements Source {
 
     const withConstraint = generateWithConstraint(
       generateWithStart(withOverlay, req.start, comparator),
+      // we use `req.constraint` and not `fetchOrPkConstraint` here because we need to
+      // AND the constraint with what could have been the primary key constraint
       req.constraint,
     );
 
