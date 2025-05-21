@@ -9,15 +9,12 @@ import {
   createTableStatement,
 } from '../../../db/create.ts';
 import * as Mode from '../../../db/mode-enum.ts';
-import {
-  RowTransform,
-  TextTransform,
-  type RowTransformOutput,
-} from '../../../db/pg-copy.ts';
+import {NULL_BYTE, TextTransform} from '../../../db/pg-copy.ts';
 import {
   mapPostgresToLite,
   mapPostgresToLiteIndex,
 } from '../../../db/pg-to-lite.ts';
+import {getTypeParsers} from '../../../db/pg-type-parser.ts';
 import type {IndexSpec, PublishedTableSpec} from '../../../db/specs.ts';
 import type {LexiVersion} from '../../../types/lexi-version.ts';
 import {
@@ -30,6 +27,7 @@ import {
   pgClient,
   type PostgresDB,
   type PostgresTransaction,
+  type PostgresValueType,
 } from '../../../types/pg.ts';
 import type {ShardConfig} from '../../../types/shards.ts';
 import {ALLOWED_APP_ID_CHARACTERS} from '../../../types/shards.ts';
@@ -340,15 +338,15 @@ async function copy(
 
   // Preallocate the buffer of values to reduce memory allocation churn.
   const pendingValues: LiteValueType[] = Array.from({
-    length: MAX_BUFFERED_ROWS,
+    length: MAX_BUFFERED_ROWS * valuesPerRow,
   });
   let pendingRows = 0;
   let pendingSize = 0;
 
   function flush() {
     const start = performance.now();
-    const totalRows = pendingRows;
-    const totalSize = pendingSize;
+    const flushedRows = pendingRows;
+    const flushedSize = pendingSize;
 
     let l = 0;
     for (; pendingRows > INSERT_BATCH_SIZE; pendingRows -= INSERT_BATCH_SIZE) {
@@ -358,54 +356,63 @@ async function copy(
     for (; pendingRows > 0; pendingRows--) {
       insertStmt.run(pendingValues.slice(l, (l += valuesPerRow)));
     }
-    for (let i = 0; i < totalRows; i++) {
+    for (let i = 0; i < flushedRows; i++) {
       // Reuse the array and unreference the values to allow GC.
       // This is faster than allocating a new array every time.
       pendingValues[i] = undefined as unknown as LiteValueType;
     }
     pendingSize = 0;
-    rows += totalRows;
+    rows += flushedRows;
 
     const elapsed = performance.now() - start;
     flushTime += elapsed;
-
     lc.debug?.(
-      `flushed ${totalRows} ${tableName} rows (${totalSize} bytes) in ${elapsed.toFixed(3)} ms`,
+      `flushed ${flushedRows} ${tableName} rows (${flushedSize} bytes) in ${elapsed.toFixed(3)} ms`,
     );
   }
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
+  const pgParsers = await getTypeParsers(dbClient);
+  const parsers = columnSpecs.map(c => {
+    const pgParse = pgParsers.getTypeParser(c.typeOID);
+    return (val: string) =>
+      val === NULL_BYTE
+        ? null
+        : liteValue(
+            pgParse(val) as PostgresValueType,
+            c.dataType,
+            JSON_STRINGIFIED,
+          );
+  });
+
+  let col = 0;
 
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
     new TextTransform(),
-    await RowTransform.create(dbClient, columnSpecs),
     new Writable({
       objectMode: true,
 
       write: (
-        row: RowTransformOutput,
+        text: string,
         _encoding: string,
         callback: (error?: Error) => void,
       ) => {
         try {
-          let i = 0;
-          for (; i < row.values.length; i++) {
-            pendingValues[pendingRows * valuesPerRow + i] = liteValue(
-              row.values[i],
-              columnSpecs[i].dataType,
-              JSON_STRINGIFIED,
-            );
-          }
-          pendingValues[pendingRows * valuesPerRow + i] = initialVersion;
+          // Give every value at least 4 bytes.
+          pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
+          pendingValues[pendingRows * valuesPerRow + col] = parsers[col](text);
 
-          pendingRows++;
-          pendingSize += row.size;
-          if (
-            pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
-            pendingSize >= BUFFERED_SIZE_THRESHOLD
-          ) {
-            flush();
+          if (++col === parsers.length) {
+            // The last column is the _0_version.
+            pendingValues[pendingRows * valuesPerRow + col] = initialVersion;
+            col = 0;
+            if (
+              ++pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
+              pendingSize >= BUFFERED_SIZE_THRESHOLD
+            ) {
+              flush();
+            }
           }
           callback();
         } catch (e) {
