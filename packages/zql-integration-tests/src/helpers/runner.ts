@@ -133,7 +133,7 @@ async function makeDatabases<TSchema extends Schema>(
     {appID: suiteName, shardNum: 0, publications: []},
     sqlite,
     getConnectionURI(pg),
-    {tableCopyWorkers: 1, rowBatchSize: 10000},
+    {tableCopyWorkers: 1},
   );
 
   const memory = Object.fromEntries(

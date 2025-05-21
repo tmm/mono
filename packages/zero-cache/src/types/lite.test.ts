@@ -5,7 +5,6 @@ import {
   JSON_STRINGIFIED,
   liteRow,
   liteValue,
-  liteValues,
   type JSONFormat,
 } from './lite.ts';
 import type {RowValue} from './row-key.ts';
@@ -189,34 +188,6 @@ describe('types/lite', () => {
       expect(numCols).toBe(Object.keys(input).length);
     },
   );
-
-  test('values', () => {
-    expect(
-      liteValues(
-        {
-          a: 1,
-          b: 'two',
-          c: true,
-          d: false,
-          e: null,
-          f: 12313214123432n,
-        },
-        {
-          name: 'tableName',
-          primaryKey: ['a'],
-          columns: {
-            a: {dataType: 'int', pos: 1},
-            b: {dataType: 'string', pos: 2},
-            c: {dataType: 'bool', pos: 3},
-            d: {dataType: 'bool', pos: 4},
-            e: {dataType: 'float', pos: 5},
-            f: {dataType: 'int8', pos: 6},
-          },
-        },
-        JSON_PARSED,
-      ),
-    ).toEqual([1, 'two', 1, 0, null, 12313214123432n]);
-  });
 
   test.each([
     ['int', 1, 1],
