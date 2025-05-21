@@ -1,6 +1,7 @@
 import {LogContext} from '@rocicorp/logger';
 import {tmpdir} from 'node:os';
 import {expect} from 'vitest';
+import {mapValues} from '../../../shared/src/objects.ts';
 import {randInt} from '../../../shared/src/rand.ts';
 import {Database} from '../../../zqlite/src/db.ts';
 import {deleteLiteDB} from '../db/delete-lite-db.ts';
@@ -80,11 +81,31 @@ export function expectMatchingObjectsInTables(
   tables?: Record<string, unknown[]>,
   numberType: 'number' | 'bigint' = 'number',
 ) {
-  for (const [table, expected] of Object.entries(tables ?? {})) {
+  expectMatchingObjects(
+    db,
+    tables ? mapValues(tables, rows => ({rows})) : undefined,
+    numberType,
+  );
+}
+
+export type ExpectedTableData = {
+  rows: unknown[];
+  orderedBy?: [string, ...string[]];
+};
+
+export function expectMatchingObjects(
+  db: Database,
+  tables?: Record<string, ExpectedTableData>,
+  numberType: 'number' | 'bigint' = 'number',
+) {
+  for (const [table, {rows, orderedBy}] of Object.entries(tables ?? {})) {
     const actual = db
-      .prepare(`SELECT * FROM ${id(table)}`)
+      .prepare(
+        `SELECT * FROM ${id(table)}` +
+          (orderedBy ? ` ORDER BY ${orderedBy.join(', ')}` : ``),
+      )
       .safeIntegers(numberType === 'bigint')
       .all();
-    expect(actual).toMatchObject(expected);
+    expect(actual).toMatchObject(rows);
   }
 }

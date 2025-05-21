@@ -11,9 +11,11 @@ import type {
 } from '../../../db/specs.ts';
 import {getConnectionURI, initDB, testDBs} from '../../../test/db.ts';
 import {
+  expectMatchingObjects,
   expectMatchingObjectsInTables,
   expectTables,
   initDB as initLiteDB,
+  type ExpectedTableData,
 } from '../../../test/lite.ts';
 import type {PostgresDB} from '../../../types/pg.ts';
 import {ZERO_VERSION_COLUMN_NAME} from '../../replicator/schema/replication-state.ts';
@@ -254,7 +256,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
     upstream?: Record<string, object[]>;
     replicatedSchema: Record<string, LiteTableSpec>;
     replicatedIndexes: IndexSpec[];
-    replicatedData: Record<string, object[]>;
+    replicatedData: Record<string, ExpectedTableData>;
     resultingPublications: string[];
   };
 
@@ -298,15 +300,17 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         },
       ],
       replicatedData: {
-        [`${APP_ID}_${SHARD_NUM}.clients`]: [],
-        [`${APP_ID}.schemaVersions`]: [
-          {
-            lock: 1n,
-            minSupportedVersion: 1n,
-            maxSupportedVersion: 1n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
+        [`${APP_ID}_${SHARD_NUM}.clients`]: {rows: []},
+        [`${APP_ID}.schemaVersions`]: {
+          rows: [
+            {
+              lock: 1n,
+              minSupportedVersion: 1n,
+              maxSupportedVersion: 1n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
       },
       resultingPublications: [
         `_${APP_ID}_metadata_${SHARD_NUM}`,
@@ -752,71 +756,76 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         ],
       },
       replicatedData: {
-        [`${APP_ID}_${SHARD_NUM}.clients`]: [],
-        issues: [
-          {
-            issueID: 123n,
-            orgID: 456n,
-            isAdmin: 1n,
-            bigint: 99999999999999999n,
-            timestamp: null,
-            bytes: null,
-            intArray: null,
-            json: '{"foo":"bar"}',
-            jsonb: '{"bar": "baz"}',
-            date: null,
-            time: null,
-            serial: 1n,
-            shortID: 1n,
-            shortID2: 1001n,
-            num: 12345678901234n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-          {
-            issueID: 321n,
-            orgID: 789n,
-            isAdmin: null,
-            bigint: null,
-            timestamp: 1547253035381.101,
-            bytes: null,
-            intArray: null,
-            json: '[1,2,3]',
-            jsonb: '[{"boo": 123}]',
-            date: null,
-            time: null,
-            serial: 2n,
-            shortID: 2n,
-            shortID2: 1002n,
-            num: null,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-          {
-            issueID: 456n,
-            orgID: 789n,
-            isAdmin: 0n,
-            bigint: null,
-            timestamp: null,
-            bytes: Buffer.from('hello'),
-            intArray: '[1,2]',
-            json: null,
-            jsonb: null,
-            date: BigInt(Date.UTC(2003, 3, 23)),
-            time: '09:10:11.123457', // PG rounds to microseconds
-            serial: 3n,
-            shortID: 3n,
-            shortID2: 1003n,
-            num: null,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
-        [`${APP_ID}.schemaVersions`]: [
-          {
-            lock: 1n,
-            minSupportedVersion: 1n,
-            maxSupportedVersion: 1n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
+        [`${APP_ID}_${SHARD_NUM}.clients`]: {rows: []},
+        issues: {
+          rows: [
+            {
+              issueID: 123n,
+              orgID: 456n,
+              isAdmin: 1n,
+              bigint: 99999999999999999n,
+              timestamp: null,
+              bytes: null,
+              intArray: null,
+              json: '{"foo":"bar"}',
+              jsonb: '{"bar": "baz"}',
+              date: null,
+              time: null,
+              serial: 1n,
+              shortID: 1n,
+              shortID2: 1001n,
+              num: 12345678901234n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+            {
+              issueID: 321n,
+              orgID: 789n,
+              isAdmin: null,
+              bigint: null,
+              timestamp: 1547253035381.101,
+              bytes: null,
+              intArray: null,
+              json: '[1,2,3]',
+              jsonb: '[{"boo": 123}]',
+              date: null,
+              time: null,
+              serial: 2n,
+              shortID: 2n,
+              shortID2: 1002n,
+              num: null,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+            {
+              issueID: 456n,
+              orgID: 789n,
+              isAdmin: 0n,
+              bigint: null,
+              timestamp: null,
+              bytes: Buffer.from('hello'),
+              intArray: '[1,2]',
+              json: null,
+              jsonb: null,
+              date: BigInt(Date.UTC(2003, 3, 23)),
+              time: '09:10:11.123457', // PG rounds to microseconds
+              serial: 3n,
+              shortID: 3n,
+              shortID2: 1003n,
+              num: null,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+          orderedBy: ['issueID'],
+        },
+        [`${APP_ID}.schemaVersions`]: {
+          rows: [
+            {
+              lock: 1n,
+              minSupportedVersion: 1n,
+              maxSupportedVersion: 1n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
       },
       resultingPublications: [
         `_${APP_ID}_metadata_${SHARD_NUM}`,
@@ -827,7 +836,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
       name: 'batch inserts',
       setupUpstreamQuery: `
         CREATE TABLE foo(
-          "id" TEXT PRIMARY KEY,
+          "id" INT PRIMARY KEY,
           "bigint" BIGINT,
           "timestamp" TIMESTAMPTZ,
           "bytes" BYTEA,
@@ -843,8 +852,8 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
             id: {
               pos: 1,
               characterMaximumLength: null,
-              dataType: 'text',
-              typeOID: 25,
+              dataType: 'int4',
+              typeOID: 23,
               notNull: true,
               dflt: null,
               elemPgTypeClass: null,
@@ -900,7 +909,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
             id: {
               pos: 1,
               characterMaximumLength: null,
-              dataType: 'text|NOT_NULL',
+              dataType: 'int4|NOT_NULL',
               notNull: false,
               dflt: null,
               elemPgTypeClass: null,
@@ -990,7 +999,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         foo: Array.from(
           {length: Math.floor(INSERT_BATCH_SIZE * 2.23)},
           (_, i) => ({
-            id: '' + i,
+            id: i,
             bigint: BigInt(Number.MAX_SAFE_INTEGER) + BigInt(i),
             timestamp: new Date(Date.UTC(2025, 0, 1, 0, 0, i)).toISOString(),
             bytes: Buffer.from('hello' + i),
@@ -999,17 +1008,20 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         ),
       },
       replicatedData: {
-        foo: Array.from(
-          {length: Math.floor(INSERT_BATCH_SIZE * 2.23)},
-          (_, i) => ({
-            id: '' + i,
-            bigint: BigInt(Number.MAX_SAFE_INTEGER) + BigInt(i),
-            timestamp: BigInt(Date.UTC(2025, 0, 1, 0, 0, i)),
-            bytes: Buffer.from('hello' + i),
-            jsonb: `{"foo": ${i}}`,
-            [ZERO_VERSION_COLUMN_NAME]: WATERMARK_REGEX,
-          }),
-        ),
+        foo: {
+          rows: Array.from(
+            {length: Math.floor(INSERT_BATCH_SIZE * 2.23)},
+            (_, i) => ({
+              id: BigInt(i),
+              bigint: BigInt(Number.MAX_SAFE_INTEGER) + BigInt(i),
+              timestamp: BigInt(Date.UTC(2025, 0, 1, 0, 0, i)),
+              bytes: Buffer.from('hello' + i),
+              jsonb: `{"foo": ${i}}`,
+              [ZERO_VERSION_COLUMN_NAME]: WATERMARK_REGEX,
+            }),
+          ),
+          orderedBy: ['id'],
+        },
       },
     },
     {
@@ -1128,27 +1140,32 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         ],
       },
       replicatedData: {
-        [`${APP_ID}_${SHARD_NUM}.clients`]: [],
-        users: [
-          {
-            userID: 123n,
-            handle: '@zoot',
-            ['_0_version']: WATERMARK_REGEX,
-          },
-          {
-            userID: 456n,
-            handle: '@bonk',
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
-        [`${APP_ID}.schemaVersions`]: [
-          {
-            lock: 1n,
-            minSupportedVersion: 1n,
-            maxSupportedVersion: 1n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
+        [`${APP_ID}_${SHARD_NUM}.clients`]: {rows: []},
+        users: {
+          rows: [
+            {
+              userID: 123n,
+              handle: '@zoot',
+              ['_0_version']: WATERMARK_REGEX,
+            },
+            {
+              userID: 456n,
+              handle: '@bonk',
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+          orderedBy: ['userID'],
+        },
+        [`${APP_ID}.schemaVersions`]: {
+          rows: [
+            {
+              lock: 1n,
+              minSupportedVersion: 1n,
+              maxSupportedVersion: 1n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
       },
       resultingPublications: [
         `_${APP_ID}_metadata_${SHARD_NUM}`,
@@ -1276,27 +1293,32 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         ],
       },
       replicatedData: {
-        [`${APP_ID}_${SHARD_NUM}.clients`]: [],
-        users: [
-          {
-            userID: 456n,
-            handle: '@bonk',
-            ['_0_version']: WATERMARK_REGEX,
-          },
-          {
-            userID: 1001n,
-            handle: '@boom',
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
-        [`${APP_ID}.schemaVersions`]: [
-          {
-            lock: 1n,
-            minSupportedVersion: 1n,
-            maxSupportedVersion: 1n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
+        [`${APP_ID}_${SHARD_NUM}.clients`]: {rows: []},
+        users: {
+          rows: [
+            {
+              userID: 456n,
+              handle: '@bonk',
+              ['_0_version']: WATERMARK_REGEX,
+            },
+            {
+              userID: 1001n,
+              handle: '@boom',
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+          orderedBy: ['userID'],
+        },
+        [`${APP_ID}.schemaVersions`]: {
+          rows: [
+            {
+              lock: 1n,
+              minSupportedVersion: 1n,
+              maxSupportedVersion: 1n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
       },
       resultingPublications: [
         `_${APP_ID}_metadata_${SHARD_NUM}`,
@@ -1417,16 +1439,18 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
       },
       upstream: {},
       replicatedData: {
-        [`${APP_ID}_${SHARD_NUM}.clients`]: [],
-        issues: [],
-        [`${APP_ID}.schemaVersions`]: [
-          {
-            lock: 1n,
-            minSupportedVersion: 1n,
-            maxSupportedVersion: 1n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
+        [`${APP_ID}_${SHARD_NUM}.clients`]: {rows: []},
+        issues: {rows: []},
+        [`${APP_ID}.schemaVersions`]: {
+          rows: [
+            {
+              lock: 1n,
+              minSupportedVersion: 1n,
+              maxSupportedVersion: 1n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
       },
       replicatedIndexes: [
         {
@@ -1572,16 +1596,18 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         ['giant_default']: [{id: 123}],
       },
       replicatedData: {
-        [`${APP_ID}_${SHARD_NUM}.clients`]: [],
-        [`${APP_ID}.schemaVersions`]: [
-          {
-            lock: 1n,
-            minSupportedVersion: 1n,
-            maxSupportedVersion: 1n,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
-        giant: [{id: 123n}],
+        [`${APP_ID}_${SHARD_NUM}.clients`]: {rows: []},
+        [`${APP_ID}.schemaVersions`]: {
+          rows: [
+            {
+              lock: 1n,
+              minSupportedVersion: 1n,
+              maxSupportedVersion: 1n,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
+        giant: {rows: [{id: 123n}]},
       },
       resultingPublications: [
         `_${APP_ID}_metadata_${SHARD_NUM}`,
@@ -1776,16 +1802,18 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
         ],
       },
       replicatedData: {
-        funk: [
-          {
-            createdAt: 1547253035381.101,
-            id: '123',
-            name: '456',
-            order: 1n,
-            updatedAt: 1547253035381.101,
-            ['_0_version']: WATERMARK_REGEX,
-          },
-        ],
+        funk: {
+          rows: [
+            {
+              createdAt: 1547253035381.101,
+              id: '123',
+              name: '456',
+              order: 1n,
+              updatedAt: 1547253035381.101,
+              ['_0_version']: WATERMARK_REGEX,
+            },
+          ],
+        },
       },
     },
     {
@@ -1940,10 +1968,13 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
       replicatedData: Object.fromEntries(
         Array.from({length: 10}, (_, i) => [
           `t${i}`,
-          Array.from({length: 400}, (_, i) => ({
-            b: '0000000000000000',
-            val: BigInt(i),
-          })),
+          {
+            rows: Array.from({length: 400}, (_, i) => ({
+              b: '0000000000000000',
+              val: BigInt(i),
+            })),
+            orderedBy: ['val'],
+          },
         ]),
       ),
     },
@@ -1978,7 +2009,10 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
           },
           replica,
           getConnectionURI(upstream),
-          {tableCopyWorkers: 3},
+          {
+            tableCopyWorkers: 3,
+            minDownloadPartSize: 1024, // Exercise multipart downloads
+          },
         );
 
         const config = await upstream.unsafe(
@@ -2041,7 +2075,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
           ),
         );
 
-        expectMatchingObjectsInTables(replica, c.replicatedData, 'bigint');
+        expectMatchingObjects(replica, c.replicatedData, 'bigint');
 
         const replicaState = replica
           .prepare('SELECT * FROM "_zero.replicationState"')

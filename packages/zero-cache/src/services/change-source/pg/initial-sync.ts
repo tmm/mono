@@ -38,6 +38,7 @@ import {
   ZERO_VERSION_COLUMN_NAME,
 } from '../../replicator/schema/replication-state.ts';
 import {CopyRunner} from './copy-runner.ts';
+import {getPartsToDownload, type TablePart} from './download-manager.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
 import {getPublicationInfo} from './schema/published.ts';
@@ -51,6 +52,7 @@ import {
 
 export type InitialSyncOptions = {
   tableCopyWorkers: number;
+  minDownloadPartSize?: number;
 };
 
 export async function initialSync(
@@ -135,20 +137,44 @@ export async function initialSync(
       // Retrieve the published schema at the consistent_point.
       const published = await sql.begin(Mode.READONLY, async tx => {
         await tx.unsafe(/* sql*/ `SET TRANSACTION SNAPSHOT '${snapshot}'`);
-        return getPublicationInfo(tx, publications);
+        const pub = await getPublicationInfo(tx, publications);
+        const sizes = await Promise.all(
+          pub.tables.map(({oid, schema, name}) =>
+            tx<{rows: bigint; bytes: bigint}[]>/*sql*/ `
+            SELECT COUNT(*) AS rows, pg_table_size(${oid}) AS bytes 
+              FROM ${tx(schema)}.${tx(name)}
+          `.then(([result]) => result),
+          ),
+        );
+        return {
+          ...pub,
+          sizes: sizes.map(({rows, bytes}) => ({
+            // It's okay for these to be estimates; to account for more rows
+            // than Number.MAX_SAFE_INTEGER, the last downloaded part must
+            // simply not have a LIMIT.
+            rows: Number(rows),
+            bytes: Number(bytes),
+          })),
+        };
       });
       // Note: If this throws, initial-sync is aborted.
       validatePublications(lc, published);
 
       // Now that tables have been validated, kick off the copiers.
-      const {tables, indexes} = published;
+      const {tables, indexes, sizes} = published;
       const numTables = tables.length;
       createLiteTables(tx, tables);
 
+      const parts = getPartsToDownload(
+        lc,
+        tables.map((t, i) => ({...t, ...sizes[i]})),
+        numWorkers,
+        syncOptions.minDownloadPartSize,
+      );
       const rowCounts = await Promise.all(
-        tables.map(table =>
+        parts.map(table =>
           copyRunner.run((db, lc) =>
-            copy(lc, table, typeClient, db, tx, initialVersion),
+            copy(lc, table, table.part, typeClient, db, tx, initialVersion),
           ),
         ),
       );
@@ -292,6 +318,7 @@ const BUFFERED_SIZE_THRESHOLD = 8 * MB;
 async function copy(
   lc: LogContext,
   table: PublishedTableSpec,
+  part: TablePart,
   dbClient: PostgresDB,
   from: PostgresTransaction,
   to: Database,
@@ -325,12 +352,25 @@ async function copy(
   const filterConditions = Object.values(table.publications)
     .map(({rowFilter}) => rowFilter)
     .filter(f => !!f); // remove nulls
-  const selectStmt =
-    /*sql*/ `
-    SELECT ${selectColumns} FROM ${id(table.schema)}.${id(table.name)}` +
-    (filterConditions.length === 0
-      ? ''
-      : /*sql*/ ` WHERE ${filterConditions.join(' OR ')}`);
+  const selectParts = [
+    `SELECT ${selectColumns} FROM ${id(table.schema)}.${id(table.name)}`,
+  ];
+  if (filterConditions.length) {
+    selectParts.push(`WHERE (${filterConditions.join(' OR ')})`);
+  }
+  // Only add a limit for the non-final part, since the number of rows may
+  // be an estimate.
+  const limit = part.partNum < part.totalParts;
+  if (part.offset || limit) {
+    // use the ctid system column for efficient deterministic ordering.
+    // https://www.postgresql.org/docs/current/ddl-system-columns.html
+    selectParts.push(`ORDER BY ctid`);
+    if (limit) {
+      selectParts.push(`LIMIT ${part.limit}`);
+    }
+    selectParts.push(`OFFSET ${part.offset}`);
+  }
+  const selectStmt = selectParts.join(' ');
 
   const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
@@ -385,6 +425,7 @@ async function copy(
   });
 
   let col = 0;
+  let firstRowTime = 0;
 
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
@@ -397,6 +438,9 @@ async function copy(
         _encoding: string,
         callback: (error?: Error) => void,
       ) => {
+        if (rows === 0 && pendingSize === 0) {
+          firstRowTime = performance.now() - start;
+        }
         try {
           // Give every value at least 4 bytes.
           pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
@@ -432,8 +476,10 @@ async function copy(
 
   const elapsed = performance.now() - start;
   lc.info?.(
-    `Finished copying ${rows} rows into ${tableName} ` +
-      `(flush: ${flushTime.toFixed(3)} ms) (total: ${elapsed.toFixed(3)} ms) `,
+    `Finished copying ${tableName} table` +
+      ` part ${part.partNum} of ${part.totalParts}` +
+      ` (rows: ${rows}) (firstRow: ${firstRowTime.toFixed(3)} ms)` +
+      ` (flush: ${flushTime.toFixed(3)} ms) (total: ${elapsed.toFixed(3)} ms) `,
   );
   return {rows, flushTime};
 }
