@@ -469,7 +469,10 @@ export abstract class AbstractQuery<
     cb: (query: AnyQuery) => AnyQuery = q => q,
   ): Condition => {
     const related = this.#schema.relationships[this.#tableName][relationship];
-    assert(related, 'Invalid relationship');
+    assert(
+      related,
+      () => `Invalid relationship ${this.#tableName} ${relationship}`,
+    );
 
     if (isOneHop(related)) {
       const {destSchema, sourceField, destField} = related[0];

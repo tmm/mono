@@ -209,8 +209,9 @@ function augmentQuery(
       if (rng() < 0.5) {
         query = query.where(({not, exists}) =>
           not(
-            exists(relationshipName, q =>
-              augmentQuery(
+            exists(relationshipName, q => {
+              console.log('tt', ast(query).table, ast(q).table);
+              return augmentQuery(
                 schema,
                 data,
                 rng,
@@ -219,8 +220,8 @@ function augmentQuery(
                 serverSchema,
                 depth + 1,
                 true,
-              ),
-            ),
+              );
+            }),
           ),
         );
       } else {

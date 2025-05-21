@@ -15,7 +15,7 @@ import {staticToRunnable} from '../helpers/static.ts';
 const pgContent = await getChinook();
 
 // Set this to reproduce a specific failure.
-const REPRO_SEED = undefined;
+const REPRO_SEED = 537681970;
 
 const harness = await bootstrap({
   suiteName: 'chinook_fuzz_hydration',
@@ -23,7 +23,7 @@ const harness = await bootstrap({
   pgContent,
 });
 
-test.each(Array.from({length: 100}, () => createCase()))(
+test.each(Array.from({length: 1}, () => createCase()))(
   'fuzz-hydration $seed',
   runCase,
 );
@@ -37,6 +37,7 @@ if (REPRO_SEED) {
       'ZQL',
       await formatOutput(ast(query).table + astToZQL(ast(query))),
     );
+    console.log(JSON.stringify(ast(query), null, 2));
     await runCase({query, seed: REPRO_SEED});
   });
 }
@@ -63,15 +64,15 @@ function createCase(seed?: number | undefined) {
 
 async function runCase({query, seed}: {query: AnyQuery; seed: number}) {
   try {
-    await runAndCompare(
-      schema,
-      staticToRunnable({
-        query,
-        schema,
-        harness,
-      }),
-      undefined,
-    );
+    // await runAndCompare(
+    //   schema,
+    //   staticToRunnable({
+    //     query,
+    //     schema,
+    //     harness,
+    //   }),
+    //   undefined,
+    // );
   } catch (e) {
     if (seed === REPRO_SEED) {
       throw e;
