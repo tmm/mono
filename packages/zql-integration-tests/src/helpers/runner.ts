@@ -309,7 +309,7 @@ export async function createVitests<TSchema extends Schema>(
 
   return testSpecs
     .flat()
-    .filter(t => (only ? only.includes(t.name) : true))
+    .filter(t => (only ? t.name.includes(only) : true))
     .map(({name, createQuery, manualVerification}) => ({
       name,
       fn: makeTest(
@@ -636,28 +636,36 @@ function makeTest<TSchema extends Schema>(
         memory: createQuery(queryBuilders.memory),
       };
 
-      const pgResult = await queries.pg;
-      // Might we worth being able to configure ZQLite to return client vs server names
-      const sqliteResult = mapResultToClientNames(
-        await queries.sqlite,
-        zqlSchema,
-        ast(queries.sqlite).table,
-      );
-      const memoryResult = await queries.memory;
-
-      // - is PG
-      // + is SQLite / Memory
-      expect(memoryResult).toEqualPg(pgResult);
-      expect(sqliteResult).toEqualPg(pgResult);
-      if (manualVerification) {
-        expect(manualVerification).toEqualPg(pgResult);
-      }
+      await runAndCompare(zqlSchema, queries, manualVerification);
 
       if (pushEvery > 0) {
         await checkPush(zqlSchema, delegates, queries, pushEvery);
       }
     });
   };
+}
+
+export async function runAndCompare(
+  zqlSchema: Schema,
+  queries: QueryInstances,
+  manualVerification: unknown,
+) {
+  const pgResult = await queries.pg;
+  // Might we worth being able to configure ZQLite to return client vs server names
+  const sqliteResult = mapResultToClientNames(
+    await queries.sqlite,
+    zqlSchema,
+    ast(queries.sqlite).table,
+  );
+  const memoryResult = await queries.memory;
+
+  // - is PG
+  // + is SQLite / Memory
+  expect(memoryResult).toEqualPg(pgResult);
+  expect(sqliteResult).toEqualPg(pgResult);
+  if (manualVerification) {
+    expect(manualVerification).toEqualPg(pgResult);
+  }
 }
 
 async function checkPush(
