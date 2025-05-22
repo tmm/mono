@@ -176,7 +176,7 @@ export default $config({
         ...commonEnv,
         ZERO_LOG_LEVEL: 'debug',
         ZERO_LITESTREAM_BACKUP_URL: IS_EBS_STAGE
-          ? $interpolate`s3://${replicationBucket.name}/backup/20250522-00`
+          ? $interpolate`s3://${replicationBucket.name}/backup/20250522-01`
           : $interpolate`s3://${replicationBucket.name}/backup/20250521-01`,
         ZERO_CHANGE_MAX_CONNS: '3',
         ZERO_NUM_SYNC_WORKERS: '0',
