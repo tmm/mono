@@ -406,7 +406,9 @@ async function copy(
     const elapsed = performance.now() - start;
     flushTime += elapsed;
     lc.debug?.(
-      `flushed ${flushedRows} ${tableName} rows (${flushedSize} bytes) in ${elapsed.toFixed(3)} ms`,
+      `flushed ${flushedRows} ${tableName} rows` +
+        ` (part ${part.partNum} of ${part.totalParts})` +
+        ` (${flushedSize} bytes) in ${elapsed.toFixed(3)} ms`,
     );
   }
 
