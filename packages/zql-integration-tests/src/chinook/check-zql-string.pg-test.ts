@@ -8,14 +8,11 @@ import type {AnyQuery} from '../../../zql/src/query/test/util.ts';
 import {StaticQuery} from '../../../zql/src/query/static-query.ts';
 import {staticToRunnable} from '../helpers/static.ts';
 
-const QUERY_STRING = `customer
-  .related('supportRep', q =>
+const QUERY_STRING = `track
+  .whereExists('invoiceLines', q =>
     q
-      .orderBy('postalCode', 'asc')
-      .orderBy('id', 'desc')
-      .orderBy('birthDate', 'asc')
       .limit(0),
-  )`;
+  ).limit(1)`;
 
 const pgContent = await getChinook();
 
