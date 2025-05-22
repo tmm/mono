@@ -169,7 +169,7 @@ export async function initialSync(
         lc,
         tables.map((t, i) => ({...t, ...sizes[i]})),
         numWorkers,
-        1000 * 1024 * 1024, // syncOptions.minDownloadPartSize,
+        1000 * 1000 * 1024 * 1024, // syncOptions.minDownloadPartSize,
       );
       const rowCounts = await Promise.all(
         parts.map(table =>
