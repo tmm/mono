@@ -379,7 +379,7 @@ async function copy(
   let col = 0;
 
   await pipeline(
-    startCopyWorker({
+    startCopyWorker(lc, {
       // This is purposely hardcoded to 'warn' because stdio in Worker threads
       // blocked on synchronous calls in the main thread, which defeats the
       // point of running (and buffering) the Postgres requests in workers.

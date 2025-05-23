@@ -34,27 +34,47 @@ type StreamChunk = {
   last: boolean;
 };
 
-export function startCopyWorker(workerData: WorkerData): Readable {
+export function startCopyWorker(
+  lc: LogContext,
+  workerData: WorkerData,
+): Readable {
   const child = childWorker(
     './services/change-source/pg/copy-worker.ts',
     workerData,
   );
 
   let requestDataOnRead = true;
+  let start = 0;
+  let blocked = 0;
+
+  const ack = (event: string) => {
+    child.postMessage({});
+    requestDataOnRead = false;
+    const elapsed = performance.now() - start;
+    blocked += elapsed;
+    lc.debug?.(`acked "${event}" after ${elapsed.toFixed(3)} ms`);
+  };
 
   const readable = new Readable({
     highWaterMark: workerData.bufferSize,
     read() {
       if (requestDataOnRead) {
-        child.postMessage({});
+        ack('read');
       }
+    },
+    destroy(error: Error | null, callback: (error?: Error | null) => void) {
+      lc.info?.(
+        `finished receiving data (blocked: ${blocked.toFixed()} ms)`,
+        workerData.copySelection,
+      );
+      callback(error);
     },
   });
 
   child.on('message', ({array, length, last}: StreamChunk) => {
+    start = performance.now();
     if (readable.push(Buffer.from(array.buffer, 0, length))) {
-      child.postMessage({});
-      requestDataOnRead = false;
+      ack(`${length} bytes in "message"'`);
     } else {
       requestDataOnRead = true;
     }
