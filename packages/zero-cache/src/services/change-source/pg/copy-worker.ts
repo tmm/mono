@@ -93,10 +93,13 @@ export default async function runWorker(
     const copyStream = await tx
       .unsafe(`COPY (${copySelection}) TO STDOUT`)
       .readable();
-    await pipeline(copyStream, new ParentSink(lc, parent, bufferSize));
+    const parentSink = new ParentSink(lc, parent, bufferSize);
+    await pipeline(copyStream, parentSink);
 
     const elapsed = performance.now() - start;
-    lc.info?.(`finished COPY (${elapsed.toFixed(3)} ms): ${copySelection}`);
+    lc.info?.(
+      `finished COPY (blocked: ${parentSink.blockedTime.toFixed(3)}) (total: ${elapsed.toFixed(3)} ms): ${copySelection}`,
+    );
 
     if (!isMainThread) {
       // If Postgres hangs after the COPY, the COMMIT will not complete.
@@ -120,6 +123,11 @@ class ParentSink extends Writable {
   #array: Uint8Array;
   #length: number;
   #lastBufferConsumed: Resolver<void>;
+  #blockedTime = 0;
+
+  get blockedTime() {
+    return this.#blockedTime;
+  }
 
   constructor(lc: LogContext, parent: MessagePort, bufferSize: number) {
     super({highWaterMark: bufferSize});
@@ -141,6 +149,7 @@ class ParentSink extends Writable {
     const start = performance.now();
     await this.#lastBufferConsumed.promise;
     const elapsed = performance.now() - start;
+    this.#blockedTime += elapsed;
 
     const array = this.#array;
     const length = this.#length;
