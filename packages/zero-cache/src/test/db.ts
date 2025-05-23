@@ -4,6 +4,7 @@ import {afterAll, expect, inject} from 'vitest';
 import {assert} from '../../../shared/src/asserts.ts';
 import {sleep} from '../../../shared/src/sleep.ts';
 import {type PostgresDB, postgresTypeConfig} from '../types/pg.ts';
+import {setSingleProcessMode} from '../types/processes.ts';
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -23,6 +24,12 @@ export type OnNoticeFn = (n: postgres.Notice) => void;
 const defaultOnNotice: OnNoticeFn = n => {
   n.severity !== 'NOTICE' && console.log(n);
 };
+
+// vitest does not support subprocesses or workers, so all unit tests
+// rely on the singleProcessMode setup.
+//
+// TODO: There's probably a more appropriate place to call this.
+setSingleProcessMode(true);
 
 class TestDBs {
   readonly sql = postgres(CONNECTION_URI, {
