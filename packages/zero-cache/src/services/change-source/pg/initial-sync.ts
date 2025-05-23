@@ -277,7 +277,7 @@ export const INSERT_BATCH_SIZE = 50;
 
 const MB = 1024 * 1024;
 const MAX_BUFFERED_ROWS = 10_000;
-const DEFAULT_BUFFERED_SIZE_THRESHOLD = 8 * MB;
+const DEFAULT_BUFFERED_SIZE_THRESHOLD = 32 * MB;
 
 async function copy(
   lc: LogContext,
@@ -384,7 +384,7 @@ async function copy(
       // blocked on synchronous calls in the main thread, which defeats the
       // point of running (and buffering) the Postgres requests in workers.
       // Set the level to 'debug' for local debugging.
-      log: {level: 'warn', format: 'json'},
+      log: {level: 'info', format: 'json'},
       db: upstreamURI,
       snapshotID,
       copySelection: selectStmt,
