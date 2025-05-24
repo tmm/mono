@@ -18,7 +18,7 @@ import {
   mapPostgresToLite,
   mapPostgresToLiteIndex,
 } from '../../../db/pg-to-lite.ts';
-import {getTypeParsers} from '../../../db/pg-type-parser.ts';
+import {getTypeParsers, type TypeParser} from '../../../db/pg-type-parser.ts';
 import type {IndexSpec, PublishedTableSpec} from '../../../db/specs.ts';
 import type {LexiVersion} from '../../../types/lexi-version.ts';
 import {
@@ -289,7 +289,7 @@ function createLiteIndices(tx: Database, indices: IndexSpec[]) {
 // similar to the report in https://sqlite.org/forum/forumpost/8878a512d3652655
 //
 // Exported for testing.
-export const INSERT_BATCH_SIZE = 50;
+export const INSERT_BATCH_SIZE = 10;
 
 const MB = 1024 * 1024;
 const MAX_BUFFERED_ROWS = 10_000;
@@ -325,13 +325,12 @@ async function copy(
     `(${[
       ...columnSpecs.map((spec, i) => {
         const param = `?${row * valuesPerRow + i + 1}`; // 1-indexed
-        // Pass string types to SQLite directly as Buffers, using SQLite
-        // format() to encode it as a string. This moves the work of
-        // decoding and allocating the string from Node to C++.
         if (
-          isPgStringType(spec.dataType.toLowerCase()) ||
-          pgParsers.getTypeParser(spec.typeOID) === PASSTHROUGH_PARSER
+          passThroughAsTextBuffer(spec, pgParsers.getTypeParser(spec.typeOID))
         ) {
+          // Pass string types to SQLite directly as Buffers, using SQLite
+          // format() to encode it as a string. This moves the work of
+          // decoding and allocating the string from Node to C++.
           return `iif(${param} NOTNULL,format('%s',${param}),NULL)`;
         }
         // TODO: Handle integers and floats this way, after vetting
@@ -416,17 +415,13 @@ async function copy(
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
   const parsers = columnSpecs.map(c => {
     const pgParse = pgParsers.getTypeParser(c.typeOID);
-    // Sent to SQLite directly as a Buffer.
-    // TODO: Handle more types this way.
-    const passThroughAsBuffer =
-      isPgStringType(c.dataType) || pgParse === PASSTHROUGH_PARSER;
-    return (val: TextTransformOutput) =>
-      val === NULL_BYTE
+    return (buf: TextTransformOutput) =>
+      buf === NULL_BYTE
         ? null
-        : passThroughAsBuffer
-          ? val
+        : passThroughAsTextBuffer(c, pgParse)
+          ? buf
           : liteValue(
-              pgParse(val.toString('utf8')) as PostgresValueType,
+              pgParse(buf.toString('utf8')) as PostgresValueType,
               c.dataType,
               JSON_STRINGIFIED,
             );
@@ -484,4 +479,13 @@ async function copy(
       `(flush: ${flushTime.toFixed(3)} ms) (total: ${elapsed.toFixed(3)} ms) `,
   );
   return {rows, flushTime};
+}
+
+function passThroughAsTextBuffer(spec: {dataType: string}, parser: TypeParser) {
+  // Pass string types to SQLite directly as Buffers, using SQLite
+  // format() to encode it as a string. This moves the work of string
+  // decoding and allocation from Node to C++.
+  return (
+    isPgStringType(spec.dataType.toLowerCase()) || parser === PASSTHROUGH_PARSER
+  );
 }
