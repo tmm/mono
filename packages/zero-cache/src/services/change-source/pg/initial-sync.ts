@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Writable} from 'node:stream';
+import {Transform, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {Database} from '../../../../../zqlite/src/db.ts';
@@ -9,7 +9,7 @@ import {
   createTableStatement,
 } from '../../../db/create.ts';
 import * as Mode from '../../../db/mode-enum.ts';
-import {NULL_BYTE, TextTransform} from '../../../db/pg-copy.ts';
+import {NULL_BYTE} from '../../../db/pg-copy.ts';
 import {
   mapPostgresToLite,
   mapPostgresToLiteIndex,
@@ -388,7 +388,13 @@ async function copy(
 
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-    new TextTransform(),
+    new Transform({
+      objectMode: true,
+      transform(_chunk, _encoding, callback) {
+        callback();
+      },
+    }),
+    // new TextTransform(),
     new Writable({
       objectMode: true,
 
