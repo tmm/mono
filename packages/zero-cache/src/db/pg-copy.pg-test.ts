@@ -6,7 +6,7 @@ import type {JSONValue} from '../../../shared/src/json.ts';
 import {randInt} from '../../../shared/src/rand.ts';
 import {testDBs} from '../test/db.ts';
 import {type PostgresDB} from '../types/pg.ts';
-import {NULL_BYTE, TextTransform} from './pg-copy.ts';
+import {NULL_BYTE, TextTransform, type TextTransformOutput} from './pg-copy.ts';
 
 describe('pg-copy', () => {
   let sql: PostgresDB;
@@ -122,16 +122,20 @@ describe('pg-copy', () => {
   }
 
   async function testAllEquivalent(...streams: Readable[]) {
-    const results: (string | null)[][] = [];
+    const results: string[][] = [];
     for (const readable of streams) {
-      const values: (string | null)[] = [];
+      const values: string[] = [];
       await pipeline(
         readable,
         new TextTransform(),
         new Writable({
           objectMode: true,
-          write: (value, _encoding, callback) => {
-            values.push(value);
+          write: (
+            value: TextTransformOutput,
+            _encoding: string,
+            callback: () => void,
+          ) => {
+            values.push(value.toString());
             callback();
           },
         }),

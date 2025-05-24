@@ -96,6 +96,8 @@ function dateToUTCMidnight(date: string): number {
  */
 export type PostgresValueType = JSONValue | Uint8Array;
 
+export const PASSTHROUGH_PARSER = String;
+
 /**
  * Configures types for the Postgres.js client library (`postgres`).
  *
@@ -112,7 +114,7 @@ export const postgresTypeConfig = (
       to: JSON,
       from: [JSON, JSONB],
       serialize: BigIntJSON.stringify,
-      parse: jsonAsString ? (x: string) => x : BigIntJSON.parse,
+      parse: jsonAsString ? PASSTHROUGH_PARSER : BigIntJSON.parse,
     },
     // Timestamps are converted to PreciseDate objects.
     timestamp: {

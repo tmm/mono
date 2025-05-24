@@ -9,7 +9,11 @@ import {
   createTableStatement,
 } from '../../../db/create.ts';
 import * as Mode from '../../../db/mode-enum.ts';
-import {NULL_BYTE, TextTransform} from '../../../db/pg-copy.ts';
+import {
+  NULL_BYTE,
+  TextTransform,
+  type TextTransformOutput,
+} from '../../../db/pg-copy.ts';
 import {
   mapPostgresToLite,
   mapPostgresToLiteIndex,
@@ -24,6 +28,8 @@ import {
 } from '../../../types/lite.ts';
 import {liteTableName} from '../../../types/names.ts';
 import {
+  isPgStringType,
+  PASSTHROUGH_PARSER,
   pgClient,
   type PostgresDB,
   type PostgresTransaction,
@@ -303,7 +309,6 @@ async function copy(
 
   const tableName = liteTableName(table);
   const orderedColumns = Object.entries(table.columns);
-
   const columnSpecs = orderedColumns.map(([_name, spec]) => spec);
   const selectColumns = orderedColumns.map(([c]) => id(c)).join(',');
   const insertColumns = [
@@ -312,15 +317,42 @@ async function copy(
   ];
   const insertColumnList = insertColumns.map(c => id(c)).join(',');
 
-  // (?,?,?,?,?)
-  const valuesSql = `(${new Array(insertColumns.length).fill('?').join(',')})`;
-  const insertSql = /*sql*/ `
-    INSERT INTO "${tableName}" (${insertColumnList}) VALUES ${valuesSql}`;
-  const insertStmt = to.prepare(insertSql);
-  // INSERT VALUES (?,?,?,?,?),... x INSERT_BATCH_SIZE
-  const insertBatchStmt = to.prepare(
-    insertSql + `,${valuesSql}`.repeat(INSERT_BATCH_SIZE - 1),
-  );
+  const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
+  const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
+
+  const pgParsers = await getTypeParsers(dbClient);
+  const makeValueList = (_ignored?: unknown, row = 0) =>
+    `(${[
+      ...columnSpecs.map((spec, i) => {
+        const param = `?${row * valuesPerRow + i + 1}`; // 1-indexed
+        // Pass string types to SQLite directly as Buffers, using SQLite
+        // format() to encode it as a string. This moves the work of
+        // decoding and allocating the string from Node to C++.
+        if (
+          isPgStringType(spec.dataType.toLowerCase()) ||
+          pgParsers.getTypeParser(spec.typeOID) === PASSTHROUGH_PARSER
+        ) {
+          return `iif(${param} NOTNULL,format('%s',${param}),NULL)`;
+        }
+        // TODO: Handle integers and floats this way, after vetting
+        //       that SQLite's format() understands PG's text formatting.
+        return param;
+      }),
+      `?${(row + 1) * valuesPerRow}`, // ZERO_VERSION_COLUMN is a string
+    ].join(',')})`;
+
+  // (?1,?2,?3,?4,?5)
+  const singleRowValuesList = makeValueList();
+  // (?1,?2,?3,?4,?5),(?6,?7,?8,?9,?10),... x INSERT_BATCH_SIZE
+  const batchValuesList = Array.from(
+    {length: INSERT_BATCH_SIZE},
+    makeValueList,
+  ).join(',');
+
+  const insertStmt = to.prepare(/*sql*/ `
+    INSERT INTO "${tableName}" (${insertColumnList}) VALUES ${singleRowValuesList}`);
+  const insertBatchStmt = to.prepare(/*sql*/ `
+    INSERT INTO "${tableName}" (${insertColumnList}) VALUES ${batchValuesList}`);
 
   const filterConditions = Object.values(table.publications)
     .map(({rowFilter}) => rowFilter)
@@ -332,13 +364,20 @@ async function copy(
       ? ''
       : /*sql*/ ` WHERE ${filterConditions.join(' OR ')}`);
 
-  const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
-  const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
-
   // Preallocate the buffer of values to reduce memory allocation churn.
   const pendingValues: LiteValueType[] = Array.from({
     length: MAX_BUFFERED_ROWS * valuesPerRow,
   });
+
+  // better-sqlite3 has an "interesting" interpretation of numbered bind
+  // parameters, whereby "?1, ?2, ?3" parameters expect the supplied
+  // values to be in the for of an object like `{1: ..., 2: ..., 3: ...}`.
+  //
+  // https://github.com/WiseLibs/better-sqlite3/issues/576
+  function bindParameters(values: LiteValueType[]) {
+    return Object.fromEntries(values.map((v, i) => [i + 1, v]));
+  }
+
   let pendingRows = 0;
   let pendingSize = 0;
 
@@ -349,11 +388,15 @@ async function copy(
 
     let l = 0;
     for (; pendingRows > INSERT_BATCH_SIZE; pendingRows -= INSERT_BATCH_SIZE) {
-      insertBatchStmt.run(pendingValues.slice(l, (l += valuesPerBatch)));
+      insertBatchStmt.run(
+        bindParameters(pendingValues.slice(l, (l += valuesPerBatch))),
+      );
     }
     // Insert the remaining rows individually.
     for (; pendingRows > 0; pendingRows--) {
-      insertStmt.run(pendingValues.slice(l, (l += valuesPerRow)));
+      insertStmt.run(
+        bindParameters(pendingValues.slice(l, (l += valuesPerRow))),
+      );
     }
     for (let i = 0; i < flushedRows; i++) {
       // Reuse the array and unreference the values to allow GC.
@@ -371,17 +414,22 @@ async function copy(
   }
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
-  const pgParsers = await getTypeParsers(dbClient);
   const parsers = columnSpecs.map(c => {
     const pgParse = pgParsers.getTypeParser(c.typeOID);
-    return (val: string) =>
+    // Sent to SQLite directly as a Buffer.
+    // TODO: Handle more types this way.
+    const passThroughAsBuffer =
+      isPgStringType(c.dataType) || pgParse === PASSTHROUGH_PARSER;
+    return (val: TextTransformOutput) =>
       val === NULL_BYTE
         ? null
-        : liteValue(
-            pgParse(val) as PostgresValueType,
-            c.dataType,
-            JSON_STRINGIFIED,
-          );
+        : passThroughAsBuffer
+          ? val
+          : liteValue(
+              pgParse(val.toString('utf8')) as PostgresValueType,
+              c.dataType,
+              JSON_STRINGIFIED,
+            );
   });
 
   let col = 0;
@@ -393,7 +441,7 @@ async function copy(
       objectMode: true,
 
       write: (
-        text: string,
+        text: TextTransformOutput,
         _encoding: string,
         callback: (error?: Error) => void,
       ) => {

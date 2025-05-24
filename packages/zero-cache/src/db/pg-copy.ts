@@ -1,8 +1,18 @@
 import {Transform} from 'node:stream';
 
+// The lone NULL byte signifies that the column value is `null`.
+// (Postgres does not permit NULL bytes in TEXT values).
+//
+// Note that although NULL bytes can appear in JSON strings,
+// those will always be represented within double-quotes,
+// and thus never as a lone NULL byte.
+export const NULL_BYTE = '\u0000';
+
+export type TextTransformOutput = typeof NULL_BYTE | Buffer;
+
 /**
  * A stream Transform that parses a Postgres `COPY ... TO` text stream into
- * individual text values. The special {@link NULL_BYTE} string is used to
+ * individual text Buffers. The special {@link NULL_BYTE} string is used to
  * indicate a `null` value (as the `null` value itself indicates the end of
  * the stream and cannot be pushed as an element).
  *
@@ -11,7 +21,10 @@ import {Transform} from 'node:stream';
  * special value when reaching the end of a row.
  */
 export class TextTransform extends Transform {
-  #currVal: string = '';
+  // Note: null means empty / "no value". #currVal will be a Buffer
+  //   containing a lone NULL_BYTE (e.g. NULL_BUFFER.equals(#currVal))
+  //   when the NULL_BYTE should be pushed down the pipeline.
+  #currVal: null | Buffer | Buffer[] = null;
   #escaped = false;
 
   constructor() {
@@ -28,6 +41,19 @@ export class TextTransform extends Transform {
       let l = 0;
       let r = 0;
 
+      const append = (b: Buffer) => {
+        this.#currVal === null
+          ? (this.#currVal = b)
+          : Array.isArray(this.#currVal)
+            ? this.#currVal.push(b)
+            : (this.#currVal = [this.#currVal, b]);
+      };
+
+      const flushSegment = () => {
+        l < r && append(chunk.subarray(l, r));
+        l = r + 1;
+      };
+
       for (; r < chunk.length; r++) {
         const ch = chunk[r];
         if (this.#escaped) {
@@ -37,33 +63,28 @@ export class TextTransform extends Transform {
               `Unexpected escape character \\${String.fromCharCode(ch)}`,
             );
           }
-          this.#currVal += escapedChar;
+          append(Buffer.from(escapedChar));
           l = r + 1;
           this.#escaped = false;
           continue;
         }
         switch (ch) {
           case 0x5c: // '\'
-            // flush segment
-            l < r && (this.#currVal += chunk.subarray(l, r).toString('utf8'));
-            l = r + 1;
+            flushSegment();
             this.#escaped = true;
             break;
 
           case 0x09: // '\t'
           case 0x0a: // '\n'
-            // flush segment
-            l < r && (this.#currVal += chunk.subarray(l, r).toString('utf8'));
-            l = r + 1;
+            flushSegment();
 
             // Value is done in both cases.
-            this.push(this.#currVal);
-            this.#currVal = '';
+            this.push(outputFrom(this.#currVal));
+            this.#currVal = null;
             break;
         }
       }
-      // flush segment
-      l < r && (this.#currVal += chunk.subarray(l, r).toString('utf8'));
+      flushSegment();
       callback();
     } catch (e) {
       callback(e instanceof Error ? e : new Error(String(e)));
@@ -71,13 +92,19 @@ export class TextTransform extends Transform {
   }
 }
 
-// The lone NULL byte signifies that the column value is `null`.
-// (Postgres does not permit NULL bytes in TEXT values).
-//
-// Note that although NULL bytes can appear in JSON strings,
-// those will always be represented within double-quotes,
-// and thus never as a lone NULL byte.
-export const NULL_BYTE = '\u0000';
+const EMPTY = Buffer.alloc(0);
+// Note: never expose this because Buffer contents are mutable
+const NULL_BUFFER = Buffer.from(NULL_BYTE);
+
+function outputFrom(currVal: Buffer | Buffer[] | null): TextTransformOutput {
+  return currVal === null
+    ? EMPTY
+    : Array.isArray(currVal)
+      ? Buffer.concat(currVal)
+      : NULL_BUFFER.equals(currVal)
+        ? NULL_BYTE
+        : currVal;
+}
 
 // escaped characters used in https://www.postgresql.org/docs/current/sql-copy.html
 const ESCAPED_CHARACTERS: Record<number, string | undefined> = {
