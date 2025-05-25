@@ -386,15 +386,18 @@ async function copy(
 
   let col = 0;
 
+  const blackHole = new Transform({
+    objectMode: true,
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-    new Transform({
-      objectMode: true,
-      write(_chunk, _encoding, callback) {
-        callback();
-      },
-    }),
+    // blackHole,
     new TextTransform(),
+    blackHole,
     new Writable({
       objectMode: true,
 
@@ -403,8 +406,6 @@ async function copy(
         _encoding: string,
         callback: (error?: Error) => void,
       ) => {
-        callback();
-        return;
         try {
           // Give every value at least 4 bytes.
           pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
@@ -423,7 +424,7 @@ async function copy(
           }
           callback();
         } catch (e) {
-          // callback(e instanceof Error ? e : new Error(String(e)));
+          callback(e instanceof Error ? e : new Error(String(e)));
         }
       },
 
