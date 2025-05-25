@@ -33,6 +33,7 @@ import {appSchema, upstreamSchema, type ShardID} from '../../types/shards.ts';
 import {SlidingWindowLimiter} from '../limiter/sliding-window-limiter.ts';
 import type {Service} from '../service.ts';
 import instruments from '../../observability/view-syncer-instruments.ts';
+import {getServerSchema} from '../../../../zero-pg/src/schema.ts';
 
 // An error encountered processing a mutation.
 // Returned back to application for display to user.
@@ -282,6 +283,20 @@ export async function processMutationWithTx(
   authorizer: WriteAuthorizer,
 ) {
   const tasks: (() => Promise<unknown>)[] = [];
+
+  // We do not need server schema in this case....
+  // 1. Write is just an exists check
+  // 2. We have correct type conversion set up in our bindings
+  // Soo... we need slightly different z2s compilation?
+  // Or do we have access to the schema.ts somehow?
+  // 1. a server schema proxy . . . ?
+  // 2. binding and compare tho...
+  // ---
+  // 1. We do not need server name re-mapping because it is somehow already applied.
+  //    - How is it for the insert op?
+  // 2. So we do not need schema.ts.... except to pull server-schema? Well we can infer it from
+  //    sqlite schema....
+  // So a new `getServerSchema`. We can also build from publication. `change-source` does this.
 
   async function execute(stmt: postgres.PendingQuery<postgres.Row[]>) {
     try {
