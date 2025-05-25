@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Writable} from 'node:stream';
+import {Transform, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {Database} from '../../../../../zqlite/src/db.ts';
@@ -388,6 +388,12 @@ async function copy(
 
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
+    new Transform({
+      objectMode: true,
+      write(_chunk, _encoding, callback) {
+        callback();
+      },
+    }),
     new TextTransform(),
     new Writable({
       objectMode: true,
