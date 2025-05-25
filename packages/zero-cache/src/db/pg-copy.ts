@@ -45,7 +45,8 @@ export class TextTransform extends Transform {
         switch (ch) {
           case 0x5c: // '\'
             // flush segment
-            l < r && (this.#currVal += chunk.subarray(l, r).toString('utf8'));
+            chunk.subarray(l, r);
+            l < r && (this.#currVal += ''); // chunk.subarray(l, r).toString('utf8'));
             l = r + 1;
             this.#escaped = true;
             break;
@@ -53,7 +54,8 @@ export class TextTransform extends Transform {
           case 0x09: // '\t'
           case 0x0a: // '\n'
             // flush segment
-            l < r && (this.#currVal += chunk.subarray(l, r).toString('utf8'));
+            chunk.subarray(l, r);
+            l < r && (this.#currVal += ''); //chunk.subarray(l, r).toString('utf8'));
             l = r + 1;
 
             // Value is done in both cases.
@@ -63,7 +65,8 @@ export class TextTransform extends Transform {
         }
       }
       // flush segment
-      l < r && (this.#currVal += chunk.subarray(l, r).toString('utf8'));
+      chunk.subarray(l, r);
+      l < r && (this.#currVal += ''); // chunk.subarray(l, r).toString('utf8'));
       callback();
     } catch (e) {
       callback(e instanceof Error ? e : new Error(String(e)));
