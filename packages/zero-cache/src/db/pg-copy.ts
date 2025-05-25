@@ -11,8 +11,8 @@ import {Transform} from 'node:stream';
  * special value when reaching the end of a row.
  */
 export class TextTransform extends Transform {
-  #currVal: string = '';
-  #escaped = false;
+  // // #currVal: string = '';
+  // #escaped = false;
 
   constructor() {
     super({objectMode: true});
@@ -25,45 +25,48 @@ export class TextTransform extends Transform {
     callback: (e?: Error) => void,
   ) {
     try {
-      let l = 0;
+      // let l = 0;
       let r = 0;
 
       for (; r < chunk.length; r++) {
         const ch = chunk[r];
-        if (this.#escaped) {
-          const escapedChar = ESCAPED_CHARACTERS[ch];
-          if (escapedChar === undefined) {
-            throw new Error(
-              `Unexpected escape character \\${String.fromCharCode(ch)}`,
-            );
-          }
-          this.#currVal += escapedChar;
-          l = r + 1;
-          this.#escaped = false;
-          continue;
+        if (ch === 0x0a) {
+          this.push('');
         }
-        switch (ch) {
-          case 0x5c: // '\'
-            // flush segment
-            l < r && (this.#currVal += chunk.toString('utf8', l, r));
-            l = r + 1;
-            this.#escaped = true;
-            break;
+        // if (this.#escaped) {
+        //   const escapedChar = ESCAPED_CHARACTERS[ch];
+        //   if (escapedChar === undefined) {
+        //     throw new Error(
+        //       `Unexpected escape character \\${String.fromCharCode(ch)}`,
+        //     );
+        //   }
+        //   this.#currVal += escapedChar;
+        //   l = r + 1;
+        //   this.#escaped = false;
+        //   continue;
+        // }
+        // switch (ch) {
+        //   case 0x5c: // '\'
+        //     // flush segment
+        //     l < r && (this.#currVal += chunk.toString('utf8', l, r));
+        //     l = r + 1;
+        //     this.#escaped = true;
+        //     break;
 
-          case 0x09: // '\t'
-          case 0x0a: // '\n'
-            // flush segment
-            l < r && (this.#currVal += chunk.toString('utf8', l, r));
-            l = r + 1;
+        //   case 0x09: // '\t'
+        //   case 0x0a: // '\n'
+        //     // flush segment
+        //     l < r && (this.#currVal += chunk.toString('utf8', l, r));
+        //     l = r + 1;
 
-            // Value is done in both cases.
-            this.push(this.#currVal);
-            this.#currVal = '';
-            break;
-        }
+        //     // Value is done in both cases.
+        //     this.push(this.#currVal);
+        //     this.#currVal = '';
+        //     break;
+        // }
       }
       // flush segment
-      l < r && (this.#currVal += chunk.toString('utf8', l, r));
+      // l < r && (this.#currVal += chunk.toString('utf8', l, r));
       callback();
     } catch (e) {
       callback(e instanceof Error ? e : new Error(String(e)));
@@ -80,13 +83,13 @@ export class TextTransform extends Transform {
 export const NULL_BYTE = '\u0000';
 
 // escaped characters used in https://www.postgresql.org/docs/current/sql-copy.html
-const ESCAPED_CHARACTERS: Record<number, string | undefined> = {
-  0x4e: NULL_BYTE, // \N signifies the NULL character.
-  0x5c: '\\',
-  0x62: '\b',
-  0x66: '\f',
-  0x6e: '\n',
-  0x72: '\r',
-  0x74: '\t',
-  0x76: '\v',
-} as const;
+// const ESCAPED_CHARACTERS: Record<number, string | undefined> = {
+//   0x4e: NULL_BYTE, // \N signifies the NULL character.
+//   0x5c: '\\',
+//   0x62: '\b',
+//   0x66: '\f',
+//   0x6e: '\n',
+//   0x72: '\r',
+//   0x74: '\t',
+//   0x76: '\v',
+// } as const;
