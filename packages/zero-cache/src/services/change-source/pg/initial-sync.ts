@@ -395,7 +395,7 @@ async function copy(
 
   await pipeline(
     await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-    // blackHole,
+    blackHole,
     new TextTransform(),
     blackHole,
     new Writable({
