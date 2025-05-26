@@ -30,17 +30,18 @@ export class TextTransform extends Transform {
 
       for (; r < chunk.length; r++) {
         const ch = chunk[r];
-        if (this.#escaped) {
-          const escapedChar = ESCAPED_CHARACTERS[ch];
-          if (escapedChar === undefined) {
-            throw new Error(
-              `Unexpected escape character \\${String.fromCharCode(ch)}`,
-            );
-          }
-          this.#currVal += escapedChar;
-          l = r + 1;
-          this.#escaped = false;
-        } else if (ch === 0x09 /* '\t' */ || ch === 0x0a /* '\n' */) {
+        if (ch === 0x0a) {
+          // if (this.#escaped) {
+          //   const escapedChar = ESCAPED_CHARACTERS[ch];
+          //   if (escapedChar === undefined) {
+          //     throw new Error(
+          //       `Unexpected escape character \\${String.fromCharCode(ch)}`,
+          //     );
+          //   }
+          //   this.#currVal += escapedChar;
+          //   l = r + 1;
+          //   this.#escaped = false;
+          // } else if (ch === 0x09 /* '\t' */ || ch === 0x0a /* '\n' */) {
           // flush segment
           l < r && (this.#currVal += chunk.toString('utf8', l, r));
           l = r + 1;
@@ -48,11 +49,11 @@ export class TextTransform extends Transform {
           // Value is done in both cases.
           this.push(this.#currVal);
           this.#currVal = '';
-        } else if (ch === 0x05c /* '\' */) {
-          // flush segment
-          l < r && (this.#currVal += chunk.toString('utf8', l, r));
-          l = r + 1;
-          this.#escaped = true;
+          // } else if (ch === 0x05c /* '\' */) {
+          //   // flush segment
+          //   l < r && (this.#currVal += chunk.toString('utf8', l, r));
+          //   l = r + 1;
+          //   this.#escaped = true;
         }
       }
       // flush segment
