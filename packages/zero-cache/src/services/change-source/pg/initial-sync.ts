@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Writable} from 'node:stream';
+import {Transform, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {Database} from '../../../../../zqlite/src/db.ts';
@@ -385,8 +385,15 @@ async function copy(
 
   let col = 0;
 
+  const blackHole = new Transform({
+    transform(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
   await pipeline(
     startCopy(lc, copyWorker, snapshotID, selectStmt),
+    blackHole,
     new TextTransform(),
     new Writable({
       objectMode: true,
