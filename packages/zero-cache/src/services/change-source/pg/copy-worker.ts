@@ -254,7 +254,8 @@ class MessagePortSink extends Writable {
         this.#array.length >= chunk.length + this.#length
           ? this.#array
           : await this.#getNextBuffer(chunk.length);
-      chunk.copy(array, this.#length);
+      // chunk.copy(array, this.#length);
+      array;
       this.#length += chunk.length;
       callback();
     } catch (e) {
