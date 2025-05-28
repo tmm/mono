@@ -248,6 +248,10 @@ class MessagePortSink extends Writable {
     _encoding: BufferEncoding,
     callback: (error?: Error | null) => void,
   ) {
+    if (1) {
+      callback();
+      return;
+    }
     try {
       const array =
         this.#array !== null &&
