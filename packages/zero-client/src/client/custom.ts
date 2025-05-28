@@ -32,18 +32,13 @@ import type {ZeroLogContext} from './zero-log-context.ts';
 /**
  * The shape which a user's custom mutator definitions must conform to.
  */
-export type CustomMutatorDefs<S extends Schema> = {
+export interface CustomMutatorDefs<S extends Schema> {
   [namespaceOrKey: string]:
     | {
         [key: string]: CustomMutatorImpl<S>;
       }
     | CustomMutatorImpl<S>;
-};
-
-export type MutatorResult = {
-  client: Promise<void>;
-  server: Promise<MutationOk>;
-};
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type CustomMutatorImpl<S extends Schema, TArgs = any> = (
@@ -52,6 +47,20 @@ export type CustomMutatorImpl<S extends Schema, TArgs = any> = (
   // The issue being that it will be a protocol change to support varargs.
   args: TArgs,
 ) => Promise<void>;
+
+// export interface CustomMutatorDefs<S extends Schema> {
+//   [namespaceOrKey: string]:
+//     | {
+//         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+//         [key: string]: (tx: Transaction<S>, ...args: any[]) => Promise<void>;
+//       }
+//     | CustomMutatorImpl<S>;
+// }
+
+export type MutatorResult = {
+  client: Promise<void>;
+  server: Promise<MutationOk>;
+};
 
 /**
  * The shape exposed on the `Zero.mutate` instance.
