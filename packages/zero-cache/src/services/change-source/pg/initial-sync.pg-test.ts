@@ -1978,7 +1978,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
           },
           replica,
           getConnectionURI(upstream),
-          {tableCopyWorkers: 3, bufferSize: 1000},
+          {tableCopyWorkers: 3, numBuffers: 5, bufferSize: 1000},
         );
 
         const config = await upstream.unsafe(

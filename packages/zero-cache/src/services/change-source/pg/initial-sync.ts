@@ -31,12 +31,13 @@ import {
 import type {ShardConfig} from '../../../types/shards.ts';
 import {ALLOWED_APP_ID_CHARACTERS} from '../../../types/shards.ts';
 import {id} from '../../../types/sql.ts';
+import type {Worker} from '../../../types/workers.ts';
 import {initChangeLog} from '../../replicator/schema/change-log.ts';
 import {
   initReplicationState,
   ZERO_VERSION_COLUMN_NAME,
 } from '../../replicator/schema/replication-state.ts';
-import {startCopyWorker} from './copy-worker.ts';
+import {startCopy, startCopyWorker} from './copy-worker.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
 import {getPublicationInfo} from './schema/published.ts';
@@ -50,8 +51,13 @@ import {
 
 export type InitialSyncOptions = {
   tableCopyWorkers: number;
+  numBuffers?: number;
   bufferSize?: number;
 };
+
+const MB = 1024 * 1024;
+const DEFAULT_NUM_BUFFERS = 20;
+const DEFAULT_BUFFER_SIZE = 4 * MB;
 
 export async function initialSync(
   lc: LogContext,
@@ -65,7 +71,17 @@ export async function initialSync(
       'The App ID may only consist of lower-case letters, numbers, and the underscore character',
     );
   }
-  const {bufferSize} = syncOptions;
+  const {numBuffers = DEFAULT_NUM_BUFFERS, bufferSize = DEFAULT_BUFFER_SIZE} =
+    syncOptions;
+  const copyWorker = startCopyWorker(
+    lc,
+    {
+      log: {level: 'info', format: 'text'},
+      db: upstreamURI,
+    },
+    numBuffers,
+    bufferSize,
+  );
   const sql = pgClient(lc, upstreamURI);
   // The typeClient's reason for existence is to configure the type
   // parsing for the copy workers, which skip JSON parsing for efficiency.
@@ -130,28 +146,21 @@ export async function initialSync(
     const numTables = tables.length;
     createLiteTables(tx, tables);
 
-    // TODO: Enforce tableCopyWorkers limit
-    const rowCounts = await Promise.all(
-      tables.map(table =>
-        copy(
-          lc,
-          table,
-          typeClient,
-          upstreamURI,
-          snapshot,
-          tx,
-          initialVersion,
-          bufferSize ?? DEFAULT_BUFFERED_SIZE_THRESHOLD,
-        ),
-      ),
-    );
-    const total = rowCounts.reduce(
-      (acc, curr) => ({
-        rows: acc.rows + curr.rows,
-        flushTime: acc.flushTime + curr.flushTime,
-      }),
-      {rows: 0, flushTime: 0},
-    );
+    const total = {rows: 0, flushTime: 0};
+    for (const table of tables) {
+      const copied = await copy(
+        lc,
+        await copyWorker,
+        table,
+        typeClient,
+        snapshot,
+        tx,
+        initialVersion,
+        bufferSize,
+      );
+      total.rows += copied.rows;
+      total.flushTime += copied.flushTime;
+    }
 
     const indexStart = performance.now();
     createLiteIndices(tx, indexes);
@@ -275,15 +284,13 @@ function createLiteIndices(tx: Database, indices: IndexSpec[]) {
 // Exported for testing.
 export const INSERT_BATCH_SIZE = 50;
 
-const MB = 1024 * 1024;
 const MAX_BUFFERED_ROWS = 10_000;
-const DEFAULT_BUFFERED_SIZE_THRESHOLD = 32 * MB;
 
 async function copy(
   lc: LogContext,
+  copyWorker: Worker,
   table: PublishedTableSpec,
   dbClient: PostgresDB,
-  upstreamURI: string,
   snapshotID: string,
   to: Database,
   initialVersion: LexiVersion,
@@ -379,17 +386,7 @@ async function copy(
   let col = 0;
 
   await pipeline(
-    startCopyWorker(lc, {
-      // This is purposely hardcoded to 'warn' because stdio in Worker threads
-      // blocked on synchronous calls in the main thread, which defeats the
-      // point of running (and buffering) the Postgres requests in workers.
-      // Set the level to 'debug' for local debugging.
-      log: {level: 'info', format: 'json'},
-      db: upstreamURI,
-      snapshotID,
-      copySelection: selectStmt,
-      bufferSize,
-    }),
+    startCopy(lc, copyWorker, snapshotID, selectStmt),
     new TextTransform(),
     new Writable({
       objectMode: true,
