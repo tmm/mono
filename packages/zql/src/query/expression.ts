@@ -3,11 +3,10 @@ import {must} from '../../../shared/src/must.ts';
 import {
   toStaticParam,
   type Condition,
-  type LiteralValue,
   type Parameter,
 } from '../../../zero-protocol/src/ast.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
-import type {SimpleOperator} from '../ivm/constraint.ts';
+import type {LiteralValue, SimpleOperator} from '../ivm/constraint.ts';
 import type {
   AvailableRelationships,
   DestTableName,

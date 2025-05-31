@@ -15,9 +15,7 @@ import type {
   CorrelatedSubquery,
   CorrelatedSubqueryCondition,
   Correlation,
-  LiteralReference,
   SimpleCondition,
-  ValuePosition,
 } from '../../zero-protocol/src/ast.ts';
 import type {Schema} from '../../zero-schema/src/builder/schema-builder.ts';
 import {
@@ -34,7 +32,11 @@ import {
   Z2S_COLLATION,
   type PluralLiteralType,
 } from './sql.ts';
-import type {Ordering} from '../../zql/src/ivm/constraint.ts';
+import type {
+  LiteralReference,
+  Ordering,
+  ValuePosition,
+} from '../../zql/src/ivm/constraint.ts';
 
 type Table = {
   zql: string;

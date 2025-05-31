@@ -25,7 +25,6 @@ export type {MaybePromise} from '../../shared/src/types.ts';
 export type {
   AST,
   Bound,
-  ColumnReference,
   CompoundKey,
   Condition,
   Conjunction,
@@ -33,11 +32,8 @@ export type {
   CorrelatedSubqueryCondition,
   CorrelatedSubqueryConditionOperator,
   Disjunction,
-  LiteralReference,
-  LiteralValue,
   Parameter,
   SimpleCondition,
-  ValuePosition,
 } from '../../zero-protocol/src/ast.ts';
 export type {
   EqualityOps,
@@ -48,6 +44,10 @@ export type {
   PrimaryKey,
   Ordering,
   OrderPart,
+  ValuePosition,
+  LiteralReference,
+  LiteralValue,
+  ColumnReference,
 } from '../../zql/src/ivm/constraint.ts';
 export {ErrorKind} from '../../zero-protocol/src/error-kind.ts';
 export {relationships} from '../../zero-schema/src/builder/relationship-builder.ts';

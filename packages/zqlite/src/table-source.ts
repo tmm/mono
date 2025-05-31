@@ -6,13 +6,13 @@ import {assert, unreachable} from '../../shared/src/asserts.ts';
 import {must} from '../../shared/src/must.ts';
 import {difference} from '../../shared/src/set-utils.ts';
 import type {Writable} from '../../shared/src/writable.ts';
-import type {
-  Condition,
-  SimpleCondition,
-  ValuePosition,
-} from '../../zero-protocol/src/ast.ts';
+import type {Condition, SimpleCondition} from '../../zero-protocol/src/ast.ts';
 import type {Row, Value} from '../../zql/src/ivm/data.ts';
-import type {Ordering, PrimaryKey} from '../../zql/src/ivm/constraint.ts';
+import type {
+  Ordering,
+  PrimaryKey,
+  ValuePosition,
+} from '../../zql/src/ivm/constraint.ts';
 import type {
   SchemaValue,
   ValueType,

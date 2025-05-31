@@ -1,9 +1,8 @@
 import type {
   Condition,
   CorrelatedSubquery,
-  ValuePosition,
 } from '../../../zero-protocol/src/ast.ts';
-import type {SimpleOperator} from '../ivm/constraint.ts';
+import type {SimpleOperator, ValuePosition} from '../ivm/constraint.ts';
 
 // This was written by ChatGPT with some improvements. It is only used for tests
 

@@ -6,8 +6,8 @@ import type {FormatConfig, SQLItem, SQLQuery} from '@databases/sql';
 import baseSql, {SQLItemType} from '@databases/sql';
 import {assert, unreachable} from '../../shared/src/asserts.ts';
 import {isPgNumberType, isPgStringType} from '../../zero-cache/src/types/pg.ts';
-import type {LiteralValue} from '../../zero-protocol/src/ast.ts';
 import type {ServerColumnSchema} from './schema.ts';
+import type {LiteralValue} from '../../zql/src/ivm/constraint.ts';
 
 export const Z2S_COLLATION = 'ucs_basic';
 

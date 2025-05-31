@@ -3,20 +3,23 @@ import type {JSONValue} from '../../../shared/src/json.ts';
 import {must} from '../../../shared/src/must.ts';
 import type {
   AST,
-  ColumnReference,
   CompoundKey,
   Condition,
   Conjunction,
   CorrelatedSubquery,
   CorrelatedSubqueryCondition,
   Disjunction,
-  LiteralValue,
   Parameter,
   SimpleCondition,
-  ValuePosition,
 } from '../../../zero-protocol/src/ast.ts';
 import type {Row} from '../ivm/data.ts';
-import type {Ordering, PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
+import type {
+  Ordering,
+  PrimaryKey,
+  ColumnReference,
+  LiteralValue,
+  ValuePosition,
+} from '../../../zql/src/ivm/constraint.ts';
 import {Exists} from '../ivm/exists.ts';
 import {FanIn} from '../ivm/fan-in.ts';
 import {FanOut} from '../ivm/fan-out.ts';
