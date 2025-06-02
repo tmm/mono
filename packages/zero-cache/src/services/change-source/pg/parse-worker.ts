@@ -130,26 +130,24 @@ async function doCopy(
   const t = new TextTransform();
   const values: LiteValueType[] = Array.from({length: 50_000});
 
-  let blockedTime = 0;
   let parseTime = 0;
   let postTime = 0;
   let numRows = 0;
+  let numBytes = 0;
 
   lc.info?.(
     `starting COPY (available tokens: ${tokens.size()}): ${table.name}`,
   );
 
   startCopyStream(lc, copyStreamWorker, snapshotID, selectStmt, async chunk => {
-    const chunkStart = performance.now();
     await tokens.dequeue();
     const parseStart = performance.now();
-    blockedTime += parseStart - chunkStart;
 
     if (chunk === null) {
       dest.postMessage({values: null} satisfies ValuesMessage);
       lc.info?.(
         `finished parsing ${numRows} rows of ${liteTableName(table)} ` +
-          `(blocked: ${blockedTime.toFixed(3)} ms) ` +
+          `(bytes: ${numBytes.toLocaleString()}) ` +
           `(parse: ${parseTime.toFixed(3)} ms) ` +
           `(post: ${postTime.toFixed(3)} ms) ` +
           `(total: ${(performance.now() - copyStart).toFixed(3)} ms)`,
@@ -177,6 +175,7 @@ async function doCopy(
     }
 
     values.length = pos;
+    numBytes += chunk.length;
     const postStart = performance.now();
 
     dest.postMessage({values} satisfies ValuesMessage);
