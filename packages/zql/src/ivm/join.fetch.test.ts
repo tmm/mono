@@ -2,11 +2,7 @@ import {expect, suite, test} from 'vitest';
 import {assert} from '../../../shared/src/asserts.ts';
 import type {JSONValue} from '../../../shared/src/json.ts';
 import type {Row} from './data.ts';
-import type {
-  CompoundKey,
-  Ordering,
-  PrimaryKey,
-} from '../../../zql/src/ivm/constraint.ts';
+import type {CompoundKey, Ordering, PrimaryKey} from './constraint.ts';
 import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
 import {Catch, type CaughtNode} from './catch.ts';
 import {SetOfConstraint} from './constraint.ts';
@@ -16,7 +12,7 @@ import type {SourceSchema} from './schema.ts';
 import {Snitch, type SnitchMessage} from './snitch.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
+import {testLogConfig} from './test/test-log-config.ts';
 
 const lc = createSilentLogContext();
 

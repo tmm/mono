@@ -1,6 +1,5 @@
 import type {System} from '../../../zero-protocol/src/ast.ts';
-import type {Ordering, PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import type {Ordering, PrimaryKey} from './constraint.ts';
 import type {Comparator} from './data.ts';
 
 export type ColumnType = {
@@ -14,7 +13,7 @@ type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json';
  */
 export type SourceSchema = {
   readonly tableName: string;
-  readonly columns: Record<string, SchemaValue>;
+  readonly columns: Record<string, ColumnType>;
   readonly primaryKey: PrimaryKey;
   readonly relationships: {[key: string]: SourceSchema};
   readonly isHidden: boolean;

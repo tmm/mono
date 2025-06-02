@@ -19,7 +19,7 @@ import type {
   LiteralValue,
   ValuePosition,
   CompoundKey,
-} from '../../../zql/src/ivm/constraint.ts';
+} from '../ivm/constraint.ts';
 import {Exists} from '../ivm/exists.ts';
 import {FanIn} from '../ivm/fan-in.ts';
 import {FanOut} from '../ivm/fan-out.ts';

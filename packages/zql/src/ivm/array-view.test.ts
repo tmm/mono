@@ -1,5 +1,4 @@
 import {expect, test} from 'vitest';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
 import {assertArray, unreachable} from '../../../shared/src/asserts.ts';
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
@@ -13,6 +12,7 @@ import type {SourceSchema} from './schema.ts';
 import {Take} from './take.ts';
 import {createSource} from './test/source-factory.ts';
 import {refCountSymbol} from './view-apply-change.ts';
+import {testLogConfig} from './test/test-log-config.ts';
 
 const lc = createSilentLogContext();
 

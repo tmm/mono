@@ -11,8 +11,8 @@ import {
 } from './memory-source.ts';
 import {compareRowsTest} from './test/compare-rows-test.ts';
 import {createSource} from './test/source-factory.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
 import type {Ordering} from './constraint.ts';
+import {testLogConfig} from './test/test-log-config.ts';
 
 const lc = createSilentLogContext();
 

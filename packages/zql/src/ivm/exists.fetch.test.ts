@@ -10,9 +10,9 @@ import {MemoryStorage} from './memory-storage.ts';
 import {Snitch, type SnitchMessage} from './snitch.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
 import {buildFilterPipeline} from './filter-operators.ts';
 import type {ColumnType} from './schema.ts';
+import {testLogConfig} from './test/test-log-config.ts';
 
 const base = {
   columns: [

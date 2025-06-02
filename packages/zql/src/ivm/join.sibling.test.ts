@@ -2,12 +2,7 @@ import {expect, suite, test} from 'vitest';
 import {assert} from '../../../shared/src/asserts.ts';
 import type {JSONValue} from '../../../shared/src/json.ts';
 import type {Row} from './data.ts';
-import type {
-  CompoundKey,
-  Ordering,
-  PrimaryKey,
-} from '../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import type {CompoundKey, Ordering, PrimaryKey} from './constraint.ts';
 import {Catch, type CaughtChange} from './catch.ts';
 import {Join} from './join.ts';
 import {MemoryStorage} from './memory-storage.ts';
@@ -16,7 +11,8 @@ import {Snitch, type SnitchMessage} from './snitch.ts';
 import type {SourceChange} from './source.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
+import {testLogConfig} from './test/test-log-config.ts';
+import type {ColumnType} from './schema.ts';
 
 const lc = createSilentLogContext();
 
@@ -884,7 +880,7 @@ function pushSiblingTest(t: PushTestSibling): PushTestSiblingResults {
 }
 
 type PushTestSibling = {
-  columns: readonly Record<string, SchemaValue>[];
+  columns: readonly Record<string, ColumnType>[];
   primaryKeys: readonly PrimaryKey[];
   sources: readonly (readonly Row[])[];
   sorts?: Record<number, Ordering> | undefined;

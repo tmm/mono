@@ -5,7 +5,7 @@ import {type Bound, Skip} from './skip.ts';
 import type {SourceChange} from './source.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
+import {testLogConfig} from './test/test-log-config.ts';
 
 const lc = createSilentLogContext();
 

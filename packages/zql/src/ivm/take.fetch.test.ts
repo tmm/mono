@@ -2,8 +2,7 @@ import {expect, suite, test} from 'vitest';
 import {assert} from '../../../shared/src/asserts.ts';
 import type {JSONValue} from '../../../shared/src/json.ts';
 import type {Row, Value} from './data.ts';
-import type {Ordering, PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import type {Ordering, PrimaryKey} from './constraint.ts';
 import {Catch, type CaughtNode} from './catch.ts';
 import type {Node} from './data.ts';
 import {MemoryStorage} from './memory-storage.ts';
@@ -13,7 +12,8 @@ import type {Stream} from './stream.ts';
 import {Take, type PartitionKey} from './take.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
+import {testLogConfig} from './test/test-log-config.ts';
+import type {ColumnType} from './schema.ts';
 
 const lc = createSilentLogContext();
 
@@ -1859,7 +1859,7 @@ function takeTest(t: TakeTest): TakeTestResults {
 }
 
 type TakeTest = {
-  columns: Record<string, SchemaValue>;
+  columns: Record<string, ColumnType>;
   primaryKey: PrimaryKey;
   sourceRows: Row[];
   sort?: Ordering | undefined;

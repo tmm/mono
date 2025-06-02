@@ -1,11 +1,9 @@
 import {expect} from 'vitest';
-import {testLogConfig} from '../../../../otel/src/test-log-config.ts';
 import {createSilentLogContext} from '../../../../shared/src/logging-test-utils.ts';
 import {must} from '../../../../shared/src/must.ts';
 import type {AST} from '../../../../zero-protocol/src/ast.ts';
-import type {Row} from '../../../../zql/src/ivm/data.ts';
-import type {PrimaryKey} from '../../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../../zero-schema/src/table-schema.ts';
+import type {Row} from '../data.ts';
+import type {PrimaryKey} from '../constraint.ts';
 import {buildPipeline} from '../../builder/builder.ts';
 import {TestBuilderDelegate} from '../../builder/test-builder-delegate.ts';
 import {ArrayView} from '../array-view.ts';
@@ -14,13 +12,15 @@ import type {Input} from '../operator.ts';
 import type {Source, SourceChange} from '../source.ts';
 import type {Format} from '../view.ts';
 import {createSource} from './source-factory.ts';
+import {testLogConfig} from './test-log-config.ts';
+import type {ColumnType} from '../schema.ts';
 
 const lc = createSilentLogContext();
 
 function makeSource(
   tableName: string,
   rows: readonly Row[],
-  columns: Readonly<Record<string, SchemaValue>>,
+  columns: Readonly<Record<string, ColumnType>>,
   primaryKeys: PrimaryKey,
 ): Source {
   const source = createSource(
@@ -39,7 +39,7 @@ function makeSource(
 export type Sources = Record<
   string,
   {
-    columns: Record<string, SchemaValue>;
+    columns: Record<string, ColumnType>;
     primaryKeys: PrimaryKey;
   }
 >;

@@ -1,5 +1,5 @@
 import {expect} from 'vitest';
-import type {Row} from '../../../../zql/src/ivm/data.ts';
+import type {Row} from '../data.ts';
 import type {Ordering} from '../constraint.ts';
 
 export function compareRowsTest(

@@ -1,14 +1,14 @@
 import {describe, expect, suite, test} from 'vitest';
 import type {Condition} from '../../../zero-protocol/src/ast.ts';
 import type {Row} from './data.ts';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
 import {Catch, expandNode, type CaughtNode} from './catch.ts';
 import type {Constraint, SimpleOperator} from './constraint.ts';
 import type {FetchRequest, Input, Output, Start} from './operator.ts';
 import type {SourceChange} from './source.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
+import {testLogConfig} from './test/test-log-config.ts';
+import type {ColumnType} from './schema.ts';
 
 const lc = createSilentLogContext();
 
@@ -308,7 +308,7 @@ test('fetch-start reverse', () => {
 
 suite('fetch-with-constraint-and-start', () => {
   function t(c: {
-    columns?: Record<string, SchemaValue> | undefined;
+    columns?: Record<string, ColumnType> | undefined;
     startData: Row[];
     start: Start;
     constraint: Constraint;
@@ -2590,7 +2590,7 @@ suite('overlay-vs-filter', () => {
 suite('overlay-vs-constraint-and-start', () => {
   function t(c: {
     startData: Row[];
-    columns?: Record<string, SchemaValue> | undefined;
+    columns?: Record<string, ColumnType> | undefined;
     start: Start;
     reverse?: boolean | undefined;
     constraint: Constraint;
