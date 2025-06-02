@@ -65,7 +65,6 @@ export function startCopy(
   worker: Worker,
   snapshotID: string,
   table: PublishedTableSpec,
-  initialVersion: string,
 ): Readable {
   let outstandingTokens = 0;
 
@@ -98,7 +97,6 @@ export function startCopy(
       type: 'copy',
       snapshotID,
       table,
-      initialVersion,
       port: port2,
     } satisfies StartCopyMessage,
     [port2],

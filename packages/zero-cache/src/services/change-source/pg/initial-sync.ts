@@ -14,7 +14,6 @@ import {
   mapPostgresToLiteIndex,
 } from '../../../db/pg-to-lite.ts';
 import type {IndexSpec, PublishedTableSpec} from '../../../db/specs.ts';
-import type {LexiVersion} from '../../../types/lexi-version.ts';
 import {type LiteValueType} from '../../../types/lite.ts';
 import {liteTableName} from '../../../types/names.ts';
 import {pgClient, type PostgresDB} from '../../../types/pg.ts';
@@ -23,10 +22,7 @@ import {ALLOWED_APP_ID_CHARACTERS} from '../../../types/shards.ts';
 import {id} from '../../../types/sql.ts';
 import type {Worker} from '../../../types/workers.ts';
 import {initChangeLog} from '../../replicator/schema/change-log.ts';
-import {
-  initReplicationState,
-  ZERO_VERSION_COLUMN_NAME,
-} from '../../replicator/schema/replication-state.ts';
+import {initReplicationState} from '../../replicator/schema/replication-state.ts';
 import {startCopy, startCopyWorkerPipeline} from './copy-pipeline.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
@@ -125,18 +121,11 @@ export async function initialSync(
     // Now that tables have been validated, kick off the copiers.
     const {tables, indexes} = published;
     const numTables = tables.length;
-    createLiteTables(tx, tables);
+    createLiteTables(tx, tables, initialVersion);
 
     const total = {rows: 0, flushTime: 0};
     for (const table of tables) {
-      const copied = await copy(
-        lc,
-        await copyWorker,
-        table,
-        snapshot,
-        tx,
-        initialVersion,
-      );
+      const copied = await copy(lc, await copyWorker, table, snapshot, tx);
       total.rows += copied.rows;
       total.flushTime += copied.flushTime;
     }
@@ -244,9 +233,13 @@ async function createReplicationSlot(
   return slot;
 }
 
-function createLiteTables(tx: Database, tables: PublishedTableSpec[]) {
+function createLiteTables(
+  tx: Database,
+  tables: PublishedTableSpec[],
+  initialVersion: string,
+) {
   for (const t of tables) {
-    tx.exec(createTableStatement(mapPostgresToLite(t)));
+    tx.exec(createTableStatement(mapPostgresToLite(t, initialVersion)));
   }
 }
 
@@ -268,7 +261,6 @@ async function copy(
   table: PublishedTableSpec,
   snapshotID: string,
   to: Database,
-  initialVersion: LexiVersion,
 ) {
   const start = performance.now();
   let rows = 0;
@@ -277,10 +269,7 @@ async function copy(
   const tableName = liteTableName(table);
   const orderedColumns = Object.entries(table.columns);
 
-  const insertColumns = [
-    ...orderedColumns.map(([c]) => c),
-    ZERO_VERSION_COLUMN_NAME,
-  ];
+  const insertColumns = orderedColumns.map(([c]) => c);
   const insertColumnList = insertColumns.map(c => id(c)).join(',');
 
   // (?,?,?,?,?)
@@ -296,13 +285,7 @@ async function copy(
   const valuesPerRow = insertColumns.length;
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
 
-  const valueStream = startCopy(
-    lc,
-    copyWorker,
-    snapshotID,
-    table,
-    initialVersion,
-  );
+  const valueStream = startCopy(lc, copyWorker, snapshotID, table);
 
   await pipeline(
     valueStream,

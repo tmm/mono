@@ -33,7 +33,6 @@ export type StartCopyMessage = {
   type: 'copy';
   snapshotID: string;
   table: PublishedTableSpec;
-  initialVersion: string;
   port: MessagePort;
 };
 
@@ -71,7 +70,7 @@ export default function runWorker(
     }
     assert(msg.type === 'copy');
 
-    const {snapshotID, table, initialVersion, port} = msg;
+    const {snapshotID, table, port} = msg;
     doCopy(
       lc,
       await copyStreamWorker,
@@ -79,7 +78,6 @@ export default function runWorker(
       table,
       await typeParsers,
       snapshotID,
-      initialVersion,
       port,
     );
   });
@@ -95,7 +93,6 @@ async function doCopy(
   table: PublishedTableSpec,
   pgParsers: TypeParsers,
   snapshotID: string,
-  initialVersion: string,
   dest: MessagePort,
 ) {
   const copyStart = performance.now();
@@ -125,7 +122,7 @@ async function doCopy(
             JSON_STRINGIFIED,
           );
   });
-  const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
+  const valuesPerRow = columnSpecs.length;
 
   const t = new TextTransform();
   const values: LiteValueType[] = Array.from({length: 50_000});
@@ -164,12 +161,7 @@ async function doCopy(
         values.length += 100;
       }
       values[pos] = parsers[pos % valuesPerRow](str);
-
-      pos++;
-      if ((pos + 1) % valuesPerRow === 0) {
-        // The last column is the _0_version.
-        values[pos] = initialVersion;
-        pos++;
+      if (++pos % valuesPerRow === 0) {
         numRows++;
       }
     }
