@@ -24,40 +24,43 @@ export function childWorker(
   modulePath = modulePath.replace(/\.ts$/, ext);
   const moduleUrl = new URL(`../${modulePath}`, import.meta.url);
 
-  if (singleProcessMode() || ext === '.ts') {
-    if (ext === '.ts') {
-      // https://github.com/privatenumber/tsx/issues/354
-      // https://github.com/nodejs/node/issues/47747
-      lc.warn?.(
-        `tsx is not compatible with Workers.\n` +
-          `Running ${modulePath} in single-process mode.\n` +
-          `This is only expected in development.`,
-      );
-    }
-    const {port1: parentPort, port2: childPort} = new MessageChannel();
-    const worker = new EventEmitter();
-
-    import(moduleUrl.href)
-      .then(async ({default: runWorker}) => {
-        try {
-          worker.emit('online');
-          await runWorker(workerData, parentPort);
-          worker.emit('exit', 0);
-          return;
-        } catch (err) {
-          worker.emit('error', err);
-          worker.emit('exit', -1);
-        }
-      })
-      .catch(err => worker.emit('error', err));
-
-    childPort.on('message', msg => worker.emit('message', msg));
-    childPort.on('messageerror', err => worker.emit('messageerror', err));
-
-    return Object.assign(worker, {
-      postMessage: (message: unknown, transfer: TransferListItem[]) =>
-        childPort.postMessage(message, transfer),
-    });
+  if (singleProcessMode()) {
+    lc.info?.(`running worker ${modulePath} in single process mode`);
+  } else if (ext === '.ts') {
+    // https://github.com/privatenumber/tsx/issues/354
+    // https://github.com/nodejs/node/issues/47747
+    lc.warn?.(
+      `tsx is not compatible with Workers.\n` +
+        `Running ${modulePath} in single-process mode.\n` +
+        `This is only expected in development.`,
+    );
+  } else {
+    return new NodeWorker(moduleUrl, {workerData});
   }
-  return new NodeWorker(moduleUrl, {workerData});
+
+  // single-process mode
+  const {port1: parentPort, port2: childPort} = new MessageChannel();
+  const worker = new EventEmitter();
+
+  import(moduleUrl.href)
+    .then(async ({default: runWorker}) => {
+      try {
+        worker.emit('online');
+        await runWorker(workerData, parentPort);
+        worker.emit('exit', 0);
+        return;
+      } catch (err) {
+        worker.emit('error', err);
+        worker.emit('exit', -1);
+      }
+    })
+    .catch(err => worker.emit('error', err));
+
+  childPort.on('message', msg => worker.emit('message', msg));
+  childPort.on('messageerror', err => worker.emit('messageerror', err));
+
+  return Object.assign(worker, {
+    postMessage: (message: unknown, transfer: TransferListItem[]) =>
+      childPort.postMessage(message, transfer),
+  });
 }

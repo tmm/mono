@@ -1,10 +1,9 @@
 import type {LogContext} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
-import {Readable, Writable} from 'node:stream';
+import {Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import {
   isMainThread,
-  MessageChannel,
   MessagePort,
   parentPort,
   workerData,
@@ -16,119 +15,36 @@ import * as v from '../../../../../shared/src/valita.ts';
 import {READONLY} from '../../../db/mode-enum.ts';
 import {createLogContext} from '../../../server/logging.ts';
 import {pgClient, type PostgresDB} from '../../../types/pg.ts';
-import {childWorker, type Worker} from '../../../types/workers.ts';
+import {
+  type CopyStreamerInit,
+  copyStreamerInitSchema,
+} from './copy-pipeline.ts';
 
-const workerInitSchema = v.object({
-  log: v.object({
-    level: v.literalUnion('debug', 'info', 'warn', 'error').default('info'),
-    format: v.literalUnion('text', 'json').default('text'),
-  }),
-  db: v.string(),
-});
-
-export type WorkerInit = v.Infer<typeof workerInitSchema>;
-
-type BufferMessage = {
-  type: 'buffer';
-  array: Uint8Array;
-};
-
-type CopyMessage = {
+export type StartCopyStreamMessage = {
   type: 'copy';
   snapshotID: string;
   selection: string;
   port: MessagePort;
 };
+export type BufferMessage = {
+  type: 'buffer';
+  array: Uint8Array;
+};
 
-type StreamChunk = {
+export type StreamChunk = {
   array: Uint8Array | null;
   length: number;
   last: boolean;
 };
 
-export async function startCopyWorker(
-  lc: LogContext,
-  workerData: WorkerInit,
-  numBuffers: number,
-  bufferSize: number,
-): Promise<Worker> {
-  const start = performance.now();
-  const worker = childWorker(
-    lc,
-    './services/change-source/pg/copy-worker.ts',
-    workerData,
-  );
-
-  const {promise, resolve, reject} = resolver();
-  worker.on('online', () => {
-    for (let i = 0; i < numBuffers; i++) {
-      const array = new Uint8Array(bufferSize);
-      worker.postMessage({type: 'buffer', array} satisfies BufferMessage, [
-        array.buffer,
-      ]);
-    }
-    resolve();
-  });
-  worker.on('exit', () => lc.debug?.('copy worker exited'));
-  worker.on('error', reject);
-
-  await promise;
-  lc.info?.(
-    `copy worker started (${(performance.now() - start).toFixed(3)} ms)`,
-  );
-  return worker;
-}
-
-export function startCopy(
-  _lc: LogContext,
-  worker: Worker,
-  snapshotID: string,
-  selection: string,
-): Readable {
-  let lastBuffer: Uint8Array | null = null;
-
-  function returnBuffer() {
-    if (lastBuffer) {
-      worker.postMessage(
-        {type: 'buffer', array: lastBuffer} satisfies BufferMessage,
-        [lastBuffer.buffer],
-      );
-    }
-    lastBuffer = null;
-  }
-
-  const readable = new Readable({read: returnBuffer});
-  const {port1, port2} = new MessageChannel();
-
-  port1.on('message', ({array, length, last}: StreamChunk) => {
-    lastBuffer = array;
-    if (array && readable.push(Buffer.from(array.buffer, 0, length))) {
-      returnBuffer();
-    }
-    if (last) {
-      readable.push(null);
-    }
-  });
-
-  worker.postMessage(
-    {
-      type: 'copy',
-      snapshotID,
-      selection,
-      port: port2,
-    } satisfies CopyMessage,
-    [port2],
-  );
-
-  return readable;
-}
-
-export default function runWorker({log, db}: WorkerInit, parent: MessagePort) {
+export default function runWorker(
+  {log, db}: CopyStreamerInit,
+  parent: MessagePort,
+) {
   const lc = createLogContext({log}, {worker: 'copy-worker'});
-  lc.debug?.('started copy worker');
 
   const buffers = new Queue<Uint8Array>();
-  parent.on('message', async (msg: BufferMessage | CopyMessage) => {
+  parent.on('message', async (msg: BufferMessage | StartCopyStreamMessage) => {
     if (msg.type === 'buffer') {
       buffers.enqueue(msg.array);
       return;
@@ -144,7 +60,7 @@ export default function runWorker({log, db}: WorkerInit, parent: MessagePort) {
       connection: {['application_name']: 'initial-sync-copy-worker'},
     });
     try {
-      await doCopy(sql, snapshotID, selection, port);
+      await doCopy(lc, buffers, sql, snapshotID, selection, port);
     } catch (e) {
       // Exit the worker if the COPY fails.
       lc.error?.(`error in copy worker`, e);
@@ -157,41 +73,45 @@ export default function runWorker({log, db}: WorkerInit, parent: MessagePort) {
   });
 
   // Allow the Worker to exit when the parent is no longer referencing it.
-  parent.unref();
+  // parent.unref();
+}
 
-  function doCopy(
-    sql: PostgresDB,
-    snapshotID: string,
-    selection: string,
-    dest: MessagePort,
-  ) {
-    const start = performance.now();
-    lc.info?.(
-      `starting COPY (available buffers: ${buffers.size()}): ${selection.trim()}`,
-    );
-    const {promise: copyDone, resolve, reject} = resolver();
+function doCopy(
+  lc: LogContext,
+  buffers: Queue<Uint8Array>,
+  sql: PostgresDB,
+  snapshotID: string,
+  selection: string,
+  dest: MessagePort,
+) {
+  const start = performance.now();
+  lc.info?.(
+    `starting COPY (available buffers: ${buffers.size()}): ${selection.trim()}`,
+  );
+  const {promise: copyDone, resolve, reject} = resolver();
 
-    void sql.begin(READONLY, async tx => {
-      if (snapshotID) {
-        void tx.unsafe(`SET TRANSACTION SNAPSHOT '${snapshotID}'`).execute();
-      }
-      const copyStream = await tx
-        .unsafe(`COPY (${selection}) TO STDOUT`)
-        .readable();
-      const sink = new MessagePortSink(lc, dest, buffers);
+  void sql.begin(READONLY, async tx => {
+    if (snapshotID) {
+      void tx.unsafe(`SET TRANSACTION SNAPSHOT '${snapshotID}'`).execute();
+    }
+    const copyStream = await tx
+      .unsafe(`COPY (${selection}) TO STDOUT`)
+      .readable();
+    const sink = new MessagePortSink(lc, dest, buffers);
 
-      void pipeline(copyStream, sink)
-        .then(resolve, reject)
-        .finally(() => {
-          const elapsed = performance.now() - start;
-          lc.info?.(
-            `finished COPY (blocked: ${sink.blockedTime.toFixed(3)}) (total: ${elapsed.toFixed(3)} ms): ${selection.trim()}`,
-          );
-        });
-    });
+    void pipeline(copyStream, sink)
+      .then(resolve, reject)
+      .finally(() => {
+        const elapsed = performance.now() - start;
+        lc.info?.(
+          `finished COPY (${sink.totalBytes.toLocaleString()} bytes) ` +
+            `(blocked: ${sink.blockedTime.toFixed(3)} ms) ` +
+            `(total: ${elapsed.toFixed(3)} ms): ${selection.trim()}`,
+        );
+      });
+  });
 
-    return copyDone;
-  }
+  return copyDone;
 }
 
 class MessagePortSink extends Writable {
@@ -202,9 +122,14 @@ class MessagePortSink extends Writable {
   #array: Uint8Array | null = null;
   #length: number = 0;
   #blockedTime = 0;
+  #totalBytes = 0;
 
   get blockedTime() {
     return this.#blockedTime;
+  }
+
+  get totalBytes() {
+    return this.#totalBytes;
   }
 
   constructor(lc: LogContext, dest: MessagePort, buffers: Queue<Uint8Array>) {
@@ -237,6 +162,7 @@ class MessagePortSink extends Writable {
         {array: this.#array, length: this.#length, last} satisfies StreamChunk,
         this.#array ? [this.#array.buffer] : undefined,
       );
+      this.#totalBytes += this.#length;
       this.#array = null;
       this.#length = 0;
     }
@@ -248,17 +174,13 @@ class MessagePortSink extends Writable {
     _encoding: BufferEncoding,
     callback: (error?: Error | null) => void,
   ) {
-    if (1) {
-      callback();
-      return;
-    }
     try {
       const array =
         this.#array !== null &&
         this.#array.length >= chunk.length + this.#length
           ? this.#array
           : await this.#getNextBuffer(chunk.length);
-      // chunk.copy(array, this.#length);
+      chunk.copy(array, this.#length);
       array;
       this.#length += chunk.length;
       callback();
@@ -279,6 +201,6 @@ class MessagePortSink extends Writable {
 }
 
 if (!isMainThread) {
-  v.assert(workerData, workerInitSchema);
+  v.assert(workerData, copyStreamerInitSchema);
   runWorker(workerData, must(parentPort));
 }

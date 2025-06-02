@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Transform, Writable} from 'node:stream';
+import {Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {Database} from '../../../../../zqlite/src/db.ts';
@@ -9,25 +9,15 @@ import {
   createTableStatement,
 } from '../../../db/create.ts';
 import * as Mode from '../../../db/mode-enum.ts';
-import {NULL_BYTE, TextTransform} from '../../../db/pg-copy.ts';
 import {
   mapPostgresToLite,
   mapPostgresToLiteIndex,
 } from '../../../db/pg-to-lite.ts';
-import {getTypeParsers} from '../../../db/pg-type-parser.ts';
 import type {IndexSpec, PublishedTableSpec} from '../../../db/specs.ts';
 import type {LexiVersion} from '../../../types/lexi-version.ts';
-import {
-  JSON_STRINGIFIED,
-  liteValue,
-  type LiteValueType,
-} from '../../../types/lite.ts';
+import {type LiteValueType} from '../../../types/lite.ts';
 import {liteTableName} from '../../../types/names.ts';
-import {
-  pgClient,
-  type PostgresDB,
-  type PostgresValueType,
-} from '../../../types/pg.ts';
+import {pgClient, type PostgresDB} from '../../../types/pg.ts';
 import type {ShardConfig} from '../../../types/shards.ts';
 import {ALLOWED_APP_ID_CHARACTERS} from '../../../types/shards.ts';
 import {id} from '../../../types/sql.ts';
@@ -37,7 +27,7 @@ import {
   initReplicationState,
   ZERO_VERSION_COLUMN_NAME,
 } from '../../replicator/schema/replication-state.ts';
-import {startCopy, startCopyWorker} from './copy-worker.ts';
+import {startCopy, startCopyWorkerPipeline} from './copy-pipeline.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
 import {getPublicationInfo} from './schema/published.ts';
@@ -73,22 +63,13 @@ export async function initialSync(
   }
   const {numBuffers = DEFAULT_NUM_BUFFERS, bufferSize = DEFAULT_BUFFER_SIZE} =
     syncOptions;
-  const copyWorker = startCopyWorker(
-    lc,
-    {
-      log: {level: 'info', format: 'text'},
-      db: upstreamURI,
-    },
+  const copyWorker = startCopyWorkerPipeline(lc, {
+    log: {level: 'info', format: 'json'},
+    db: upstreamURI,
     numBuffers,
     bufferSize,
-  );
+  });
   const sql = pgClient(lc, upstreamURI);
-  // The typeClient's reason for existence is to configure the type
-  // parsing for the copy workers, which skip JSON parsing for efficiency.
-  const typeClient = pgClient(lc, upstreamURI, {}, 'json-as-string');
-  // Fire off an innocuous request to initialize a connection and thus fetch
-  // the array types that will be used to parse the COPY stream.
-  void typeClient`SELECT 1`.execute();
   const replicationSession = pgClient(lc, upstreamURI, {
     ['fetch_types']: false, // Necessary for the streaming protocol
     connection: {replication: 'database'}, // https://www.postgresql.org/docs/current/protocol-replication.html
@@ -152,11 +133,9 @@ export async function initialSync(
         lc,
         await copyWorker,
         table,
-        typeClient,
         snapshot,
         tx,
         initialVersion,
-        bufferSize,
       );
       total.rows += copied.rows;
       total.flushTime += copied.flushTime;
@@ -187,7 +166,6 @@ export async function initialSync(
   } finally {
     await replicationSession.end();
     await sql.end();
-    await typeClient.end();
   }
 }
 
@@ -284,17 +262,13 @@ function createLiteIndices(tx: Database, indices: IndexSpec[]) {
 // Exported for testing.
 export const INSERT_BATCH_SIZE = 50;
 
-const MAX_BUFFERED_ROWS = 10_000;
-
 async function copy(
   lc: LogContext,
   copyWorker: Worker,
   table: PublishedTableSpec,
-  dbClient: PostgresDB,
   snapshotID: string,
   to: Database,
   initialVersion: LexiVersion,
-  bufferSize: number,
 ) {
   const start = performance.now();
   let rows = 0;
@@ -303,8 +277,6 @@ async function copy(
   const tableName = liteTableName(table);
   const orderedColumns = Object.entries(table.columns);
 
-  const columnSpecs = orderedColumns.map(([_name, spec]) => spec);
-  const selectColumns = orderedColumns.map(([c]) => id(c)).join(',');
   const insertColumns = [
     ...orderedColumns.map(([c]) => c),
     ZERO_VERSION_COLUMN_NAME,
@@ -321,113 +293,55 @@ async function copy(
     insertSql + `,${valuesSql}`.repeat(INSERT_BATCH_SIZE - 1),
   );
 
-  const filterConditions = Object.values(table.publications)
-    .map(({rowFilter}) => rowFilter)
-    .filter(f => !!f); // remove nulls
-  const selectStmt =
-    /*sql*/ `
-    SELECT ${selectColumns} FROM ${id(table.schema)}.${id(table.name)}` +
-    (filterConditions.length === 0
-      ? ''
-      : /*sql*/ ` WHERE ${filterConditions.join(' OR ')}`);
-
-  const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
+  const valuesPerRow = insertColumns.length;
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
 
-  // Preallocate the buffer of values to reduce memory allocation churn.
-  const pendingValues: LiteValueType[] = Array.from({
-    length: MAX_BUFFERED_ROWS * valuesPerRow,
-  });
-  let pendingRows = 0;
-  let pendingSize = 0;
-
-  function flush() {
-    const start = performance.now();
-    const flushedRows = pendingRows;
-    const flushedSize = pendingSize;
-
-    let l = 0;
-    for (; pendingRows > INSERT_BATCH_SIZE; pendingRows -= INSERT_BATCH_SIZE) {
-      insertBatchStmt.run(pendingValues.slice(l, (l += valuesPerBatch)));
-    }
-    // Insert the remaining rows individually.
-    for (; pendingRows > 0; pendingRows--) {
-      insertStmt.run(pendingValues.slice(l, (l += valuesPerRow)));
-    }
-    for (let i = 0; i < flushedRows; i++) {
-      // Reuse the array and unreference the values to allow GC.
-      // This is faster than allocating a new array every time.
-      pendingValues[i] = undefined as unknown as LiteValueType;
-    }
-    pendingSize = 0;
-    rows += flushedRows;
-
-    const elapsed = performance.now() - start;
-    flushTime += elapsed;
-    lc.debug?.(
-      `flushed ${flushedRows} ${tableName} rows (${flushedSize} bytes) in ${elapsed.toFixed(3)} ms`,
-    );
-  }
-
-  lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
-  const pgParsers = await getTypeParsers(dbClient);
-  const parsers = columnSpecs.map(c => {
-    const pgParse = pgParsers.getTypeParser(c.typeOID);
-    return (val: string) =>
-      val === NULL_BYTE
-        ? null
-        : liteValue(
-            pgParse(val) as PostgresValueType,
-            c.dataType,
-            JSON_STRINGIFIED,
-          );
-  });
-
-  let col = 0;
-
-  const blackHole = new Transform({
-    transform(_chunk, _encoding, callback) {
-      callback();
-    },
-  });
+  const valueStream = startCopy(
+    lc,
+    copyWorker,
+    snapshotID,
+    table,
+    initialVersion,
+  );
 
   await pipeline(
-    startCopy(lc, copyWorker, snapshotID, selectStmt),
-    blackHole,
-    new TextTransform(),
+    valueStream,
     new Writable({
       objectMode: true,
 
-      write: (
-        text: string,
-        _encoding: string,
-        callback: (error?: Error) => void,
-      ) => {
+      write(
+        values: LiteValueType[],
+        _encoding,
+        callback: (error?: Error | null) => void,
+      ) {
         try {
-          // Give every value at least 4 bytes.
-          pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
-          pendingValues[pendingRows * valuesPerRow + col] = parsers[col](text);
-
-          if (++col === parsers.length) {
-            // The last column is the _0_version.
-            pendingValues[pendingRows * valuesPerRow + col] = initialVersion;
-            col = 0;
-            if (
-              ++pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
-              pendingSize >= bufferSize
-            ) {
-              flush();
-            }
+          if (values.length % valuesPerRow !== 0) {
+            throw new Error(
+              `Number of ${tableName} values ${values.length} not a multiple of ${valuesPerRow}`,
+            );
           }
-          callback();
-        } catch (e) {
-          callback(e instanceof Error ? e : new Error(String(e)));
-        }
-      },
+          const start = performance.now();
+          let flushedRows = 0;
 
-      final: (callback: (error?: Error) => void) => {
-        try {
-          flush();
+          let l = 0;
+          for (
+            const end = values.length - valuesPerBatch;
+            l < end;
+            l += valuesPerBatch
+          ) {
+            insertBatchStmt.run(values.slice(l, l + valuesPerBatch));
+            flushedRows += INSERT_BATCH_SIZE;
+          }
+          for (const end = values.length; l < end; l += valuesPerRow) {
+            insertStmt.run(values.slice(l, l + valuesPerRow));
+            flushedRows++;
+          }
+          const elapsed = performance.now() - start;
+          flushTime += elapsed;
+          rows += flushedRows;
+          lc.debug?.(
+            `flushed ${flushedRows} ${tableName} rows in ${elapsed.toFixed(3)} ms`,
+          );
           callback();
         } catch (e) {
           callback(e instanceof Error ? e : new Error(String(e)));

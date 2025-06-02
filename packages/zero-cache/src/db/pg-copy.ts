@@ -25,49 +25,55 @@ export class TextTransform extends Transform {
     callback: (e?: Error) => void,
   ) {
     try {
-      let l = 0;
-      let r = 0;
-
-      for (; r < chunk.length; r++) {
-        const ch = chunk[r];
-        if (this.#escaped) {
-          const escapedChar = ESCAPED_CHARACTERS[ch];
-          if (escapedChar === undefined) {
-            throw new Error(
-              `Unexpected escape character \\${String.fromCharCode(ch)}`,
-            );
-          }
-          this.#currVal += escapedChar;
-          l = r + 1;
-          this.#escaped = false;
-          continue;
-        }
-        switch (ch) {
-          case 0x5c: // '\'
-            // flush segment
-            l < r && (this.#currVal += chunk.toString('utf8', l, r));
-            l = r + 1;
-            this.#escaped = true;
-            break;
-
-          case 0x09: // '\t'
-          case 0x0a: // '\n'
-            // flush segment
-            l < r && (this.#currVal += chunk.toString('utf8', l, r));
-            l = r + 1;
-
-            // Value is done in both cases.
-            this.push(this.#currVal);
-            this.#currVal = '';
-            break;
-        }
+      for (const value of this.parse(chunk)) {
+        this.push(value);
       }
-      // flush segment
-      l < r && (this.#currVal += chunk.toString('utf8', l, r));
       callback();
     } catch (e) {
       callback(e instanceof Error ? e : new Error(String(e)));
     }
+  }
+
+  *parse(chunk: Buffer): Iterable<string> {
+    let l = 0;
+    let r = 0;
+
+    for (; r < chunk.length; r++) {
+      const ch = chunk[r];
+      if (this.#escaped) {
+        const escapedChar = ESCAPED_CHARACTERS[ch];
+        if (escapedChar === undefined) {
+          throw new Error(
+            `Unexpected escape character \\${String.fromCharCode(ch)}`,
+          );
+        }
+        this.#currVal += escapedChar;
+        l = r + 1;
+        this.#escaped = false;
+        continue;
+      }
+      switch (ch) {
+        case 0x5c: // '\'
+          // flush segment
+          l < r && (this.#currVal += chunk.toString('utf8', l, r));
+          l = r + 1;
+          this.#escaped = true;
+          break;
+
+        case 0x09: // '\t'
+        case 0x0a: // '\n'
+          // flush segment
+          l < r && (this.#currVal += chunk.toString('utf8', l, r));
+          l = r + 1;
+
+          // Value is done in both cases.
+          yield this.#currVal;
+          this.#currVal = '';
+          break;
+      }
+    }
+    // flush segment
+    l < r && (this.#currVal += chunk.toString('utf8', l, r));
   }
 }
 
