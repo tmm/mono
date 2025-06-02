@@ -3,6 +3,12 @@ import type {Ordering, PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
 import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
 import type {Comparator} from './data.ts';
 
+export type ColumnType = {
+  type: ValueType;
+};
+
+type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json';
+
 /**
  * Information about the nodes output by an operator.
  */

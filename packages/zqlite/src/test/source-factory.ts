@@ -1,12 +1,8 @@
 import type {LogContext} from '@rocicorp/logger';
 import type {LogConfig} from '../../../otel/src/log-options.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {
-  mapAST,
-  type AST,
-  type CompoundKey,
-} from '../../../zero-protocol/src/ast.ts';
-import type {PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
+import {mapAST, type AST} from '../../../zero-protocol/src/ast.ts';
+import type {CompoundKey, PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import {
   clientToServer,

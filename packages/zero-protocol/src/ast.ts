@@ -20,6 +20,7 @@ import type {
   LiteralReference,
   ColumnReference,
   ValuePosition,
+  CompoundKey,
 } from '../../zql/src/ivm/constraint.ts';
 
 export const selectorSchema = v.string();
@@ -145,8 +146,6 @@ const disjunctionSchema: v.Type<Disjunction> = v.readonlyObject({
   type: v.literal('or'),
   conditions: v.readonlyArray(conditionSchema),
 });
-
-export type CompoundKey = readonly [string, ...string[]];
 
 function mustCompoundKey(field: readonly string[]): CompoundKey {
   assert(Array.isArray(field) && field.length >= 1);

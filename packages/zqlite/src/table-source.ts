@@ -13,10 +13,7 @@ import type {
   PrimaryKey,
   ValuePosition,
 } from '../../zql/src/ivm/constraint.ts';
-import type {
-  SchemaValue,
-  ValueType,
-} from '../../zero-schema/src/table-schema.ts';
+import type {ColumnType as SchemaValue} from '../../zql/src/ivm/schema.ts';
 import {
   createPredicate,
   transformFilters,
@@ -43,6 +40,7 @@ import {Database, Statement} from './db.ts';
 import {compile, format, sql} from './internal/sql.ts';
 import {StatementCache} from './internal/statement-cache.ts';
 import {runtimeDebugFlags, runtimeDebugStats} from './runtime-debug.ts';
+import type {ValueType} from '../../zero-protocol/src/client-schema.ts';
 
 type Statements = {
   readonly cache: StatementCache;

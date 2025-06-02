@@ -3,7 +3,6 @@ import type {JSONValue} from '../../../shared/src/json.ts';
 import {must} from '../../../shared/src/must.ts';
 import type {
   AST,
-  CompoundKey,
   Condition,
   Conjunction,
   CorrelatedSubquery,
@@ -19,6 +18,7 @@ import type {
   ColumnReference,
   LiteralValue,
   ValuePosition,
+  CompoundKey,
 } from '../../../zql/src/ivm/constraint.ts';
 import {Exists} from '../ivm/exists.ts';
 import {FanIn} from '../ivm/fan-in.ts';

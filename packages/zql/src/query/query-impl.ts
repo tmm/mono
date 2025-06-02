@@ -6,7 +6,6 @@ import type {Writable} from '../../../shared/src/writable.ts';
 import {hashOfAST} from '../../../zero-protocol/src/ast-hash.ts';
 import type {
   AST,
-  CompoundKey,
   Condition,
   Parameter,
   System,
@@ -41,7 +40,7 @@ import {
 import {DEFAULT_TTL, type TTL} from './ttl.ts';
 import type {TypedView} from '../ivm/typed-view.ts';
 import {NotImplementedError} from '../error.ts';
-import type {SimpleOperator, Ordering} from '../ivm/constraint.ts';
+import type {SimpleOperator, Ordering, CompoundKey} from '../ivm/constraint.ts';
 
 type AnyQuery = Query<Schema, string, any>;
 

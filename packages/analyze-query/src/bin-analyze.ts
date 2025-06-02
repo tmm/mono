@@ -18,11 +18,7 @@ import {
 import {loadSchemaAndPermissions} from '../../zero-cache/src/scripts/permissions.ts';
 import {pgClient} from '../../zero-cache/src/types/pg.ts';
 import {getShardID, upstreamSchema} from '../../zero-cache/src/types/shards.ts';
-import {
-  mapAST,
-  type AST,
-  type CompoundKey,
-} from '../../zero-protocol/src/ast.ts';
+import {mapAST, type AST} from '../../zero-protocol/src/ast.ts';
 import type {Schema} from '../../zero-schema/src/builder/schema-builder.ts';
 import {
   clientToServer,
@@ -45,6 +41,7 @@ import {
 } from '../../zqlite/src/runtime-debug.ts';
 import {TableSource} from '../../zqlite/src/table-source.ts';
 import type {FilterInput} from '../../zql/src/ivm/filter-operators.ts';
+import type {CompoundKey} from '../../zql/src/ivm/constraint.ts';
 
 const options = {
   replica: zeroOptions.replica,

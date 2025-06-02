@@ -6,8 +6,8 @@ import {Filter} from './filter.ts';
 import {Snitch} from './snitch.ts';
 import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import {testLogConfig} from '../../../otel/src/test-log-config.ts';
 import {buildFilterPipeline} from './filter-operators.ts';
+import {testLogConfig} from './test/test-log-config.ts';
 
 const lc = createSilentLogContext();
 

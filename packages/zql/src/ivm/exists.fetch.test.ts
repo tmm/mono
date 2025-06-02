@@ -1,10 +1,8 @@
 import {expect, suite, test} from 'vitest';
 import {unreachable} from '../../../shared/src/asserts.ts';
 import type {JSONValue} from '../../../shared/src/json.ts';
-import type {CompoundKey} from '../../../zero-protocol/src/ast.ts';
 import type {Row} from './data.ts';
-import type {Ordering, PrimaryKey} from '../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import type {CompoundKey, Ordering, PrimaryKey} from './constraint.ts';
 import {Catch, type CaughtNode} from './catch.ts';
 import {Exists} from './exists.ts';
 import {Join} from './join.ts';
@@ -14,6 +12,7 @@ import {createSource} from './test/source-factory.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
 import {testLogConfig} from '../../../otel/src/test-log-config.ts';
 import {buildFilterPipeline} from './filter-operators.ts';
+import type {ColumnType} from './schema.ts';
 
 const base = {
   columns: [
@@ -1521,7 +1520,7 @@ function fetchTest(t: FetchTest, reverse: boolean = false): FetchTestResults {
 }
 
 type FetchTest = {
-  columns: readonly Record<string, SchemaValue>[];
+  columns: readonly Record<string, ColumnType>[];
   primaryKeys: readonly PrimaryKey[];
   sources: readonly Row[][];
   sorts?: (Ordering | undefined)[] | undefined;

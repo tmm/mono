@@ -1,15 +1,15 @@
-import type {PrimaryKey} from '../../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../../zero-schema/src/table-schema.ts';
+import type {PrimaryKey} from '../constraint.ts';
 import {MemorySource} from '../memory-source.ts';
 import type {Source} from '../source.ts';
-import type {LogConfig} from '../../../../otel/src/log-options.ts';
 import type {LogContext} from '@rocicorp/logger';
+import type {ColumnType} from '../schema.ts';
+import type {LogConfig} from '../log.ts';
 
 export type SourceFactory = (
   lc: LogContext,
   logConfig: LogConfig,
   tableName: string,
-  columns: Record<string, SchemaValue>,
+  columns: Record<string, ColumnType>,
   primaryKey: PrimaryKey,
 ) => Source;
 
@@ -17,7 +17,7 @@ export const createSource: SourceFactory = (
   lc: LogContext,
   logConfig: LogConfig,
   tableName: string,
-  columns: Record<string, SchemaValue>,
+  columns: Record<string, ColumnType>,
   primaryKey: PrimaryKey,
 ): Source => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,14 +1,8 @@
 import {assert, unreachable} from '../../../shared/src/asserts.ts';
 import {BTreeSet} from '../../../shared/src/btree-set.ts';
 import {hasOwn} from '../../../shared/src/has-own.ts';
-import type {Condition} from '../../../zero-protocol/src/ast.ts';
 import type {Row, Value} from './data.ts';
-import type {
-  PrimaryKey,
-  OrderPart,
-  Ordering,
-} from '../../../zql/src/ivm/constraint.ts';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import type {PrimaryKey, OrderPart, Ordering, Condition} from './constraint.ts';
 import {assertOrderingIncludesPK} from '../builder/builder.ts';
 import {
   createPredicate,
@@ -36,7 +30,7 @@ import {
   type Output,
   type Start,
 } from './operator.ts';
-import type {SourceSchema} from './schema.ts';
+import type {ColumnType, SourceSchema} from './schema.ts';
 import type {
   Source,
   SourceChange,
@@ -85,7 +79,7 @@ export type Connection = {
  */
 export class MemorySource implements Source {
   readonly #tableName: string;
-  readonly #columns: Record<string, SchemaValue>;
+  readonly #columns: Record<string, ColumnType>;
   readonly #primaryKey: PrimaryKey;
   readonly #primaryIndexSort: Ordering;
   readonly #indexes: Map<string, Index> = new Map();
@@ -96,7 +90,7 @@ export class MemorySource implements Source {
 
   constructor(
     tableName: string,
-    columns: Record<string, SchemaValue>,
+    columns: Record<string, ColumnType>,
     primaryKey: PrimaryKey,
     primaryIndexData?: BTreeSet<Row> | undefined,
   ) {

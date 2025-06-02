@@ -8,7 +8,8 @@ export type Constraint = {
   readonly [key: string]: Value;
 };
 
-export type PrimaryKey = readonly [string, ...string[]];
+export type PrimaryKey = CompoundKey;
+export type CompoundKey = readonly [string, ...string[]];
 
 /**
  * When connecting to a source, an optional set of filters may

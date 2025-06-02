@@ -1,7 +1,7 @@
 import {areEqual} from '../../../shared/src/arrays.ts';
 import {assert, unreachable} from '../../../shared/src/asserts.ts';
-import type {CompoundKey} from '../../../zero-protocol/src/ast.ts';
 import {type Change} from './change.ts';
+import type {CompoundKey} from './constraint.ts';
 import {normalizeUndefined, type Node, type NormalizedValue} from './data.ts';
 import {
   throwFilterOutput,
