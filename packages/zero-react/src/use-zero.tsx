@@ -8,7 +8,7 @@ const ZeroContext = createContext<unknown | undefined>(undefined);
 
 export function useZero<
   S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs | undefined = undefined,
 >(): Zero<S, MD> {
   const zero = useContext(ZeroContext);
   if (zero === undefined) {
@@ -19,14 +19,14 @@ export function useZero<
 
 export function createUseZero<
   S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs | undefined = undefined,
 >() {
   return () => useZero<S, MD>();
 }
 
 export function ZeroProvider<
   S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs | undefined = undefined,
 >({children, zero}: {children: React.ReactNode; zero: Zero<S, MD>}) {
   return <ZeroContext.Provider value={zero}>{children}</ZeroContext.Provider>;
 }

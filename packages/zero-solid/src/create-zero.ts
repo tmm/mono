@@ -6,7 +6,7 @@ import {
   type ZeroOptions,
 } from '../../zero/src/zero.ts';
 
-export function createZero<S extends Schema, MD extends CustomMutatorDefs<S>>(
+export function createZero<S extends Schema, MD extends CustomMutatorDefs>(
   options: ZeroOptions<S, MD>,
 ): Zero<S, MD> {
   const opts = {

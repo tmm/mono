@@ -69,6 +69,7 @@ import {
   PULL_TIMEOUT_MS,
   RUN_LOOP_INTERVAL_MS,
 } from './zero.ts';
+import type {Transaction} from '../../../zql/src/mutate/custom.ts';
 
 const startTime = 1678829450000;
 
@@ -812,7 +813,7 @@ describe('initConnection', () => {
 
   async function zeroForTestWithDeletedClients<
     const S extends Schema,
-    MD extends CustomMutatorDefs<S> = CustomMutatorDefs<S>,
+    MD extends CustomMutatorDefs = CustomMutatorDefs,
   >(
     options: Partial<ZeroOptions<S, MD>> & {
       deletedClients?: ClientID[] | undefined;
@@ -3320,10 +3321,10 @@ test('custom mutations get pushed', async () => {
     schema,
     mutators: {
       issues: {
-        foo: (tx, {foo}: {foo: number}) =>
+        foo: (tx: Transaction<typeof schema>, {foo}: {foo: number}) =>
           tx.mutate.issues.insert({id: foo.toString(), value: foo}),
       },
-    } as const satisfies CustomMutatorDefs<typeof schema>,
+    } as const,
   });
   await z.triggerConnected();
   const mockSocket = await z.socket;

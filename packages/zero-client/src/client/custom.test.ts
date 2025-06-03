@@ -26,14 +26,15 @@ import {createDb} from './test/create-db.ts';
 import {getInternalReplicacheImplForTesting} from './zero.ts';
 
 type Schema = typeof schema;
+type MutatorTx = Transaction<Schema>;
 
 test('argument types are preserved on the generated mutator interface', () => {
   const mutators = {
     issue: {
-      setTitle: (tx, {id, title}: {id: string; title: string}) =>
+      setTitle: (tx: MutatorTx, {id, title}: {id: string; title: string}) =>
         tx.mutate.issue.update({id, title}),
       setProps: (
-        tx,
+        tx: MutatorTx,
         {
           id,
           title,
@@ -54,11 +55,11 @@ test('argument types are preserved on the generated mutator interface', () => {
         }),
     },
     nonTableNamespace: {
-      doThing: (_tx, _a: {arg1: string; arg2: number}) => {
+      doThing: (_tx: MutatorTx, _a: {arg1: string; arg2: number}) => {
         throw new Error('not implemented');
       },
     },
-  } satisfies CustomMutatorDefs<Schema>;
+  } as const;
 
   type MutatorsInterface = MakeCustomMutatorInterfaces<Schema, typeof mutators>;
 
@@ -156,7 +157,7 @@ test('custom mutators write to the local store', async () => {
           await tx.mutate.issue.update({id, title: '🤡'});
         },
       },
-    } satisfies CustomMutatorDefs<Schema>,
+    } satisfies CustomMutatorDefs,
   });
 
   await z.mutate.issue.create({
@@ -202,10 +203,13 @@ test('custom mutators can query the local store during an optimistic mutation', 
     schema,
     mutators: {
       issue: {
-        create: async (tx, args: InsertValue<typeof schema.tables.issue>) => {
+        create: async (
+          tx: MutatorTx,
+          args: InsertValue<typeof schema.tables.issue>,
+        ) => {
           await tx.mutate.issue.insert(args);
         },
-        closeAll: async tx => {
+        closeAll: async (tx: MutatorTx) => {
           const issues = await tx.query.issue;
           await Promise.all(
             issues.map(issue =>
@@ -214,7 +218,7 @@ test('custom mutators can query the local store during an optimistic mutation', 
           );
         },
       },
-    } as const satisfies CustomMutatorDefs<Schema>,
+    } as const,
   });
 
   await Promise.all(
@@ -300,7 +304,7 @@ describe('rebasing custom mutators', () => {
       mutators: {
         issue: {
           createAndReadCreated: async (
-            tx,
+            tx: MutatorTx,
             args: InsertValue<typeof schema.tables.issue>,
           ) => {
             await tx.mutate.issue.insert(args);
@@ -314,7 +318,7 @@ describe('rebasing custom mutators', () => {
             });
           },
         },
-      } as const satisfies CustomMutatorDefs<Schema>,
+      } as const,
     });
 
     await z.mutate.issue.createAndReadCreated({
@@ -362,7 +366,10 @@ describe('rebasing custom mutators', () => {
       schema,
       mutators: {
         issue: {
-          create: async (tx, args: InsertValue<typeof schema.tables.issue>) => {
+          create: async (
+            tx: MutatorTx,
+            args: InsertValue<typeof schema.tables.issue>,
+          ) => {
             await tx.mutate.issue.insert(args);
             // query main. The issue should not be there yet.
             expect(await z.query.issue).length(0);
@@ -372,7 +379,7 @@ describe('rebasing custom mutators', () => {
             mutationRun = true;
           },
         },
-      } as const satisfies CustomMutatorDefs<Schema>,
+      } as const,
     });
 
     await z.mutate.issue.create({
@@ -404,13 +411,13 @@ describe('server results and keeping read queries', () => {
       mutators: {
         issue: {
           create: async (
-            _tx,
+            _tx: MutatorTx,
             _args: InsertValue<typeof schema.tables.issue>,
           ) => {},
 
-          close: async (_tx, _args: object) => {},
+          close: async (_tx: MutatorTx, _args: object) => {},
         },
-      } as const satisfies CustomMutatorDefs<Schema>,
+      } as const,
     });
 
     await z.triggerConnected();
@@ -470,17 +477,17 @@ describe('server results and keeping read queries', () => {
       mutators: {
         issue: {
           create: async (
-            tx,
+            tx: MutatorTx,
             _args: InsertValue<typeof schema.tables.issue>,
           ) => {
             await tx.query.issue;
           },
 
-          close: async (tx, _args: object) => {
+          close: async (tx: MutatorTx, _args: object) => {
             await tx.query.issue.limit(1);
           },
         },
-      } as const satisfies CustomMutatorDefs<Schema>,
+      } as const,
     });
 
     const mockSocket = await z.socket;
@@ -576,7 +583,7 @@ test('run waiting for complete results throws in custom mutations', async () => 
     schema,
     mutators: {
       issue: {
-        create: async tx => {
+        create: async (tx: MutatorTx) => {
           try {
             await tx.query.issue.run({type: 'complete'});
           } catch (e) {
@@ -584,7 +591,7 @@ test('run waiting for complete results throws in custom mutations', async () => 
           }
         },
       },
-    } as const satisfies CustomMutatorDefs<Schema>,
+    } as const,
   });
 
   await z.triggerConnected();
@@ -605,11 +612,11 @@ test('warns when awaiting the promise directly', async () => {
     logLevel: 'warn',
     mutators: {
       issue: {
-        create: async tx => {
+        create: async (tx: MutatorTx) => {
           await tx.query.issue;
         },
       },
-    } as const satisfies CustomMutatorDefs<Schema>,
+    } as const,
   });
 
   await z.triggerConnected();

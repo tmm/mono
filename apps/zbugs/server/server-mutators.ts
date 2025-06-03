@@ -3,8 +3,9 @@ import {
   type CreateIssueArgs,
   type AddEmojiArgs,
   type AddCommentArgs,
+  type MutatorTx,
 } from '../shared/mutators.ts';
-import {type CustomMutatorDefs, type UpdateValue} from '@rocicorp/zero';
+import {type UpdateValue} from '@rocicorp/zero';
 import {schema} from '../shared/schema.ts';
 import {notify} from './notify.ts';
 import {assert} from '../../../packages/shared/src/asserts.ts';
@@ -24,7 +25,7 @@ export function createServerMutators(
     issue: {
       ...mutators.issue,
 
-      async create(tx, {id, title, description}: CreateIssueArgs) {
+      async create(tx: MutatorTx, {id, title, description}: CreateIssueArgs) {
         await mutators.issue.create(tx, {
           id,
           title,
@@ -41,7 +42,7 @@ export function createServerMutators(
       },
 
       async update(
-        tx,
+        tx: MutatorTx,
         args: {id: string} & UpdateValue<typeof schema.tables.issue>,
       ) {
         const oldIssue = await tx.query.issue.where('id', args.id).one();
@@ -74,7 +75,7 @@ export function createServerMutators(
       },
 
       async addLabel(
-        tx,
+        tx: MutatorTx,
         {issueID, labelID}: {issueID: string; labelID: string},
       ) {
         await mutators.issue.addLabel(tx, {issueID, labelID});
@@ -91,7 +92,7 @@ export function createServerMutators(
       },
 
       async removeLabel(
-        tx,
+        tx: MutatorTx,
         {issueID, labelID}: {issueID: string; labelID: string},
       ) {
         await mutators.issue.removeLabel(tx, {issueID, labelID});
@@ -111,7 +112,7 @@ export function createServerMutators(
     emoji: {
       ...mutators.emoji,
 
-      async addToIssue(tx, args: AddEmojiArgs) {
+      async addToIssue(tx: MutatorTx, args: AddEmojiArgs) {
         await mutators.emoji.addToIssue(tx, {
           ...args,
           created: Date.now(),
@@ -128,7 +129,7 @@ export function createServerMutators(
         );
       },
 
-      async addToComment(tx, args: AddEmojiArgs) {
+      async addToComment(tx: MutatorTx, args: AddEmojiArgs) {
         await mutators.emoji.addToComment(tx, {
           ...args,
           created: Date.now(),
@@ -155,7 +156,7 @@ export function createServerMutators(
     comment: {
       ...mutators.comment,
 
-      async add(tx, {id, issueID, body}: AddCommentArgs) {
+      async add(tx: MutatorTx, {id, issueID, body}: AddCommentArgs) {
         await mutators.comment.add(tx, {
           id,
           issueID,
@@ -175,7 +176,7 @@ export function createServerMutators(
         );
       },
 
-      async edit(tx, {id, body}: {id: string; body: string}) {
+      async edit(tx: MutatorTx, {id, body}: {id: string; body: string}) {
         await mutators.comment.edit(tx, {id, body});
 
         const comment = await tx.query.comment.where('id', id).one();
@@ -194,5 +195,5 @@ export function createServerMutators(
         );
       },
     },
-  } as const satisfies CustomMutatorDefs<typeof schema>;
+  } as const;
 }

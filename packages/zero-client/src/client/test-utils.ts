@@ -82,7 +82,7 @@ export class MockSocket extends EventTarget {
 
 export class TestZero<
   const S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs | undefined = undefined,
 > extends Zero<S, MD> {
   pokeIDCounter = 0;
 
@@ -278,7 +278,7 @@ let testZeroCounter = 0;
 
 export function zeroForTest<
   const S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs | undefined = undefined,
 >(
   options: Partial<ZeroOptions<S, MD>> = {},
   errorOnUpdateNeeded = true,

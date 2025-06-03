@@ -174,10 +174,9 @@ interface TestZero {
   }) => LogOptions;
 }
 
-function asTestZero<
-  S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined,
->(z: Zero<S, MD>): TestZero {
+function asTestZero<S extends Schema, MD extends CustomMutatorDefs | undefined>(
+  z: Zero<S, MD>,
+): TestZero {
   return z as TestZero;
 }
 
@@ -272,7 +271,7 @@ type CloseCode = typeof CLOSE_CODE_NORMAL | typeof CLOSE_CODE_GOING_AWAY;
 
 export class Zero<
   const S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs | undefined = undefined,
 > {
   readonly version = version;
 
@@ -513,7 +512,7 @@ export class Zero<
             assertUnique(key);
             replicacheMutators[key] = makeReplicacheMutator(
               lc,
-              mutator as CustomMutatorImpl<S>,
+              mutator as CustomMutatorImpl<Schema>,
               schema,
               slowMaterializeThreshold,
             ) as () => MutatorReturn;
@@ -785,7 +784,7 @@ export class Zero<
    * await zero.mutate.issue.update({id: '1', title: 'Updated title'});
    * ```
    */
-  readonly mutate: MD extends CustomMutatorDefs<S>
+  readonly mutate: MD extends CustomMutatorDefs
     ? DeepMerge<DBMutator<S>, MakeCustomMutatorInterfaces<S, MD>>
     : DBMutator<S>;
 
