@@ -1,6 +1,11 @@
 /* eslint-disable no-console */
 import {describe, expect, test} from 'vitest';
-import {dataTypeToZqlValueType, timestampToFpMillis} from './pg.ts';
+import {FLOAT4, INT2, INT4, TIMESTAMPTZ, VARBIT, VARCHAR} from './pg-types.ts';
+import {
+  dataTypeToZqlValueType,
+  isPgNumberTypeOID,
+  timestampToFpMillis,
+} from './pg.ts';
 
 describe('timestampToFpMillis', () => {
   test.each([
@@ -90,4 +95,15 @@ describe('dataTypeToZqlValueType', () => {
       ).toBeUndefined();
     },
   );
+
+  test.each([
+    [INT2, true],
+    [INT4, true],
+    [VARBIT, false],
+    [VARCHAR, false],
+    [FLOAT4, true],
+    [TIMESTAMPTZ, false],
+  ])('is numeric type %d', (typeOID, expected) => {
+    expect(isPgNumberTypeOID(typeOID)).toBe(expected);
+  });
 });

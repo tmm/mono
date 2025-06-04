@@ -1,14 +1,14 @@
-import type {LogContext} from '@rocicorp/logger';
+import {LogContext} from '@rocicorp/logger';
 import {afterEach, beforeEach, describe, expect, test} from 'vitest';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import type {Database, Database as Db} from '../../../zqlite/src/db.ts';
 import {DbFile} from '../test/lite.ts';
+import {AsyncDatabase} from './async-db.ts';
 import {
+  getVersionHistory,
+  runSchemaMigrationsAsync,
   type IncrementalMigrationMap,
   type Migration,
   type VersionHistory,
-  getVersionHistory,
-  runSchemaMigrations,
 } from './migration-lite.ts';
 
 describe('db/migration-lite', () => {
@@ -17,17 +17,18 @@ describe('db/migration-lite', () => {
   type Case = {
     name: string;
     preSchema?: VersionHistory;
-    setup?: Migration<Database>;
-    migrations: IncrementalMigrationMap<Database>;
+    setup?: Migration<AsyncDatabase>;
+    migrations: IncrementalMigrationMap<AsyncDatabase>;
     postSchema: VersionHistory;
     expectedErr?: string;
     expectedMigrationHistory?: {event: string}[];
   };
 
   const logMigrationHistory =
-    (name: string) => async (_log: LogContext, db: Db) => {
+    (name: string) => async (_log: LogContext, db: AsyncDatabase) => {
       const meta = await getVersionHistory(db);
-      db.prepare(`INSERT INTO MigrationHistory (event) VALUES (?)`).run(
+      await db.run(
+        `INSERT INTO MigrationHistory (event) VALUES (?)`,
         `${name}-at(${meta.dataVersion})`,
       );
     };
@@ -217,20 +218,21 @@ describe('db/migration-lite', () => {
   for (const c of cases) {
     test(c.name, async () => {
       if (c.preSchema) {
-        const db = dbFile.connect(createSilentLogContext());
+        const db = await dbFile.connectAsync();
         await getVersionHistory(db); // Ensures that the table is created.
-        db.prepare(
+        await db.run(
           `
           INSERT INTO "_zero.versionHistory" (dataVersion, schemaVersion, minSafeVersion)
           VALUES (@dataVersion, @schemaVersion, @minSafeVersion)
         `,
-        ).run(c.preSchema);
-        db.close();
+          c.preSchema,
+        );
+        await db.close();
       }
 
       let err: string | undefined;
       try {
-        await runSchemaMigrations(
+        await runSchemaMigrationsAsync(
           createSilentLogContext(),
           debugName,
           dbFile.path,
@@ -247,12 +249,12 @@ describe('db/migration-lite', () => {
       }
       expect(err).toBe(c.expectedErr);
 
-      const db = dbFile.connect(createSilentLogContext());
+      const db = await dbFile.connectAsync();
       expect(await getVersionHistory(db)).toEqual(c.postSchema);
-      expect(db.prepare(`SELECT * FROM "MigrationHistory"`).all()).toEqual(
+      expect(await db.all(`SELECT * FROM "MigrationHistory"`)).toEqual(
         c.expectedMigrationHistory ?? [],
       );
-      db.close();
+      await db.close();
     });
   }
 });

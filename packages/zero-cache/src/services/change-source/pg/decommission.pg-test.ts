@@ -1,7 +1,7 @@
 import {LogContext} from '@rocicorp/logger';
 import {afterEach, beforeEach, describe, expect, test} from 'vitest';
 import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.ts';
-import {Database} from '../../../../../zqlite/src/db.ts';
+import {AsyncDatabase} from '../../../db/async-db.ts';
 import {getConnectionURI, initDB, testDBs} from '../../../test/db.ts';
 import type {PostgresDB} from '../../../types/pg.ts';
 import {decommissionShard} from './decommission.ts';
@@ -13,12 +13,12 @@ const SHARD_NUM = 13;
 describe('decommission', () => {
   let lc: LogContext;
   let upstream: PostgresDB;
-  let replica: Database;
+  let replica: AsyncDatabase;
 
   beforeEach(async () => {
     lc = createSilentLogContext();
     upstream = await testDBs.create('decommission_test');
-    replica = new Database(lc, ':memory:');
+    replica = await AsyncDatabase.connect(':memory:');
   });
 
   afterEach(async () => {

@@ -1,6 +1,6 @@
 import type {LogContext} from '@rocicorp/logger';
 import type {ShardConfig} from '../../../types/shards.ts';
-import {initReplica} from '../replica-schema.ts';
+import {initReplicaAsync} from '../replica-schema.ts';
 import {initialSync, type InitialSyncOptions} from './initial-sync.ts';
 
 export async function initSyncSchema(
@@ -11,7 +11,7 @@ export async function initSyncSchema(
   upstreamURI: string,
   syncOptions: InitialSyncOptions,
 ): Promise<void> {
-  await initReplica(log, debugName, dbPath, (log, tx) =>
+  await initReplicaAsync(log, debugName, dbPath, (log, tx) =>
     initialSync(log, shard, tx, upstreamURI, syncOptions),
   );
 }

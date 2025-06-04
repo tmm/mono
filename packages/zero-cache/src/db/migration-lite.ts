@@ -2,23 +2,28 @@ import type {LogContext} from '@rocicorp/logger';
 import {assert} from '../../../shared/src/asserts.ts';
 import {randInt} from '../../../shared/src/rand.ts';
 import * as v from '../../../shared/src/valita.ts';
-import type {Database as Db} from '../../../zqlite/src/db.ts';
 import {Database} from '../../../zqlite/src/db.ts';
+import {AsyncDatabase} from './async-db.ts';
 
-type Operations = (log: LogContext, tx: Db) => Promise<void> | void;
+export type Db = AsyncDatabase | Database;
+
+type Operations<D extends Db> = (
+  log: LogContext,
+  tx: D,
+) => Promise<void> | void;
 
 /**
  * Encapsulates the logic for setting up or upgrading to a new schema. After the
  * Migration code successfully completes, {@link runSchemaMigrations}
  * will update the schema version and commit the transaction.
  */
-export type Migration = {
+export type Migration<D extends Db> = {
   /**
    * Perform database operations that create or alter table structure. This is
    * called at most once during lifetime of the application. If a `migrateData()`
    * operation is defined, that will be performed after `migrateSchema()` succeeds.
    */
-  migrateSchema?: Operations;
+  migrateSchema?: Operations<D>;
 
   /**
    * Perform database operations to migrate data to the new schema. This is
@@ -28,7 +33,7 @@ export type Migration = {
    *
    * Consequently, the logic in `migrateData()` must be idempotent.
    */
-  migrateData?: Operations;
+  migrateData?: Operations<D>;
 
   /**
    * Sets the `minSafeVersion` to the specified value, prohibiting running
@@ -48,27 +53,61 @@ export type Migration = {
  * "code version", and is also used as the destination version when
  * running the initial setup migration on a blank database.
  */
-export type IncrementalMigrationMap = {
-  [destinationVersion: number]: Migration;
+export type IncrementalMigrationMap<D extends Db> = {
+  [destinationVersion: number]: Migration<D>;
 };
+
+export async function runSchemaMigrations(
+  log: LogContext,
+  debugName: string,
+  dbPath: string,
+  setupMigration: Migration<Database>,
+  incrementalMigrationMap: IncrementalMigrationMap<Database>,
+): Promise<void> {
+  const db = new Database(log, dbPath);
+  db.unsafeMode(true); // Enables journal_mode = OFF
+
+  await runSchemaMigrationsImpl(
+    log,
+    debugName,
+    db,
+    setupMigration,
+    incrementalMigrationMap,
+  );
+}
+
+export async function runSchemaMigrationsAsync(
+  log: LogContext,
+  debugName: string,
+  dbPath: string,
+  setupMigration: Migration<AsyncDatabase>,
+  incrementalMigrationMap: IncrementalMigrationMap<AsyncDatabase>,
+): Promise<void> {
+  await runSchemaMigrationsImpl(
+    log,
+    debugName,
+    await AsyncDatabase.connect(dbPath),
+    setupMigration,
+    incrementalMigrationMap,
+  );
+}
 
 /**
  * Ensures that the schema is compatible with the current code, updating and
  * migrating the schema if necessary.
  */
-export async function runSchemaMigrations(
+async function runSchemaMigrationsImpl<D extends Db>(
   log: LogContext,
   debugName: string,
-  dbPath: string,
-  setupMigration: Migration,
-  incrementalMigrationMap: IncrementalMigrationMap,
+  db: D,
+  setupMigration: Migration<D>,
+  incrementalMigrationMap: IncrementalMigrationMap<D>,
 ): Promise<void> {
   const start = Date.now();
   log = log.withContext(
     'initSchema',
     randInt(0, Number.MAX_SAFE_INTEGER).toString(36),
   );
-  const db = new Database(log, dbPath);
 
   try {
     const versionMigrations = sorted(incrementalMigrationMap);
@@ -85,8 +124,8 @@ export async function runSchemaMigrations(
       `Checking schema for compatibility with ${debugName} at schema v${codeVersion}`,
     );
 
-    let versions = await runTransaction(log, db, tx => {
-      const versions = getVersionHistory(tx);
+    let versions = await runTransaction(log, db, async tx => {
+      const versions = await getVersionHistory(tx);
       if (codeVersion < versions.minSafeVersion) {
         throw new Error(
           `Cannot run ${debugName} at schema v${codeVersion} because rollback limit is v${versions.minSafeVersion}`,
@@ -103,15 +142,18 @@ export async function runSchemaMigrations(
     });
 
     if (versions.dataVersion < codeVersion) {
-      db.unsafeMode(true); // Enables journal_mode = OFF
-      db.pragma('locking_mode = EXCLUSIVE');
-      db.pragma('foreign_keys = OFF');
-      db.pragma('journal_mode = OFF');
-      db.pragma('synchronous = OFF');
-      // Unfortunately, AUTO_VACUUM is not compatible with BEGIN CONCURRENT,
-      // so it is not an option for the replica file.
-      // https://sqlite.org/forum/forumpost/25f183416a
-      // db.pragma('auto_vacuum = INCREMENTAL');
+      await db.exec(
+        `
+      PRAGMA locking_mode = EXCLUSIVE;
+      PRAGMA foreign_keys = OFF;
+      PRAGMA journal_mode = OFF;
+      PRAGMA synchronous = OFF;
+      `,
+        // Unfortunately, AUTO_VACUUM is not compatible with BEGIN CONCURRENT,
+        // so it is not an option for the replica file.
+        // https://sqlite.org/forum/forumpost/25f183416a
+        // PRAGMA auto_vacuum = INCREMENTAL;
+      );
 
       const migrations =
         versions.dataVersion === 0
@@ -128,7 +170,7 @@ export async function runSchemaMigrations(
 
           versions = await runTransaction(log, db, async tx => {
             // Fetch meta from within the transaction to make the migration atomic.
-            let versions = getVersionHistory(tx);
+            let versions = await getVersionHistory(tx);
             if (versions.dataVersion < dest) {
               versions = await runMigration(log, tx, versions, dest, migration);
               assert(versions.dataVersion === dest);
@@ -138,7 +180,7 @@ export async function runSchemaMigrations(
         }
       }
 
-      db.exec('ANALYZE main');
+      await db.exec('ANALYZE main');
       log.info?.('ANALYZE completed');
     } else {
       // Run optimize whenever opening an sqlite db file as recommended in
@@ -148,14 +190,13 @@ export async function runSchemaMigrations(
       // replication) so that any corruption detected in the view-syncer is
       // similarly detected in the change-streamer, facilitating an eventual
       // recovery by resyncing the replica anew.
-      db.pragma('optimize = 0x10002');
+      await db.exec('PRAGMA optimize = 0x10002;');
 
       // TODO: Investigate running `integrity_check` or `quick_check` as well,
       // provided that they are not inordinately expensive on large databases.
     }
 
-    db.pragma('synchronous = NORMAL');
-    db.unsafeMode(false);
+    await db.exec('PRAGMA synchronous = NORMAL;');
 
     assert(versions.dataVersion === codeVersion);
     log.info?.(
@@ -167,15 +208,15 @@ export async function runSchemaMigrations(
     log.error?.('Error in ensureSchemaMigrated', e);
     throw e;
   } finally {
-    db.close();
+    await db.close();
     void log.flush(); // Flush the logs but do not block server progress on it.
   }
 }
 
-function sorted(
-  incrementalMigrationMap: IncrementalMigrationMap,
-): [number, Migration][] {
-  const versionMigrations: [number, Migration][] = [];
+function sorted<D extends Db>(
+  incrementalMigrationMap: IncrementalMigrationMap<D>,
+): [number, Migration<D>][] {
+  const versionMigrations: [number, Migration<D>][] = [];
   for (const [v, m] of Object.entries(incrementalMigrationMap)) {
     versionMigrations.push([Number(v), m]);
   }
@@ -213,10 +254,13 @@ export const versionHistory = v.object({
 // Exposed for tests.
 export type VersionHistory = v.Infer<typeof versionHistory>;
 
+const getVersionHistoryStmt = /*sql*/ `
+  SELECT dataVersion, schemaVersion, minSafeVersion FROM "_zero.versionHistory"`;
+
 // Exposed for tests
-export function getVersionHistory(db: Db): VersionHistory {
+export async function getVersionHistory(db: Db): Promise<VersionHistory> {
   // Note: The `lock` column transparently ensures that at most one row exists.
-  db.prepare(
+  await db.exec(
     `
     CREATE TABLE IF NOT EXISTS "_zero.versionHistory" (
       dataVersion INTEGER NOT NULL,
@@ -226,51 +270,54 @@ export function getVersionHistory(db: Db): VersionHistory {
       lock INTEGER PRIMARY KEY DEFAULT 1 CHECK (lock=1)
     );
   `,
-  ).run();
-  const result = db
-    .prepare(
-      'SELECT dataVersion, schemaVersion, minSafeVersion FROM "_zero.versionHistory"',
-    )
-    .get() as VersionHistory;
+  );
+  const result =
+    db instanceof AsyncDatabase
+      ? await db.get<VersionHistory>(getVersionHistoryStmt)
+      : db.prepare(getVersionHistoryStmt).get<VersionHistory>();
+
   return result ?? {dataVersion: 0, schemaVersion: 0, minSafeVersion: 0};
 }
 
-function updateVersionHistory(
-  log: LogContext,
-  db: Db,
-  prev: VersionHistory,
-  newVersion: number,
-  minSafeVersion?: number,
-): VersionHistory {
-  assert(newVersion > 0);
-  const meta = {
-    ...prev,
-    dataVersion: newVersion,
-    // The schemaVersion never moves backwards.
-    schemaVersion: Math.max(newVersion, prev.schemaVersion),
-    minSafeVersion: getMinSafeVersion(log, prev, minSafeVersion),
-  } satisfies VersionHistory;
-
-  db.prepare(
-    `
-    INSERT INTO "_zero.versionHistory" (dataVersion, schemaVersion, minSafeVersion, lock)
+const updateVersionHistoryStmt = /*sql*/ `
+  INSERT INTO "_zero.versionHistory" (dataVersion, schemaVersion, minSafeVersion, lock)
     VALUES (@dataVersion, @schemaVersion, @minSafeVersion, 1)
     ON CONFLICT (lock) DO UPDATE
     SET dataVersion=@dataVersion,
         schemaVersion=@schemaVersion,
         minSafeVersion=@minSafeVersion
-  `,
-  ).run(meta);
+  `;
+
+async function updateVersionHistory(
+  log: LogContext,
+  db: Db,
+  prev: VersionHistory,
+  newVersion: number,
+  minSafeVersion?: number,
+): Promise<VersionHistory> {
+  assert(newVersion > 0);
+  const meta = {
+    dataVersion: newVersion,
+    // The schemaVersion never moves backwards.
+    schemaVersion: Math.max(newVersion, prev.schemaVersion),
+    minSafeVersion: getMinSafeVersion(log, prev, minSafeVersion),
+  };
+
+  if (db instanceof AsyncDatabase) {
+    await db.run(updateVersionHistoryStmt, meta);
+  } else {
+    db.prepare(updateVersionHistoryStmt).run(meta);
+  }
 
   return meta;
 }
 
-async function runMigration(
+async function runMigration<D extends Db>(
   log: LogContext,
-  tx: Db,
+  tx: D,
   versions: VersionHistory,
   destinationVersion: number,
-  migration: Migration,
+  migration: Migration<D>,
 ): Promise<VersionHistory> {
   if (versions.schemaVersion < destinationVersion) {
     await migration.migrateSchema?.(log, tx);
@@ -315,18 +362,18 @@ function getMinSafeVersion(
 
 // Note: We use a custom transaction wrapper (instead of db.begin(...)) in order
 // to support async operations within the transaction.
-async function runTransaction<T>(
+async function runTransaction<D extends Db, T>(
   log: LogContext,
-  db: Db,
-  tx: (db: Db) => Promise<T> | T,
+  db: D,
+  tx: (db: D) => Promise<T> | T,
 ): Promise<T> {
-  db.prepare('BEGIN EXCLUSIVE').run();
+  await db.exec('BEGIN EXCLUSIVE');
   try {
     const result = await tx(db);
-    db.prepare('COMMIT').run();
+    await db.exec('COMMIT');
     return result;
   } catch (e) {
-    db.prepare('ROLLBACK').run();
+    await db.exec('ROLLBACK');
     log.error?.('Aborted transaction due to error', e);
     throw e;
   }

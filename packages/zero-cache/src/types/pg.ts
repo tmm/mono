@@ -7,6 +7,11 @@ import type {ValueType} from '../../../zero-protocol/src/client-schema.ts';
 import {BigIntJSON, type JSONValue} from './bigint-json.ts';
 import {
   DATE,
+  FLOAT4,
+  FLOAT8,
+  INT2,
+  INT4,
+  INT8,
   JSON,
   JSONB,
   NUMERIC,
@@ -234,8 +239,21 @@ export const pgToZqlNumericTypeMap = Object.freeze({
   'float8': 'number',
 });
 
+export const pgNumericTypeOIDMap = Object.freeze({
+  [INT2]: true,
+  [INT4]: true,
+  [INT8]: true,
+  [FLOAT4]: true,
+  [FLOAT8]: true,
+  [NUMERIC]: true,
+});
+
 export function isPgNumberType(pgType: string) {
   return Object.hasOwn(pgToZqlNumericTypeMap, formatTypeForLookup(pgType));
+}
+
+export function isPgNumberTypeOID(pgTypeOID: number) {
+  return Object.hasOwn(pgNumericTypeOIDMap, pgTypeOID);
 }
 
 export const pgToZqlStringTypeMap = Object.freeze({

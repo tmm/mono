@@ -1,8 +1,10 @@
 import {LogContext} from '@rocicorp/logger';
 import {tmpdir} from 'node:os';
+import {verbose} from 'sqlite3';
 import {expect} from 'vitest';
 import {randInt} from '../../../shared/src/rand.ts';
 import {Database} from '../../../zqlite/src/db.ts';
+import {AsyncDatabase} from '../db/async-db.ts';
 import {deleteLiteDB} from '../db/delete-lite-db.ts';
 import {id} from '../types/sql.ts';
 
@@ -15,6 +17,11 @@ export class DbFile {
 
   connect(lc: LogContext): Database {
     return new Database(lc, this.path);
+  }
+
+  connectAsync(): Promise<AsyncDatabase> {
+    verbose(); // Configures sqlite3 to save stack traces for debugging
+    return AsyncDatabase.connect(this.path);
   }
 
   delete() {

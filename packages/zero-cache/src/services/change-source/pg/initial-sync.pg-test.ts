@@ -1,7 +1,6 @@
 import {nanoid} from 'nanoid/non-secure';
 import {beforeEach, describe, expect, test} from 'vitest';
 import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.ts';
-import {Database} from '../../../../../zqlite/src/db.ts';
 import {listIndexes, listTables} from '../../../db/lite-tables.ts';
 import {mapPostgresToLiteIndex} from '../../../db/pg-to-lite.ts';
 import type {
@@ -11,6 +10,7 @@ import type {
 } from '../../../db/specs.ts';
 import {getConnectionURI, initDB, testDBs} from '../../../test/db.ts';
 import {
+  DbFile,
   expectMatchingObjectsInTables,
   expectTables,
   initDB as initLiteDB,
@@ -1950,11 +1950,14 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
   ];
 
   let upstream: PostgresDB;
+  let replicaFile: DbFile;
 
   beforeEach(async () => {
     upstream = await testDBs.create('initial_sync_upstream');
+    replicaFile = new DbFile('initial_sync_replica');
     return async () => {
       await testDBs.drop(upstream);
+      replicaFile.delete();
     };
   });
 
@@ -1966,8 +1969,10 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
 
       // Run each test twice to confirm that a takeover initial sync works.
       for (let i = 0; i < 2; i++) {
-        const replica = new Database(lc, ':memory:');
+        replicaFile.delete();
+        let replica = replicaFile.connect(lc);
         initLiteDB(replica, c.setupReplicaQuery);
+        replica.close(); // Close to allow initialSync's exclusive lock
 
         await initialSync(
           lc,
@@ -1976,7 +1981,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
             shardNum: SHARD_NUM,
             publications: c.requestedPublications ?? [],
           },
-          replica,
+          await replicaFile.connectAsync(),
           getConnectionURI(upstream),
           {tableCopyWorkers: 3},
         );
@@ -2020,6 +2025,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
           new Set(c.resultingPublications),
         );
 
+        replica = replicaFile.connect(lc);
         const synced = listTables(replica);
         expect(
           Object.fromEntries(synced.map(table => [table.name, table])),
@@ -2064,7 +2070,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
 
   test('resume initial sync with invalid table', async () => {
     const lc = createSilentLogContext();
-    const replica = new Database(lc, ':memory:');
+    const replica = await replicaFile.connectAsync();
     const shardConfig = {appID: APP_ID, shardNum: SHARD_NUM, publications: []};
 
     await ensureShardSchema(lc, upstream, shardConfig);
@@ -2100,7 +2106,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
     await sql`CREATE TABLE foo(id int4 PRIMARY KEY);`;
     await sql`INSERT INTO foo(id) VALUES (1);`;
 
-    const replica = new Database(lc, ':memory:');
+    const replica = await replicaFile.connectAsync();
     const shardConfig = {
       appID: APP_ID,
       shardNum: SHARD_NUM,
@@ -2115,7 +2121,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
       tableCopyWorkers: 5,
     });
 
-    expectMatchingObjectsInTables(replica, {
+    expectMatchingObjectsInTables(replicaFile.connect(lc), {
       [`${APP_ID}_${SHARD_NUM}.clients`]: [],
       foo: [{id: 1}],
     });
@@ -2128,7 +2134,7 @@ describe('change-source/pg/initial-sync', {timeout: 10000}, () => {
     'punctuation!',
   ])('invalid app ID: %s', async appID => {
     const lc = createSilentLogContext();
-    const replica = new Database(lc, ':memory:');
+    const replica = await replicaFile.connectAsync();
     let result;
     try {
       await initialSync(

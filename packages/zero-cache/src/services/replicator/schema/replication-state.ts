@@ -7,6 +7,7 @@
 
 import * as v from '../../../../../shared/src/valita.ts';
 import {Database} from '../../../../../zqlite/src/db.ts';
+import {AsyncDatabase} from '../../../db/async-db.ts';
 import {StatementRunner} from '../../../db/statements.ts';
 
 export const ZERO_VERSION_COLUMN_NAME = '_0_version';
@@ -72,32 +73,65 @@ const replicationStateSchema = v.object({
 
 export type ReplicationState = v.Infer<typeof replicationStateSchema>;
 
+const insertConfigStmt = /*sql*/ `
+  INSERT INTO "_zero.replicationConfig" 
+    (replicaVersion, publications) VALUES (?, ?)
+`;
+const insertVersionStmt = /*sql*/ `
+  INSERT INTO "_zero.replicationState" (stateVersion) VALUES (?)
+`;
+
 export function initReplicationState(
   db: Database,
   publications: string[],
   watermark: string,
+): void;
+export function initReplicationState(
+  db: AsyncDatabase,
+  publications: string[],
+  watermark: string,
+): Promise<void>;
+export async function initReplicationState(
+  db: Database | AsyncDatabase,
+  publications: string[],
+  watermark: string,
 ) {
-  db.exec(CREATE_REPLICATION_STATE_SCHEMA);
-  db.prepare(
-    `
-    INSERT INTO "_zero.replicationConfig" 
-       (replicaVersion, publications) VALUES (?, ?)
-    `,
-  ).run(watermark, JSON.stringify(publications.sort()));
-  db.prepare(
-    `
-    INSERT INTO "_zero.replicationState" (stateVersion) VALUES (?)
-    `,
-  ).run(watermark);
-  recordEvent(db, 'sync');
+  if (db instanceof AsyncDatabase) {
+    await db.exec(CREATE_REPLICATION_STATE_SCHEMA);
+    await db.run(
+      insertConfigStmt,
+      watermark,
+      JSON.stringify(publications.sort()),
+    );
+    await db.run(insertVersionStmt, watermark);
+    await recordEvent(db, 'sync');
+  } else {
+    db.exec(CREATE_REPLICATION_STATE_SCHEMA);
+    db.prepare(insertConfigStmt).run(
+      watermark,
+      JSON.stringify(publications.sort()),
+    );
+    db.prepare(insertVersionStmt).run(watermark);
+    recordEvent(db, 'sync');
+  }
 }
 
-export function recordEvent(db: Database, event: RuntimeEvent) {
-  db.prepare(
-    `
-    INSERT INTO "_zero.runtimeEvents" (event) VALUES (?) 
-    `,
-  ).run(event);
+const recordEventStmt = /*sql*/ `INSERT INTO "_zero.runtimeEvents" (event) VALUES (?)`;
+
+export function recordEvent(db: Database, event: RuntimeEvent): void;
+export function recordEvent(
+  db: AsyncDatabase,
+  event: RuntimeEvent,
+): Promise<void>;
+export async function recordEvent(
+  db: Database | AsyncDatabase,
+  event: RuntimeEvent,
+) {
+  if (db instanceof AsyncDatabase) {
+    await db.run(recordEventStmt, event);
+  } else {
+    db.prepare(recordEventStmt).run(event);
+  }
 }
 
 export function getAscendingEvents(db: Database) {

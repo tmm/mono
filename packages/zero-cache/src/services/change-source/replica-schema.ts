@@ -1,8 +1,11 @@
 import type {LogContext} from '@rocicorp/logger';
 import {SqliteError} from '@rocicorp/zero-sqlite3';
 import type {Database} from '../../../../zqlite/src/db.ts';
+import {AsyncDatabase} from '../../db/async-db.ts';
 import {
   runSchemaMigrations,
+  runSchemaMigrationsAsync,
+  type Db,
   type IncrementalMigrationMap,
   type Migration,
 } from '../../db/migration-lite.ts';
@@ -18,13 +21,40 @@ export async function initReplica(
   dbPath: string,
   initialSync: (lc: LogContext, tx: Database) => Promise<void>,
 ): Promise<void> {
-  const setupMigration: Migration = {
+  const setupMigration: Migration<Database> = {
     migrateSchema: (log, tx) => initialSync(log, tx),
     minSafeVersion: 1,
   };
 
   try {
     await runSchemaMigrations(
+      log,
+      debugName,
+      dbPath,
+      setupMigration,
+      schemaVersionMigrationMap,
+    );
+  } catch (e) {
+    if (e instanceof SqliteError && e.code === 'SQLITE_CORRUPT') {
+      throw new AutoResetSignal(e.message);
+    }
+    throw e;
+  }
+}
+
+export async function initReplicaAsync(
+  log: LogContext,
+  debugName: string,
+  dbPath: string,
+  initialSync: (lc: LogContext, tx: AsyncDatabase) => Promise<void>,
+): Promise<void> {
+  const setupMigration: Migration<AsyncDatabase> = {
+    migrateSchema: (log, tx) => initialSync(log, tx),
+    minSafeVersion: 1,
+  };
+
+  try {
+    await runSchemaMigrationsAsync(
       log,
       debugName,
       dbPath,
@@ -60,7 +90,7 @@ export async function upgradeReplica(
   );
 }
 
-export const schemaVersionMigrationMap: IncrementalMigrationMap = {
+export const schemaVersionMigrationMap: IncrementalMigrationMap<Db> = {
   // There's no incremental migration from v1. Just reset the replica.
   4: {
     migrateSchema: () => {
@@ -70,11 +100,11 @@ export const schemaVersionMigrationMap: IncrementalMigrationMap = {
   },
 
   5: {
-    migrateSchema: (_, db) => {
-      db.exec(CREATE_RUNTIME_EVENTS_TABLE);
-    },
-    migrateData: (_, db) => {
-      recordEvent(db, 'upgrade');
-    },
+    migrateSchema: (_, db) => db.exec(CREATE_RUNTIME_EVENTS_TABLE),
+
+    migrateData: (_, db) =>
+      db instanceof AsyncDatabase // needed to appease TypeScript
+        ? recordEvent(db, 'upgrade')
+        : recordEvent(db, 'upgrade'),
   },
 };

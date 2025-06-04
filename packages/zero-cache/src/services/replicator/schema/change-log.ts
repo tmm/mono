@@ -1,5 +1,6 @@
 import * as v from '../../../../../shared/src/valita.ts';
 import type {Database} from '../../../../../zqlite/src/db.ts';
+import {AsyncDatabase} from '../../../db/async-db.ts';
 import {StatementRunner} from '../../../db/statements.ts';
 import {
   jsonObjectSchema,
@@ -86,8 +87,10 @@ export const changeLogEntrySchema = v
 
 export type ChangeLogEntry = v.Infer<typeof changeLogEntrySchema>;
 
-export function initChangeLog(db: Database) {
-  db.exec(CREATE_CHANGELOG_SCHEMA);
+export function initChangeLog(db: Database): void;
+export function initChangeLog(db: AsyncDatabase): Promise<void>;
+export function initChangeLog(db: Database | AsyncDatabase) {
+  return db.exec(CREATE_CHANGELOG_SCHEMA);
 }
 
 export function logSetOp(

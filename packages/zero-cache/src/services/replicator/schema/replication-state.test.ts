@@ -1,8 +1,8 @@
 import {beforeEach, describe, expect, test} from 'vitest';
 import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.ts';
-import {Database} from '../../../../../zqlite/src/db.ts';
 import {StatementRunner} from '../../../db/statements.ts';
 import {
+  DbFile,
   expectMatchingObjectsInTables,
   expectTables,
 } from '../../../test/lite.ts';
@@ -16,13 +16,18 @@ import {
 } from './replication-state.ts';
 
 describe('replicator/schema/replication-state', () => {
+  let dbFile: DbFile;
   let db: StatementRunner;
 
-  beforeEach(() => {
-    db = new StatementRunner(
-      new Database(createSilentLogContext(), ':memory:'),
+  beforeEach(async () => {
+    dbFile = new DbFile('replication_state');
+    db = new StatementRunner(dbFile.connect(createSilentLogContext()));
+
+    await initReplicationState(
+      await dbFile.connectAsync(),
+      ['zero_data', 'zero_metadata'],
+      '0a',
     );
-    initReplicationState(db.db, ['zero_data', 'zero_metadata'], '0a');
   });
 
   test('initial replication state', () => {
@@ -53,6 +58,32 @@ describe('replicator/schema/replication-state', () => {
     recordEvent(db.db, 'upgrade');
     recordEvent(db.db, 'vacuum');
     recordEvent(db.db, 'vacuum');
+    const now = Date.now();
+
+    expectMatchingObjectsInTables(db.db, {
+      ['_zero.runtimeEvents']: [
+        {event: 'sync', timestamp: expect.any(String)},
+        {event: 'upgrade', timestamp: expect.any(String)},
+        {event: 'vacuum', timestamp: expect.any(String)},
+      ],
+    });
+
+    const events = getAscendingEvents(db.db);
+    expect(events).toMatchObject([
+      {event: 'sync', timestamp: expect.any(Date)},
+      {event: 'upgrade', timestamp: expect.any(Date)},
+      {event: 'vacuum', timestamp: expect.any(Date)},
+    ]);
+
+    // Sanity check that the timestamp is within one second of "now".
+    expect(now - events[2].timestamp.getTime()).toBeLessThan(1000);
+  });
+
+  test('runtime events (async)', async () => {
+    const d = await dbFile.connectAsync();
+    await recordEvent(d, 'upgrade');
+    await recordEvent(d, 'vacuum');
+    await recordEvent(d, 'vacuum');
     const now = Date.now();
 
     expectMatchingObjectsInTables(db.db, {

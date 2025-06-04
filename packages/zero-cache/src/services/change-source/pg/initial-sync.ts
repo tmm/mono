@@ -3,7 +3,7 @@ import type {LogContext} from '@rocicorp/logger';
 import {Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
-import {Database} from '../../../../../zqlite/src/db.ts';
+import type {AsyncDatabase, SQLitePrimitive} from '../../../db/async-db.ts';
 import {
   createIndexStatement,
   createTableStatement,
@@ -24,6 +24,7 @@ import {
 } from '../../../types/lite.ts';
 import {liteTableName} from '../../../types/names.ts';
 import {
+  isPgNumberTypeOID,
   pgClient,
   type PostgresDB,
   type PostgresTransaction,
@@ -56,7 +57,7 @@ export type InitialSyncOptions = {
 export async function initialSync(
   lc: LogContext,
   shard: ShardConfig,
-  tx: Database,
+  tx: AsyncDatabase,
   upstreamURI: string,
   syncOptions: InitialSyncOptions,
 ) {
@@ -112,8 +113,8 @@ export async function initialSync(
     const {snapshot_name: snapshot, consistent_point: lsn} = slot;
     const initialVersion = toLexiVersion(lsn);
 
-    initReplicationState(tx, publications, initialVersion);
-    initChangeLog(tx);
+    await initReplicationState(tx, publications, initialVersion);
+    await initChangeLog(tx);
 
     // Run up to MAX_WORKERS to copy of tables at the replication slot's snapshot.
     const start = performance.now();
@@ -143,7 +144,7 @@ export async function initialSync(
       // Now that tables have been validated, kick off the copiers.
       const {tables, indexes} = published;
       const numTables = tables.length;
-      createLiteTables(tx, tables);
+      await createLiteTables(tx, tables);
 
       const rowCounts = await Promise.all(
         tables.map(table =>
@@ -161,7 +162,7 @@ export async function initialSync(
       );
 
       const indexStart = performance.now();
-      createLiteIndices(tx, indexes);
+      await createLiteIndices(tx, indexes);
       const index = performance.now() - indexStart;
       lc.info?.(`Created indexes (${index.toFixed(3)} ms)`);
 
@@ -267,15 +268,18 @@ async function createReplicationSlot(
   return slot;
 }
 
-function createLiteTables(tx: Database, tables: PublishedTableSpec[]) {
+async function createLiteTables(
+  tx: AsyncDatabase,
+  tables: PublishedTableSpec[],
+) {
   for (const t of tables) {
-    tx.exec(createTableStatement(mapPostgresToLite(t)));
+    await tx.exec(createTableStatement(mapPostgresToLite(t)));
   }
 }
 
-function createLiteIndices(tx: Database, indices: IndexSpec[]) {
+async function createLiteIndices(tx: AsyncDatabase, indices: IndexSpec[]) {
   for (const index of indices) {
-    tx.exec(createIndexStatement(mapPostgresToLiteIndex(index)));
+    await tx.exec(createIndexStatement(mapPostgresToLiteIndex(index)));
   }
 }
 
@@ -294,7 +298,7 @@ async function copy(
   table: PublishedTableSpec,
   dbClient: PostgresDB,
   from: PostgresTransaction,
-  to: Database,
+  to: AsyncDatabase,
   initialVersion: LexiVersion,
 ) {
   const start = performance.now();
@@ -316,11 +320,10 @@ async function copy(
   const valuesSql = `(${new Array(insertColumns.length).fill('?').join(',')})`;
   const insertSql = /*sql*/ `
     INSERT INTO "${tableName}" (${insertColumnList}) VALUES ${valuesSql}`;
-  const insertStmt = to.prepare(insertSql);
-  // INSERT VALUES (?,?,?,?,?),... x INSERT_BATCH_SIZE
-  const insertBatchStmt = to.prepare(
-    insertSql + `,${valuesSql}`.repeat(INSERT_BATCH_SIZE - 1),
-  );
+  const [insertStmt, insertBatchStmt] = await Promise.all([
+    to.prepare(insertSql),
+    to.prepare(insertSql + `,${valuesSql}`.repeat(INSERT_BATCH_SIZE - 1)),
+  ]);
 
   const filterConditions = Object.values(table.publications)
     .map(({rowFilter}) => rowFilter)
@@ -336,29 +339,31 @@ async function copy(
   const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
 
   // Preallocate the buffer of values to reduce memory allocation churn.
-  const pendingValues: LiteValueType[] = Array.from({
+  const pendingValues: SQLitePrimitive[] = Array.from({
     length: MAX_BUFFERED_ROWS * valuesPerRow,
   });
   let pendingRows = 0;
   let pendingSize = 0;
 
-  function flush() {
+  async function flush() {
     const start = performance.now();
     const flushedRows = pendingRows;
     const flushedSize = pendingSize;
 
     let l = 0;
     for (; pendingRows > INSERT_BATCH_SIZE; pendingRows -= INSERT_BATCH_SIZE) {
-      insertBatchStmt.run(pendingValues.slice(l, (l += valuesPerBatch)));
+      await insertBatchStmt.run(
+        ...pendingValues.slice(l, (l += valuesPerBatch)),
+      );
     }
     // Insert the remaining rows individually.
     for (; pendingRows > 0; pendingRows--) {
-      insertStmt.run(pendingValues.slice(l, (l += valuesPerRow)));
+      await insertStmt.run(...pendingValues.slice(l, (l += valuesPerRow)));
     }
     for (let i = 0; i < flushedRows; i++) {
       // Reuse the array and unreference the values to allow GC.
       // This is faster than allocating a new array every time.
-      pendingValues[i] = undefined as unknown as LiteValueType;
+      pendingValues[i] = undefined as unknown as SQLitePrimitive;
     }
     pendingSize = 0;
     rows += flushedRows;
@@ -373,62 +378,78 @@ async function copy(
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
   const pgParsers = await getTypeParsers(dbClient);
   const parsers = columnSpecs.map(c => {
+    if (isPgNumberTypeOID(c.typeOID)) {
+      // Pass numeric types directly to SQLite in their string form to
+      // allow SQLite to convert them based on dynamic typing. This:
+      // (1) moves parsing logic from Javascript to native code
+      // (2) works around node-sqlite3's lack of support for bigint.
+      //
+      // Note that arrays will be handled by the default pgParse logic
+      // and converted to (bigint-supporting) JSON strings.
+      return (val: string) => (val === NULL_BYTE ? null : val);
+    }
     const pgParse = pgParsers.getTypeParser(c.typeOID);
     return (val: string) =>
       val === NULL_BYTE
         ? null
-        : liteValue(
+        : (liteValue(
             pgParse(val) as PostgresValueType,
             c.dataType,
             JSON_STRINGIFIED,
-          );
+          ) as Exclude<LiteValueType, bigint>); // bigints are handled above
   });
 
   let col = 0;
 
-  await pipeline(
-    await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-    new TextTransform(),
-    new Writable({
-      objectMode: true,
+  try {
+    await pipeline(
+      await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
+      new TextTransform(),
+      new Writable({
+        objectMode: true,
 
-      write: (
-        text: string,
-        _encoding: string,
-        callback: (error?: Error) => void,
-      ) => {
-        try {
-          // Give every value at least 4 bytes.
-          pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
-          pendingValues[pendingRows * valuesPerRow + col] = parsers[col](text);
+        write: async (
+          text: string,
+          _encoding: string,
+          callback: (error?: Error) => void,
+        ) => {
+          try {
+            // Give every value at least 4 bytes.
+            pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
+            pendingValues[pendingRows * valuesPerRow + col] =
+              parsers[col](text);
 
-          if (++col === parsers.length) {
-            // The last column is the _0_version.
-            pendingValues[pendingRows * valuesPerRow + col] = initialVersion;
-            col = 0;
-            if (
-              ++pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
-              pendingSize >= BUFFERED_SIZE_THRESHOLD
-            ) {
-              flush();
+            if (++col === parsers.length) {
+              // The last column is the _0_version.
+              pendingValues[pendingRows * valuesPerRow + col] = initialVersion;
+              col = 0;
+              if (
+                ++pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
+                pendingSize >= BUFFERED_SIZE_THRESHOLD
+              ) {
+                await flush();
+              }
             }
+            callback();
+          } catch (e) {
+            callback(e instanceof Error ? e : new Error(String(e)));
           }
-          callback();
-        } catch (e) {
-          callback(e instanceof Error ? e : new Error(String(e)));
-        }
-      },
+        },
 
-      final: (callback: (error?: Error) => void) => {
-        try {
-          flush();
-          callback();
-        } catch (e) {
-          callback(e instanceof Error ? e : new Error(String(e)));
-        }
-      },
-    }),
-  );
+        final: async (callback: (error?: Error) => void) => {
+          try {
+            await flush();
+            callback();
+          } catch (e) {
+            callback(e instanceof Error ? e : new Error(String(e)));
+          }
+        },
+      }),
+    );
+  } finally {
+    void insertStmt.finalize();
+    void insertBatchStmt.finalize();
+  }
 
   const elapsed = performance.now() - start;
   lc.info?.(
