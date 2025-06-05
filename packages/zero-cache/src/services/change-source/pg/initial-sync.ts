@@ -1,7 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {resolver} from '@rocicorp/resolver';
-import {createWriteStream, WriteStream} from 'node:fs';
+import {openSync, writeFileSync} from 'node:fs';
 import {Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
@@ -137,7 +136,7 @@ export async function initialSync(
       numWorkers,
       snapshot,
     );
-    const dumpFile = createWriteStream(replicaPath + '-pg-dump', {flush: true});
+    const dumpFile = openSync(replicaPath + '-pg-dump', 'w');
     try {
       // Retrieve the published schema at the consistent_point.
       const published = await sql.begin(Mode.READONLY, async tx => {
@@ -176,9 +175,6 @@ export async function initialSync(
 
       await addReplica(sql, shard, slotName, initialVersion, published);
 
-      const closed = resolver();
-      dumpFile.close(err => (err ? closed.reject(err) : closed.resolve()));
-      await closed.promise;
       const elapsed = performance.now() - start;
       lc.info?.(
         `Synced ${total.rows.toLocaleString()} rows of ${numTables} tables in ${publications} up to ${lsn} ` +
@@ -314,7 +310,7 @@ async function copy(
   from: PostgresTransaction,
   to: AsyncDatabase,
   initialVersion: LexiVersion,
-  dumpFile: WriteStream,
+  dumpFile: number,
 ) {
   const start = performance.now();
   let rows = 0;
@@ -411,8 +407,14 @@ async function copy(
       new Writable({
         // highWaterMark: BUFFERED_SIZE_THRESHOLD,
 
-        async writev(chunks: any[], callback: (error?: Error | null) => void) {
-          dumpFile._writev?.(chunks, callback);
+        async writev(
+          chunks: {chunk: Buffer}[],
+          callback: (error?: Error | null) => void,
+        ) {
+          for (const {chunk} of chunks) {
+            writeFileSync(dumpFile, chunk);
+          }
+          callback();
           if (0) {
             const start = performance.now();
             let flushedRows = 0;
