@@ -28,9 +28,11 @@ export class StaticQuery<
   TTable extends keyof TSchema['tables'] & string,
   TReturn = PullRow<TTable, TSchema>,
 > extends AbstractQuery<TSchema, TTable, TReturn> {
-  expressionBuilder() {
-    return new ExpressionBuilder(this._exists);
-  }
+  readonly #schema: TSchema;
+  readonly #tableName: TTable;
+  readonly #ast: AST;
+  readonly #format: Format;
+  readonly #currentJunction?: string | undefined;
 
   constructor(
     schema: TSchema,
@@ -75,6 +77,24 @@ export class StaticQuery<
 
   get ast() {
     return this._completeAst();
+  }
+
+  expressionBuilder() {
+    return new ExpressionBuilder(this._exists);
+  }
+
+  asRunnableQuery(
+    delegate: QueryDelegate,
+  ): QueryImpl<TSchema, TTable, TReturn> {
+    return new QueryImpl(
+      delegate,
+      this.#schema,
+      this.#tableName,
+      this.#ast,
+      this.#format,
+      'client',
+      this.#currentJunction,
+    );
   }
 
   materialize(): TypedView<HumanReadable<TReturn>> {
