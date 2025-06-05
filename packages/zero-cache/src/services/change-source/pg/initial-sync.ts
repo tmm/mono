@@ -1,6 +1,8 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Transform, Writable} from 'node:stream';
+import {resolver} from '@rocicorp/resolver';
+import {createWriteStream, WriteStream} from 'node:fs';
+import {Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import type {AsyncDatabase, SQLitePrimitive} from '../../../db/async-db.ts';
@@ -61,6 +63,7 @@ export async function initialSync(
   tx: AsyncDatabase,
   upstreamURI: string,
   syncOptions: InitialSyncOptions,
+  replicaPath?: string,
 ) {
   if (!ALLOWED_APP_ID_CHARACTERS.test(shard.appID)) {
     throw new Error(
@@ -134,6 +137,7 @@ export async function initialSync(
       numWorkers,
       snapshot,
     );
+    const dumpFile = createWriteStream(replicaPath + '-pg-dump', {flush: true});
     try {
       // Retrieve the published schema at the consistent_point.
       const published = await sql.begin(Mode.READONLY, async tx => {
@@ -151,7 +155,7 @@ export async function initialSync(
       const rowCounts = await Promise.all(
         tables.map(table =>
           copyRunner.run((db, lc) =>
-            copy(lc, table, typeClient, db, tx, initialVersion),
+            copy(lc, table, typeClient, db, tx, initialVersion, dumpFile),
           ),
         ),
       );
@@ -172,6 +176,9 @@ export async function initialSync(
 
       await addReplica(sql, shard, slotName, initialVersion, published);
 
+      const closed = resolver();
+      dumpFile.close(err => (err ? closed.reject(err) : closed.resolve()));
+      await closed.promise;
       const elapsed = performance.now() - start;
       lc.info?.(
         `Synced ${total.rows.toLocaleString()} rows of ${numTables} tables in ${publications} up to ${lsn} ` +
@@ -307,6 +314,7 @@ async function copy(
   from: PostgresTransaction,
   to: AsyncDatabase,
   initialVersion: LexiVersion,
+  dumpFile: WriteStream,
 ) {
   const start = performance.now();
   let rows = 0;
@@ -397,63 +405,56 @@ async function copy(
   const tsvParser = new TsvParser();
   let col = 0;
 
-  const blackHole = new Transform({
-    transform(_chunk, _encoding, callback) {
-      callback();
-    },
-  });
-
   try {
     await pipeline(
       await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-      blackHole,
       new Writable({
-        highWaterMark: BUFFERED_SIZE_THRESHOLD,
+        // highWaterMark: BUFFERED_SIZE_THRESHOLD,
 
-        async writev(
-          chunks: {chunk: Buffer}[],
-          callback: (error?: Error | null) => void,
-        ) {
-          const start = performance.now();
-          let flushedRows = 0;
-          let flushedBytes = 0;
-          let flushed: Promise<void> | undefined;
-          try {
-            to.pipeline(() => {
-              for (const {chunk} of chunks) {
-                pendingSize += chunk.length;
+        async writev(chunks: any[], callback: (error?: Error | null) => void) {
+          dumpFile._writev?.(chunks, callback);
+          if (0) {
+            const start = performance.now();
+            let flushedRows = 0;
+            let flushedBytes = 0;
+            let flushed: Promise<void> | undefined;
+            try {
+              to.pipeline(() => {
+                for (const {chunk} of chunks) {
+                  pendingSize += chunk.length;
 
-                for (const text of tsvParser.parse(chunk)) {
-                  pendingValues[pendingRows * valuesPerRow + col] =
-                    text === null ? null : parsers[col](text);
-                  if (++col === parsers.length) {
-                    // The last column is the _0_version.
+                  for (const text of tsvParser.parse(chunk)) {
                     pendingValues[pendingRows * valuesPerRow + col] =
-                      initialVersion;
-                    col = 0;
+                      text === null ? null : parsers[col](text);
+                    if (++col === parsers.length) {
+                      // The last column is the _0_version.
+                      pendingValues[pendingRows * valuesPerRow + col] =
+                        initialVersion;
+                      col = 0;
 
-                    if (++pendingRows === INSERT_BATCH_SIZE) {
-                      flushedRows += pendingRows;
-                      flushedBytes += pendingSize;
-                      flushed = insertPendingValuesInPipeline();
+                      if (++pendingRows === INSERT_BATCH_SIZE) {
+                        flushedRows += pendingRows;
+                        flushedBytes += pendingSize;
+                        flushed = insertPendingValuesInPipeline();
+                      }
                     }
                   }
                 }
+              });
+              const parseDone = performance.now();
+              parseTime += parseDone - start;
+              if (flushed) {
+                await flushed;
+                const flushElapsed = performance.now() - parseDone;
+                flushTime += flushElapsed;
+                lc.debug?.(
+                  `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${flushElapsed.toFixed(3)} ms)`,
+                );
               }
-            });
-            const parseDone = performance.now();
-            parseTime += parseDone - start;
-            if (flushed) {
-              await flushed;
-              const flushElapsed = performance.now() - parseDone;
-              flushTime += flushElapsed;
-              lc.debug?.(
-                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${flushElapsed.toFixed(3)} ms)`,
-              );
+              callback();
+            } catch (e) {
+              callback(e instanceof Error ? e : new Error(String(e)));
             }
-            callback();
-          } catch (e) {
-            callback(e instanceof Error ? e : new Error(String(e)));
           }
         },
 

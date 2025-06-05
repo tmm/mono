@@ -12,6 +12,6 @@ export async function initSyncSchema(
   syncOptions: InitialSyncOptions,
 ): Promise<void> {
   await initReplicaAsync(log, debugName, dbPath, (log, tx) =>
-    initialSync(log, shard, tx, upstreamURI, syncOptions),
+    initialSync(log, shard, tx, upstreamURI, syncOptions, dbPath),
   );
 }
