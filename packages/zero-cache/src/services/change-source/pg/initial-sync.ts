@@ -1,6 +1,6 @@
 import {PG_INSUFFICIENT_PRIVILEGE} from '@drdgvhbh/postgres-error-codes';
 import type {LogContext} from '@rocicorp/logger';
-import {Writable} from 'node:stream';
+import {Transform, Writable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import type {AsyncDatabase, SQLitePrimitive} from '../../../db/async-db.ts';
@@ -397,9 +397,16 @@ async function copy(
   const tsvParser = new TsvParser();
   let col = 0;
 
+  const blackHole = new Transform({
+    transform(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
   try {
     await pipeline(
       await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
+      blackHole,
       new Writable({
         highWaterMark: BUFFERED_SIZE_THRESHOLD,
 
