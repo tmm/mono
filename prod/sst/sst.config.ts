@@ -136,6 +136,7 @@ export default $config({
                 sizeInGb: process.env.EBS_SIZE_GB || 30,
                 iops: process.env.EBS_IOPS || 15000,
                 fileSystemType: 'ext4',
+                throughput: process.env.EBS_THROUGHPUT || 1000,
               },
             },
           },
@@ -176,10 +177,9 @@ export default $config({
         ...commonEnv,
         ZERO_LOG_LEVEL: 'info',
         ZERO_INITIAL_SYNC_TABLE_COPY_WORKERS: '2',
-        ZERO_LITESTREAM_BACKUP_URL: $interpolate`s3://${replicationBucket.name}/backup/20250604-06`,
+        ZERO_LITESTREAM_BACKUP_URL: $interpolate`s3://${replicationBucket.name}/backup/20250605-00`,
         ZERO_CHANGE_MAX_CONNS: '3',
         ZERO_NUM_SYNC_WORKERS: '0',
-        NODE_OPTIONS: `--max-old-space-size=${IS_EBS_STAGE ? 26214 : 6553}`, // 80% RAM
       },
       logging: {
         retention: '1 month',
