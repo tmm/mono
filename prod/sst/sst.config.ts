@@ -177,7 +177,7 @@ export default $config({
         ...commonEnv,
         ZERO_LOG_LEVEL: 'info',
         ZERO_INITIAL_SYNC_TABLE_COPY_WORKERS: '2',
-        ZERO_LITESTREAM_BACKUP_URL: $interpolate`s3://${replicationBucket.name}/backup/20250605-03`,
+        ZERO_LITESTREAM_BACKUP_URL: $interpolate`s3://${replicationBucket.name}/backup/20250605-04`,
         ZERO_CHANGE_MAX_CONNS: '3',
         ZERO_NUM_SYNC_WORKERS: '0',
       },
