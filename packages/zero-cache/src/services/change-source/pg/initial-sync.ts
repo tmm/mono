@@ -305,7 +305,7 @@ async function createLiteIndices(tx: AsyncDatabase, indices: IndexSpec[]) {
 export const INSERT_BATCH_SIZE = 256;
 
 const MB = 1024 * 1024;
-const BUFFERED_SIZE_THRESHOLD = 128 * MB;
+// const BUFFERED_SIZE_THRESHOLD = 128 * MB;
 
 async function copy(
   lc: LogContext,
