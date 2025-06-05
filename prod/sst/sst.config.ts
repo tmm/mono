@@ -176,9 +176,10 @@ export default $config({
         ...commonEnv,
         ZERO_LOG_LEVEL: 'info',
         ZERO_INITIAL_SYNC_TABLE_COPY_WORKERS: '2',
-        ZERO_LITESTREAM_BACKUP_URL: $interpolate`s3://${replicationBucket.name}/backup/20250604-04`,
+        ZERO_LITESTREAM_BACKUP_URL: $interpolate`s3://${replicationBucket.name}/backup/20250604-05`,
         ZERO_CHANGE_MAX_CONNS: '3',
         ZERO_NUM_SYNC_WORKERS: '0',
+        NODE_OPTIONS: `--max-old-space-size=${IS_EBS_STAGE ? 26214 : 6553}`, // 80% RAM
       },
       logging: {
         retention: '1 month',
