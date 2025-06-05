@@ -157,8 +157,10 @@ export async function initialSync(
         (acc, curr) => ({
           rows: acc.rows + curr.rows,
           flushTime: acc.flushTime + curr.flushTime,
+          parseTime: acc.parseTime + curr.parseTime,
+          bytes: acc.bytes + curr.bytes,
         }),
-        {rows: 0, flushTime: 0},
+        {rows: 0, flushTime: 0, parseTime: 0, bytes: 0},
       );
 
       const indexStart = performance.now();
@@ -171,7 +173,11 @@ export async function initialSync(
       const elapsed = performance.now() - start;
       lc.info?.(
         `Synced ${total.rows.toLocaleString()} rows of ${numTables} tables in ${publications} up to ${lsn} ` +
-          `(flush: ${total.flushTime.toFixed(3)}, index: ${index.toFixed(3)}, total: ${elapsed.toFixed(3)} ms)`,
+          `(bytes: ${total.bytes}, ` +
+          `parse: ${total.parseTime.toFixed(3)}, ` +
+          `flush: ${total.flushTime.toFixed(3)}, ` +
+          `index: ${index.toFixed(3)}, ` +
+          `total: ${elapsed.toFixed(3)} ms)`,
       );
     } finally {
       copyRunner.close();
@@ -302,6 +308,7 @@ async function copy(
   const start = performance.now();
   let rows = 0;
   let bytes = 0;
+  let parseTime = 0;
   let flushTime = 0;
 
   const tableName = liteTableName(table);
@@ -424,11 +431,14 @@ async function copy(
                 }
               }
             });
+            const parseDone = performance.now();
+            parseTime += parseDone - start;
             if (flushed) {
               await flushed;
-              const elapsed = performance.now() - start;
+              const flushElapsed = performance.now() - parseDone;
+              flushTime += flushElapsed;
               lc.debug?.(
-                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${elapsed.toFixed(3)} ms)`,
+                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${flushElapsed.toFixed(3)} ms)`,
               );
             }
             callback();
@@ -450,9 +460,10 @@ async function copy(
             });
             if (flushed) {
               await flushed;
-              const elapsed = performance.now() - start;
+              const flushElapsed = performance.now() - start;
+              flushTime += flushElapsed;
               lc.debug?.(
-                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${elapsed.toFixed(3)} ms)`,
+                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${flushElapsed.toFixed(3)} ms)`,
               );
             }
             callback();
@@ -470,7 +481,10 @@ async function copy(
   const elapsed = performance.now() - start;
   lc.info?.(
     `Finished copying ${rows} rows into ${tableName} ` +
-      `(flush: ${flushTime.toFixed(3)} ms) (total: ${elapsed.toFixed(3)} ms) `,
+      `(bytes: ${bytes}) ` +
+      `(parse: ${parseTime.toFixed(3)} ms) ` +
+      `(flush: ${flushTime.toFixed(3)} ms) ` +
+      `(total: ${elapsed.toFixed(3)} ms) `,
   );
-  return {rows, flushTime};
+  return {rows, flushTime, parseTime, bytes};
 }
