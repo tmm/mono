@@ -30,6 +30,7 @@ import {
   type PostgresTransaction,
   type PostgresValueType,
 } from '../../../types/pg.ts';
+import {printHeapStats} from '../../../types/runtime.ts';
 import type {ShardConfig} from '../../../types/shards.ts';
 import {ALLOWED_APP_ID_CHARACTERS} from '../../../types/shards.ts';
 import {id} from '../../../types/sql.ts';
@@ -66,6 +67,7 @@ export async function initialSync(
       'The App ID may only consist of lower-case letters, numbers, and the underscore character',
     );
   }
+  printHeapStats(lc);
   const {tableCopyWorkers: numWorkers} = syncOptions;
   const sql = pgClient(lc, upstreamURI);
   // The typeClient's reason for existence is to configure the type
@@ -179,6 +181,7 @@ export async function initialSync(
           `index: ${index.toFixed(3)}, ` +
           `total: ${elapsed.toFixed(3)} ms)`,
       );
+      printHeapStats(lc);
     } finally {
       copyRunner.close();
     }

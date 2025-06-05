@@ -5,6 +5,7 @@ import {normalizeZeroConfig} from '../../config/normalize.ts';
 import {getZeroConfig} from '../../config/zero-config.ts';
 import {ProcessManager, runUntilKilled} from '../../services/life-cycle.ts';
 import {childWorker, type Worker} from '../../types/processes.ts';
+import {printHeapStats} from '../../types/runtime.ts';
 import {createLogContext} from '../logging.ts';
 import {getTaskID} from './runtime.ts';
 import {ZeroDispatcher} from './zero-dispatcher.ts';
@@ -23,6 +24,7 @@ export async function runWorker(
   const cfg = getZeroConfig(env);
   const lc = createLogContext(cfg, {worker: 'runner'});
 
+  printHeapStats(lc);
   const defaultTaskID = await getTaskID(lc);
   const config = normalizeZeroConfig(lc, cfg, env, defaultTaskID);
   const processes = new ProcessManager(lc, parent ?? process);
