@@ -102,6 +102,17 @@ export class AsyncDatabase {
     return new AsyncStatement(stmt);
   }
 
+  /**
+   * Runs all statements in the (synchronous) `fn` serially. `fn` is a
+   * synchronous function to guarantee that all statements are executed (and
+   * pipelined) within the function block. The last resulting Promise can be
+   * stored and awaited after `fn` has finished executing.
+   */
+  // TODO: Consider make a better API for this.
+  pipeline(fn: () => void) {
+    this.#db.serialize(fn);
+  }
+
   close(): Promise<void> {
     const [done, cb] = voidCallback();
     this.#db.close(cb);

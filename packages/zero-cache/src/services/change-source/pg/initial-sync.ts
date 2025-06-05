@@ -9,7 +9,7 @@ import {
   createTableStatement,
 } from '../../../db/create.ts';
 import * as Mode from '../../../db/mode-enum.ts';
-import {NULL_BYTE, TextTransform} from '../../../db/pg-copy.ts';
+import {TsvParser} from '../../../db/pg-copy.ts';
 import {
   mapPostgresToLite,
   mapPostgresToLiteIndex,
@@ -283,15 +283,13 @@ async function createLiteIndices(tx: AsyncDatabase, indices: IndexSpec[]) {
   }
 }
 
-// Verified empirically that batches of 50 seem to be the sweet spot,
-// similar to the report in https://sqlite.org/forum/forumpost/8878a512d3652655
+// Verified empirically; batches between 100 and 1000 seem to work well.
 //
 // Exported for testing.
-export const INSERT_BATCH_SIZE = 50;
+export const INSERT_BATCH_SIZE = 256;
 
 const MB = 1024 * 1024;
-const MAX_BUFFERED_ROWS = 10_000;
-const BUFFERED_SIZE_THRESHOLD = 8 * MB;
+const BUFFERED_SIZE_THRESHOLD = 128 * MB;
 
 async function copy(
   lc: LogContext,
@@ -303,6 +301,7 @@ async function copy(
 ) {
   const start = performance.now();
   let rows = 0;
+  let bytes = 0;
   let flushTime = 0;
 
   const tableName = liteTableName(table);
@@ -336,43 +335,29 @@ async function copy(
       : /*sql*/ ` WHERE ${filterConditions.join(' OR ')}`);
 
   const valuesPerRow = columnSpecs.length + 1; // includes _0_version column
-  const valuesPerBatch = valuesPerRow * INSERT_BATCH_SIZE;
 
   // Preallocate the buffer of values to reduce memory allocation churn.
   const pendingValues: SQLitePrimitive[] = Array.from({
-    length: MAX_BUFFERED_ROWS * valuesPerRow,
+    length: INSERT_BATCH_SIZE * valuesPerRow,
   });
   let pendingRows = 0;
   let pendingSize = 0;
 
-  async function flush() {
-    const start = performance.now();
-    const flushedRows = pendingRows;
-    const flushedSize = pendingSize;
+  function insertPendingValuesInPipeline() {
+    rows += pendingRows;
+    bytes += pendingSize;
+    pendingSize = 0;
 
-    let l = 0;
-    for (; pendingRows > INSERT_BATCH_SIZE; pendingRows -= INSERT_BATCH_SIZE) {
-      await insertBatchStmt.run(
-        ...pendingValues.slice(l, (l += valuesPerBatch)),
-      );
+    if (pendingRows === INSERT_BATCH_SIZE) {
+      pendingRows = 0;
+      return insertBatchStmt.run(...pendingValues);
     }
     // Insert the remaining rows individually.
-    for (; pendingRows > 0; pendingRows--) {
-      await insertStmt.run(...pendingValues.slice(l, (l += valuesPerRow)));
+    let lastRun: Promise<void> | undefined;
+    for (let l = 0; pendingRows > 0; pendingRows--) {
+      lastRun = insertStmt.run(...pendingValues.slice(l, (l += valuesPerRow)));
     }
-    for (let i = 0; i < flushedRows; i++) {
-      // Reuse the array and unreference the values to allow GC.
-      // This is faster than allocating a new array every time.
-      pendingValues[i] = undefined as unknown as SQLitePrimitive;
-    }
-    pendingSize = 0;
-    rows += flushedRows;
-
-    const elapsed = performance.now() - start;
-    flushTime += elapsed;
-    lc.debug?.(
-      `flushed ${flushedRows} ${tableName} rows (${flushedSize} bytes) in ${elapsed.toFixed(3)} ms`,
-    );
+    return lastRun;
   }
 
   lc.info?.(`Starting copy stream of ${tableName}:`, selectStmt);
@@ -386,11 +371,11 @@ async function copy(
       //
       // Note that arrays will be handled by the default pgParse logic
       // and converted to (bigint-supporting) JSON strings.
-      return (val: string) => (val === NULL_BYTE ? null : val);
+      return (val: string) => val;
     }
     const pgParse = pgParsers.getTypeParser(c.typeOID);
     return (val: string) =>
-      val === NULL_BYTE
+      val === null
         ? null
         : (liteValue(
             pgParse(val) as PostgresValueType,
@@ -399,36 +384,52 @@ async function copy(
           ) as Exclude<LiteValueType, bigint>); // bigints are handled above
   });
 
+  const tsvParser = new TsvParser();
   let col = 0;
 
   try {
     await pipeline(
       await from.unsafe(`COPY (${selectStmt}) TO STDOUT`).readable(),
-      new TextTransform(),
       new Writable({
-        objectMode: true,
+        highWaterMark: BUFFERED_SIZE_THRESHOLD,
 
-        write: async (
-          text: string,
-          _encoding: string,
-          callback: (error?: Error) => void,
-        ) => {
+        async writev(
+          chunks: {chunk: Buffer}[],
+          callback: (error?: Error | null) => void,
+        ) {
+          const start = performance.now();
+          let flushedRows = 0;
+          let flushedBytes = 0;
+          let flushed: Promise<void> | undefined;
           try {
-            // Give every value at least 4 bytes.
-            pendingSize += 4 + (text === NULL_BYTE ? 0 : text.length);
-            pendingValues[pendingRows * valuesPerRow + col] =
-              parsers[col](text);
+            to.pipeline(() => {
+              for (const {chunk} of chunks) {
+                pendingSize += chunk.length;
 
-            if (++col === parsers.length) {
-              // The last column is the _0_version.
-              pendingValues[pendingRows * valuesPerRow + col] = initialVersion;
-              col = 0;
-              if (
-                ++pendingRows >= MAX_BUFFERED_ROWS - valuesPerRow ||
-                pendingSize >= BUFFERED_SIZE_THRESHOLD
-              ) {
-                await flush();
+                for (const text of tsvParser.parse(chunk)) {
+                  pendingValues[pendingRows * valuesPerRow + col] =
+                    text === null ? null : parsers[col](text);
+                  if (++col === parsers.length) {
+                    // The last column is the _0_version.
+                    pendingValues[pendingRows * valuesPerRow + col] =
+                      initialVersion;
+                    col = 0;
+
+                    if (++pendingRows === INSERT_BATCH_SIZE) {
+                      flushedRows += pendingRows;
+                      flushedBytes += pendingSize;
+                      flushed = insertPendingValuesInPipeline();
+                    }
+                  }
+                }
               }
+            });
+            if (flushed) {
+              await flushed;
+              const elapsed = performance.now() - start;
+              lc.debug?.(
+                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${elapsed.toFixed(3)} ms)`,
+              );
             }
             callback();
           } catch (e) {
@@ -436,9 +437,24 @@ async function copy(
           }
         },
 
-        final: async (callback: (error?: Error) => void) => {
+        async final(callback: (error?: Error) => void) {
           try {
-            await flush();
+            const start = performance.now();
+            let flushedRows = 0;
+            let flushedBytes = 0;
+            let flushed: Promise<void> | undefined;
+            to.pipeline(() => {
+              flushedRows += pendingRows;
+              flushedBytes += pendingSize;
+              flushed = insertPendingValuesInPipeline();
+            });
+            if (flushed) {
+              await flushed;
+              const elapsed = performance.now() - start;
+              lc.debug?.(
+                `flushed ${flushedRows} ${tableName} rows (${flushedBytes} bytes) (${elapsed.toFixed(3)} ms)`,
+              );
+            }
             callback();
           } catch (e) {
             callback(e instanceof Error ? e : new Error(String(e)));

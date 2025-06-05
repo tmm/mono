@@ -1,4 +1,5 @@
 import {beforeEach, describe, expect, test} from 'vitest';
+import {promiseVoid} from '../../../shared/src/resolved-promises.ts';
 import {AsyncDatabase} from './async-db.ts';
 
 describe('async-db', () => {
@@ -87,6 +88,26 @@ describe('async-db', () => {
           "a": 3,
           "b": "four",
           "c": ""five"",
+        },
+      ]
+    `);
+  });
+
+  test('pipeline', async () => {
+    let lastPromise = promiseVoid;
+    db.pipeline(() => {
+      void db.run(/*sql*/ `CREATE TABLE bar (x, y, z)`);
+      void db.run(/*sql*/ `INSERT INTO bar VALUES (1, 2, 3)`);
+      lastPromise = db.run(/*sql*/ `UPDATE bar SET x = 0`);
+    });
+
+    await lastPromise;
+    expect(await db.all(/*sql*/ `SELECT * FROM bar`)).toMatchInlineSnapshot(`
+      [
+        {
+          "x": 0,
+          "y": 2,
+          "z": 3,
         },
       ]
     `);
