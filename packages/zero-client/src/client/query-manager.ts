@@ -139,9 +139,16 @@ export class QueryManager {
         patch.set(hash, {op: 'del', hash});
       }
     }
-    for (const [hash, {normalized, ttl}] of this.#queries) {
+    for (const [hash, {normalized, ttl, name, args}] of this.#queries) {
       if (!existingQueryHashes.has(hash)) {
-        patch.set(hash, {op: 'put', hash, ast: normalized, ttl: parseTTL(ttl)});
+        patch.set(hash, {
+          op: 'put',
+          hash,
+          ast: normalized,
+          name,
+          args,
+          ttl: parseTTL(ttl),
+        });
       }
     }
 
