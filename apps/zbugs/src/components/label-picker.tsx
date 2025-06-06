@@ -5,6 +5,7 @@ import {useClickOutside} from '../hooks/use-click-outside.ts';
 import {useZero} from '../hooks/use-zero.ts';
 import {Button} from './button.tsx';
 import style from './label-picker.module.css';
+import {allLabels} from '../../shared/queries.ts';
 
 const focusInput = (input: HTMLInputElement | null) => {
   if (input) {
@@ -25,7 +26,7 @@ export function LabelPicker({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const z = useZero();
-  const [labels] = useQuery(z.query.label.orderBy('name', 'asc'));
+  const [labels] = useQuery(allLabels(z.query).orderBy('name', 'asc'));
   const ref = useRef<HTMLDivElement>(null);
 
   useClickOutside(

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {SchemaQuery} from '../mutate/custom.ts';
@@ -6,7 +7,7 @@ import type {Query} from './query.ts';
 export type NamedQuery<
   S extends Schema,
   TArg extends ReadonlyArray<ReadonlyJSONValue>,
-  TReturnQuery extends Query<S, keyof S['tables'] & string>,
+  TReturnQuery extends Query<S, keyof S['tables'] & string, any>,
 > = (tx: SchemaQuery<S>, ...args: TArg) => TReturnQuery;
 
 export type CustomQueryID = {
@@ -17,13 +18,13 @@ export type CustomQueryID = {
 type NamedQueryImpl<
   S extends Schema,
   TArg extends ReadonlyArray<ReadonlyJSONValue>,
-  TReturnQuery extends Query<S, keyof S['tables'] & string>,
+  TReturnQuery extends Query<S, keyof S['tables'] & string, any>,
 > = (tx: SchemaQuery<S>, ...arg: TArg) => TReturnQuery;
 
 export function query<
   S extends Schema,
   TArg extends ReadonlyArray<ReadonlyJSONValue>,
-  TReturnQuery extends Query<S, keyof S['tables'] & string>,
+  TReturnQuery extends Query<S, keyof S['tables'] & string, any>,
 >(
   _s: S,
   name: string,
@@ -38,7 +39,7 @@ query.bindTo =
   <S extends Schema>(s: S) =>
   <
     TArg extends ReadonlyArray<ReadonlyJSONValue>,
-    TReturnQuery extends Query<S, keyof S['tables'] & string>,
+    TReturnQuery extends Query<S, keyof S['tables'] & string, any>,
   >(
     name: string,
     fn: NamedQueryImpl<S, TArg, TReturnQuery>,

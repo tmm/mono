@@ -6,6 +6,7 @@ import {clearJwt, getJwt, getRawJwt} from './jwt.ts';
 import {mark} from './perf-log.ts';
 import {CACHE_FOREVER} from './query-cache-policy.ts';
 import type {AuthData} from '../shared/auth.ts';
+import {issuePreload, allLabels, allUsers} from '../shared/queries.ts';
 
 export type LoginState = {
   encoded: string;
@@ -58,24 +59,9 @@ export function preload(z: Zero<Schema, Mutators>) {
 
   didPreload = true;
 
-  // Preload all issues and first 10 comments from each.
-  z.query.issue
-    .related('labels')
-    .related('viewState', q => q.where('userID', z.userID))
-    .related('creator')
-    .related('assignee')
-    .related('emoji', emoji => emoji.related('creator'))
-    .related('comments', comments =>
-      comments
-        .related('creator')
-        .related('emoji', emoji => emoji.related('creator'))
-        .limit(10)
-        .orderBy('created', 'desc'),
-    )
-    .preload(CACHE_FOREVER);
-
-  z.query.user.preload(CACHE_FOREVER);
-  z.query.label.preload(CACHE_FOREVER);
+  issuePreload(z.query, z.userID).preload(CACHE_FOREVER);
+  allUsers(z.query).preload(CACHE_FOREVER);
+  allLabels(z.query).preload(CACHE_FOREVER);
 }
 
 // To enable accessing zero in the devtools easily.
