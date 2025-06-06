@@ -47,6 +47,14 @@ export type {
   SimpleOperator,
   ValuePosition,
 } from '../../zero-protocol/src/ast.ts';
+export {
+  transformRequestMessageSchema,
+  transformResponseMessageSchema,
+  type TransformRequestBody,
+  type TransformResponseBody,
+  type TransformRequestMessage,
+  type TransformResponseMessage,
+} from '../../zero-protocol/src/custom-queries.ts';
 export {ErrorKind} from '../../zero-protocol/src/error-kind.ts';
 export {relationships} from '../../zero-schema/src/builder/relationship-builder.ts';
 export {

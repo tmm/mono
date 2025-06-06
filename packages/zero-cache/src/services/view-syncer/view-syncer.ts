@@ -814,6 +814,9 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
         'Custom/named queries were requested but no `pull.url` is configured for Zero Cache.',
       );
     }
+    if (customQueries.length > 0) {
+      console.log('CUSTOM QUERIES', customQueries);
+    }
     if (this.#customQueryTransformer && customQueries.length > 0) {
       const transformedCustomQueries =
         await this.#customQueryTransformer.transform(
@@ -968,6 +971,12 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
           origQuery,
           transformed,
         });
+      }
+
+      if (customQueries.size > 0 && !this.#customQueryTransformer) {
+        lc.error?.(
+          'Custom/named queries were requested but no `pull.url` is configured for Zero Cache.',
+        );
       }
 
       if (this.#customQueryTransformer && customQueries.size > 0) {

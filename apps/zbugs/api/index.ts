@@ -12,6 +12,15 @@ import {must} from '../../../packages/shared/src/must.ts';
 import assert from 'assert';
 import {authDataSchema, type AuthData} from '../shared/auth.ts';
 import type {ReadonlyJSONValue} from '@rocicorp/zero';
+import type {IncomingHttpHeaders} from 'http';
+import * as v from '../../../packages/shared/src/valita.ts';
+import {
+  transformRequestMessageSchema,
+  transformResponseMessageSchema,
+} from '@rocicorp/zero';
+
+import * as serverQueries from '../server/server-queries.ts';
+import * as sharedQueries from '../shared/queries.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -120,21 +129,9 @@ fastify.post<{
   Querystring: Record<string, string>;
   Body: ReadonlyJSONValue;
 }>('/api/push', async function (request, reply) {
-  let {authorization} = request.headers;
-  if (authorization !== undefined) {
-    assert(authorization.toLowerCase().startsWith('bearer '));
-    authorization = authorization.substring('Bearer '.length);
-  }
-
-  const jwk = process.env.VITE_PUBLIC_JWK;
   let authData: AuthData | undefined;
   try {
-    authData =
-      jwk && authorization
-        ? authDataSchema.parse(
-            (await jwtVerify(authorization, JSON.parse(jwk))).payload,
-          )
-        : undefined;
+    authData = await maybeVerifyAuth(request.headers);
   } catch (e) {
     if (e instanceof Error) {
       reply.status(401).send(e.message);
@@ -146,6 +143,70 @@ fastify.post<{
   const response = await handlePush(authData, request.query, request.body);
   reply.send(response);
 });
+
+fastify.post<{
+  Querystring: Record<string, string>;
+  Body: ReadonlyJSONValue;
+}>('/api/pull', async (request, reply) => {
+  let authData: AuthData | undefined;
+  try {
+    authData = await maybeVerifyAuth(request.headers);
+    // const request = request.body;
+  } catch (e) {
+    if (e instanceof Error) {
+      reply.status(401).send(e.message);
+      return;
+    }
+    throw e;
+  }
+
+  const transformRequest = v.parse(request.body, transformRequestMessageSchema);
+  const serverContext = {
+    role: authData?.role ?? 'guest',
+  };
+
+  const responses: TransformResponseBody = [];
+  for (const query of transformRequest[1]) {
+    const {id, name, args} = query;
+
+    const serverQuery = serverQueries[name as keyof typeof serverQueries];
+    if (!serverQuery) {
+      const sharedQuery = sharedQueries[name as keyof typeof sharedQueries];
+      if (!sharedQuery) {
+        reply.status(400).send(`Unknown query: ${name}`);
+        return;
+      }
+
+      const query = sharedQuery(sql, ...args);
+      responses.push({
+        id,
+        name,
+        ast: query.ast,
+      });
+    }
+  }
+});
+
+async function maybeVerifyAuth(
+  headers: IncomingHttpHeaders,
+): Promise<AuthData | undefined> {
+  let {authorization} = headers;
+  if (!authorization) {
+    return undefined;
+  }
+
+  assert(authorization.toLowerCase().startsWith('bearer '));
+  authorization = authorization.substring('Bearer '.length);
+
+  const jwk = process.env.VITE_PUBLIC_JWK;
+  if (!jwk) {
+    throw new Error('VITE_PUBLIC_JWK is not set');
+  }
+
+  return authDataSchema.parse(
+    (await jwtVerify(authorization, JSON.parse(jwk))).payload,
+  );
+}
 
 export default async function handler(
   req: FastifyRequest,
