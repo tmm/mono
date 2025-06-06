@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -142,7 +143,11 @@ func main() {
 		log.Fatalf("PRAGMAS: %v", err)
 	}
 
-	pg, err := pgconn.Connect(context.Background(), "postgresql://user:password@127.0.0.1:6434/postgres?sslmode=disable")
+	db, found := os.LookupEnv("ZERO_UPSTREAM_DB")
+	if !found {
+		log.Fatalf("No ZERO_UPSTREAM_DB")
+	}
+	pg, err := pgconn.Connect(context.Background(), db)
 	if err != nil {
 		log.Fatalf("Connect error: %v", err)
 	}
