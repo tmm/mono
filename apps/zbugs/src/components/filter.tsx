@@ -7,6 +7,7 @@ import {useZero} from '../hooks/use-zero.ts';
 import {Button} from './button.tsx';
 import {Combobox} from './combobox.tsx';
 import {UserPicker} from './user-picker.tsx';
+import {allLabels} from '../../shared/queries.ts';
 
 export type Selection =
   | {creator: string}
@@ -21,7 +22,7 @@ export const Filter = memo(function Filter({onSelect}: Props) {
   const z = useZero();
   const [isOpen, setIsOpen] = useState(false);
 
-  const [unsortedLabels] = useQuery(z.query.label);
+  const [unsortedLabels] = useQuery(allLabels(z.query));
   // TODO: Support case-insensitive sorting in ZQL.
   const labels = useMemo(
     () => toSorted(unsortedLabels, (a, b) => a.name.localeCompare(b.name)),

@@ -206,6 +206,8 @@ fastify.post<{
     });
   }
 
+  console.log('Transformed queries:', JSON.stringify(responses, null, 2));
+
   const response: TransformResponseMessage = ['transformed', responses];
   reply.send(response);
 });
