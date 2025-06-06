@@ -801,6 +801,7 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
       }
 
       if (query.type === 'custom') {
+        console.log('ADDED A CUSTOM QUERY');
         customQueries.push(query);
       } else {
         otherQueries.push(query);
@@ -940,6 +941,7 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
       }[] = [];
       for (const [id, query] of cvrQueryEntires) {
         if (query.type === 'custom') {
+          console.log('ADDED A CUSTOM QUERY 2');
           // This should always match, no?
           assert(id === query.id, 'custom query id mismatch');
           customQueries.set(id, query);
@@ -1032,6 +1034,9 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
 
       for (const q of addQueries) {
         const orig = cvr.queries[q.id];
+        if (orig.type === 'custom') {
+          console.log('ADDED A CUSTOM QUERY 3');
+        }
         lc.debug?.(
           'ViewSyncer adding query',
           q.ast,

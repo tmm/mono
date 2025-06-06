@@ -275,7 +275,13 @@ export class QueryManager {
     };
   }
 
-  update(ast: AST, ttl: TTL) {
+  updateCustom(name: string, args: readonly ReadonlyJSONValue[], ttl: TTL) {
+    const hash = hashOfNameAndArgs(name, args);
+    const entry = must(this.#queries.get(hash));
+    this.#updateEntry(entry, hash, ttl);
+  }
+
+  updateLegacy(ast: AST, ttl: TTL) {
     const normalized = normalizeAST(ast);
     const astHash = hashOfAST(normalized);
     const entry = must(this.#queries.get(astHash));
