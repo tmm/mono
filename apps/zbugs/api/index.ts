@@ -16,11 +16,14 @@ import type {IncomingHttpHeaders} from 'http';
 import * as v from '../../../packages/shared/src/valita.ts';
 import {
   transformRequestMessageSchema,
-  transformResponseMessageSchema,
+  type TransformResponseMessage,
+  type TransformResponseBody,
+  makeSchemaQuery,
 } from '@rocicorp/zero';
 
 import * as serverQueries from '../server/server-queries.ts';
 import * as sharedQueries from '../shared/queries.ts';
+import {schema} from '../shared/schema.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -166,10 +169,13 @@ fastify.post<{
   };
 
   const responses: TransformResponseBody = [];
-  for (const query of transformRequest[1]) {
-    const {id, name, args} = query;
+  const tx = makeSchemaQuery(schema);
+  for (const req of transformRequest[1]) {
+    const {id, name, args} = req;
 
     const serverQuery = serverQueries[name as keyof typeof serverQueries];
+
+    let query;
     if (!serverQuery) {
       const sharedQuery = sharedQueries[name as keyof typeof sharedQueries];
       if (!sharedQuery) {
@@ -177,14 +183,31 @@ fastify.post<{
         return;
       }
 
-      const query = sharedQuery(sql, ...args);
-      responses.push({
-        id,
-        name,
-        ast: query.ast,
-      });
+      query = sharedQuery(
+        tx,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore-error
+        ...args,
+      );
+    } else {
+      query = serverQuery(
+        serverContext,
+        tx,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore-error
+        ...args,
+      );
     }
+
+    responses.push({
+      id,
+      name,
+      ast: query.ast,
+    });
   }
+
+  const response: TransformResponseMessage = ['transformed', responses];
+  reply.send(response);
 });
 
 async function maybeVerifyAuth(

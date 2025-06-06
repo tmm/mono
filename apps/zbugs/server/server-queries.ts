@@ -15,7 +15,7 @@ export function issuePreload(
   // Call the client version.
   // Augment it with role on existence checks to filter out private issues
   const baseQuery = sharedIssuePreload(tx, userID);
-  if (userRole !== 'crew') {
+  if (serverContext.role !== 'crew') {
     return baseQuery.where('visibility', 'public');
   }
 

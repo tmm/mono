@@ -22,7 +22,12 @@ export type {
   ReadonlyJSONValue,
 } from '../../shared/src/json.ts';
 export type {MaybePromise} from '../../shared/src/types.ts';
-export {query} from '../../zql/src/query/named.ts';
+export {
+  query,
+  makeSchemaQuery,
+  type CustomQueryID,
+  type NamedQuery,
+} from '../../zql/src/query/named.ts';
 export type {
   AST,
   Bound,

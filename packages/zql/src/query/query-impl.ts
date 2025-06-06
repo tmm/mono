@@ -202,6 +202,10 @@ export abstract class AbstractQuery<
     return this.#hash;
   }
 
+  get ast() {
+    return this._completeAst();
+  }
+
   // TODO(arv): Put this in the delegate?
   protected abstract [newQuerySymbol]<
     TSchema extends Schema,

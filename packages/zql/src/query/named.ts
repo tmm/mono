@@ -2,7 +2,9 @@
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {SchemaQuery} from '../mutate/custom.ts';
+import {defaultFormat} from './query-impl.ts';
 import type {Query} from './query.ts';
+import {StaticQuery} from './static-query.ts';
 
 export type NamedQuery<
   S extends Schema,
@@ -45,3 +47,30 @@ query.bindTo =
     fn: NamedQueryImpl<S, TArg, TReturnQuery>,
   ): NamedQuery<S, TArg, TReturnQuery> =>
     query(s, name, fn);
+
+export function makeSchemaQuery<S extends Schema>(schema: S): SchemaQuery<S> {
+  return new Proxy(
+    {},
+    {
+      get: (
+        target: Record<
+          string,
+          Omit<Query<S, string, any>, 'materialize' | 'preload'>
+        >,
+        prop: string,
+      ) => {
+        if (prop in target) {
+          return target[prop];
+        }
+
+        if (!(prop in schema.tables)) {
+          throw new Error(`Table ${prop} does not exist in schema`);
+        }
+
+        const q = new StaticQuery(schema, prop, {table: prop}, defaultFormat);
+        target[prop] = q;
+        return q;
+      },
+    },
+  ) as SchemaQuery<S>;
+}
