@@ -17,25 +17,36 @@ import (
 
 const kBatchSize = 50
 
-func copyTable(pg *pgconn.PgConn, replica *lite.Conn, table string, columns ...string) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-
+func copyTable(wg *sync.WaitGroup, lock *sync.Mutex, db string, replica *lite.Conn, table string, columns ...string) {
 	r, w := io.Pipe()
-	go parseTable(r, &wg, replica, table, columns)
+	go parseTable(wg, lock, r, replica, table, columns)
 
-	_, err := pg.CopyTo(context.Background(), w,
+	pg, err := pgconn.Connect(context.Background(), db)
+	if err != nil {
+		log.Fatalf("Connect error: %v", err)
+	}
+
+	if err = pg.Exec(context.Background(), "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY").Close(); err != nil {
+		log.Fatalf("BEGIN error: %v", err)
+	}
+
+	_, err = pg.CopyTo(context.Background(), w,
 		fmt.Sprintf(`COPY (SELECT %s FROM "%s") TO STDOUT`, strings.Join(columns, ","), table))
 	if err != nil {
 		log.Fatalf("COPY error: %v", err)
 	}
 	if err = w.Close(); err != nil {
-		log.Fatalf("close error: %v", err)
+		log.Fatalf("writer close error: %v", err)
 	}
-	wg.Wait()
+	if err = pg.Exec(context.Background(), "COMMIT").Close(); err != nil {
+		log.Fatalf("COMMIT error: %v", err)
+	}
+	if err = pg.Close(context.Background()); err != nil {
+		log.Fatalf("pg close error: %v", err)
+	}
 }
 
-func parseTable(r io.Reader, wg *sync.WaitGroup, replica *lite.Conn, table string, columns []string) {
+func parseTable(wg *sync.WaitGroup, lock *sync.Mutex, r io.Reader, replica *lite.Conn, table string, columns []string) {
 	defer wg.Done()
 	start := time.Now()
 	numCols := len(columns)
@@ -48,19 +59,21 @@ func parseTable(r io.Reader, wg *sync.WaitGroup, replica *lite.Conn, table strin
 	for i := range qs {
 		qs[i] = "?"
 	}
+
 	valuesStr := fmt.Sprintf("(%s)", strings.Join(qs, ","))
 	insertStr := fmt.Sprintf(`INSERT INTO "%s" (%s) VALUES %s`, table, strings.Join(columns, ","), valuesStr)
-	// log.Println(insertStr)
+	insertBatchStr := fmt.Sprintf("%s%s", insertStr, strings.Repeat(","+valuesStr, kBatchSize-1))
+
+	lock.Lock()
 	insertStmt, err := replica.Prepare(insertStr)
 	if err != nil {
 		log.Fatalf("prepare insert %v", err)
 	}
-	insertBatchStr := fmt.Sprintf("%s%s", insertStr, strings.Repeat(","+valuesStr, kBatchSize-1))
-	// log.Println(insertBatchStr)
 	insertBatchStmt, err := replica.Prepare(insertBatchStr)
 	if err != nil {
 		log.Fatalf("prepare insert batch %v", err)
 	}
+	lock.Unlock()
 
 	for lines := bufio.NewScanner(r); lines.Scan(); {
 		row := strings.Split(lines.Text(), "\t")
@@ -78,18 +91,22 @@ func parseTable(r io.Reader, wg *sync.WaitGroup, replica *lite.Conn, table strin
 		rows++
 		if rows%kBatchSize == 0 {
 			s := time.Now()
+			lock.Lock()
 			if err = insertBatchStmt.Exec(vals...); err != nil {
 				log.Fatalf("insert batch %s", err)
 			}
+			lock.Unlock()
 			flushTime += time.Since(s)
 			pos = 0
 		}
 	}
 	for i := range rows % kBatchSize {
 		s := time.Now()
+		lock.Lock()
 		if err = insertStmt.Exec(vals[i*numCols : ((i + 1) * numCols)]...); err != nil {
 			log.Fatalf("insert %s", err)
 		}
+		lock.Unlock()
 		flushTime += time.Since(s)
 	}
 	log.Printf("Finished writing %d %s rows (flush: %s) (total: %s)", rows, table, flushTime, time.Since(start))
@@ -147,14 +164,6 @@ func main() {
 	if !found {
 		log.Fatalf("No ZERO_UPSTREAM_DB")
 	}
-	pg, err := pgconn.Connect(context.Background(), db)
-	if err != nil {
-		log.Fatalf("Connect error: %v", err)
-	}
-
-	if err = pg.Exec(context.Background(), "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY").Close(); err != nil {
-		log.Fatalf("BEGIN error: %v", err)
-	}
 
 	if err = replica.Exec("BEGIN"); err != nil {
 		log.Fatalf("BEGIN: %v", err)
@@ -162,7 +171,12 @@ func main() {
 
 	start := time.Now()
 
-	copyTable(pg, replica, "issue",
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	var lock sync.Mutex
+
+	go copyTable(&wg, &lock, db, replica, "issue",
 		"\"id\"",
 		"\"shortID\"",
 		"\"title\"",
@@ -176,7 +190,7 @@ func main() {
 		"\"testJson\"",
 	)
 
-	copyTable(pg, replica, "comment",
+	go copyTable(&wg, &lock, db, replica, "comment",
 		"\"id\"",
 		"\"issueID\"",
 		"\"created\"",
@@ -184,17 +198,15 @@ func main() {
 		"\"creatorID\"",
 	)
 
-	copyTable(pg, replica, "issueLabel",
+	go copyTable(&wg, &lock, db, replica, "issueLabel",
 		"\"labelID\"",
 		"\"issueID\"",
 	)
+
+	wg.Wait()
 
 	if err = replica.Exec("COMMIT"); err != nil {
 		log.Fatalf("COMMIT: %v", err)
 	}
 	log.Printf("Copy took %s", time.Since(start))
-
-	if err = pg.Exec(context.Background(), "COMMIT").Close(); err != nil {
-		log.Fatalf("COMMIT error: %v", err)
-	}
 }
