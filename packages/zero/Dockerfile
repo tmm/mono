@@ -15,7 +15,7 @@ RUN git clone https://github.com/rocicorp/mono.git
 WORKDIR /src/mono/go/
 
 RUN git checkout a91f03f8b6c83287b8a3ac815d46cee28c844086
-RUN go build -o /usr/local/bin/initial-sync ./cmd/initial-sync
+RUN go build -ldflags "-s -w -extldflags '-static'" -tags osusergo,netgo,sqlite_omit_load_extension -o /usr/local/bin/initial-sync ./cmd/initial-sync
 
 FROM node:22.15.0-alpine3.20
 
