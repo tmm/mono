@@ -1,4 +1,4 @@
-FROM golang:1.23 AS litestream
+FROM golang:1.24 AS litestream
 
 WORKDIR /src/
 RUN git clone --depth 1 --branch zero@v0.0.6 https://github.com/rocicorp/litestream.git
@@ -9,6 +9,13 @@ ARG LITESTREAM_VERSION=0.3.13+z0.0.6  # upstream version + zero version
 RUN --mount=type=cache,target=/root/.cache/go-build \
 	--mount=type=cache,target=/go/pkg \
 	go build -ldflags "-s -w -X 'main.Version=${LITESTREAM_VERSION}' -extldflags '-static'" -tags osusergo,netgo,sqlite_omit_load_extension -o /usr/local/bin/litestream ./cmd/litestream
+
+WORKDIR /src/
+RUN git clone https://github.com/rocicorp/mono.git
+WORKDIR /src/mono/go/
+
+RUN git checkout a91f03f8b6c83287b8a3ac815d46cee28c844086
+RUN go build -o /usr/local/bin/initial-sync ./cmd/initial-sync
 
 FROM node:22.15.0-alpine3.20
 
@@ -37,6 +44,7 @@ RUN if echo "$ZERO_VERSION" | grep -q "\.tgz$"; then \
 
 # Copy litestream executable and config.yml
 COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
+COPY --from=litestream /usr/local/bin/initial-sync /usr/local/bin/initial-sync
 RUN cp /usr/local/lib/node_modules/@rocicorp/zero/out/zero-cache/src/services/litestream/config.yml /etc/litestream.yml
 
 ENV ZERO_LITESTREAM_EXECUTABLE=/usr/local/bin/litestream
