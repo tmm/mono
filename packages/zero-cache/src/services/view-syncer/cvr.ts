@@ -290,6 +290,7 @@ export class CVRConfigDrivenUpdater extends CVRUpdater {
         args,
         ttl = -1,
       } = must(queries.find(({hash}) => hash === id));
+      console.log('QUERIES', queries);
       const query =
         this._cvr.queries[id] ?? newQueryRecord(id, ast, name, args);
       assertNotInternal(query);
@@ -971,6 +972,10 @@ function newQueryRecord(
       ast,
       clientState: {},
     } satisfies ClientQueryRecord;
+  }
+
+  if (name === undefined || args === undefined) {
+    console.log('MISSING NAME OR ARGS', name, args);
   }
 
   assert(

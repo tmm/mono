@@ -62,7 +62,7 @@ export type CVRFlushStats = {
 
 const tracer = trace.getTracer('cvr-store', version);
 
-function asQuery(row: QueriesRow): QueryRecord {
+function queryRowToQueryRecord(row: QueriesRow): QueryRecord {
   const maybeVersion = (s: string | null) =>
     s === null ? undefined : versionFromString(s);
 
@@ -195,6 +195,7 @@ export class CVRStore {
     lc: LogContext,
     lastConnectTime: number,
   ): Promise<CVR | RowsVersionBehindError> {
+    console.log('LOAD CVR!!!');
     const start = Date.now();
 
     const id = this.#id;
@@ -308,7 +309,9 @@ export class CVRStore {
     }
 
     for (const row of queryRows) {
-      const query = asQuery(row);
+      console.log('QUERY ROW', row);
+      const query = queryRowToQueryRecord(row);
+      console.log('QUERY RECORD', query);
       cvr.queries[row.queryHash] = query;
     }
 
@@ -342,6 +345,7 @@ export class CVRStore {
 
     // why do we not sort `desiredQueryIDs` here?
 
+    console.log('DONE LOAD CVR!!!', cvr);
     return cvr;
   }
 

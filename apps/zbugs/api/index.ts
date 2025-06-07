@@ -179,7 +179,9 @@ fastify.post<{
     if (!serverQuery) {
       const sharedQuery = sharedQueries[name as keyof typeof sharedQueries];
       if (!sharedQuery) {
-        reply.status(400).send(`Unknown query: ${name}`);
+        // empty query / always false
+        console.warn('missing query', name);
+        query = tx.issue.where(({or}) => or());
         return;
       }
 

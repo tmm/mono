@@ -7,8 +7,11 @@ export const allLabels = q('allLabels', tx => tx.label);
 export const allUsers = q('allUsers', tx => tx.user);
 
 // Preload all issues and first 10 comments from each.
-export const issuePreload = q('issuePreload', (tx, userID: string) =>
-  tx.issue
+export const issuePreload = q('issuePreload', (tx, userID: string) => {
+  // read here???
+  const {role} = await(tx.user.where('id', userID).one() ?? {});
+
+  let q = tx.issue
     .related('labels')
     .related('viewState', q => q.where('userID', userID))
     .related('creator')
@@ -20,8 +23,15 @@ export const issuePreload = q('issuePreload', (tx, userID: string) =>
         .related('emoji', emoji => emoji.related('creator'))
         .limit(10)
         .orderBy('created', 'desc'),
-    ),
-);
+    );
+
+  if (role !== 'crew') {
+    // If the user is not crew, filter out private issues.
+    q = q.where('visibility', 'public');
+  }
+
+  return q;
+});
 
 export const user = q('user', (tx, userID: string) =>
   tx.user.where('id', userID).one(),

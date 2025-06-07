@@ -1,3 +1,4 @@
+import {assert} from '../../shared/src/asserts.ts';
 import {h64} from '../../shared/src/hash.ts';
 import {normalizeAST, type AST} from './ast.ts';
 
@@ -18,6 +19,10 @@ export function hashOfNameAndArgs(
   name: string,
   args: readonly unknown[],
 ): string {
+  assert(
+    name !== undefined && args !== undefined,
+    'Name and args must be defined',
+  );
   const argsString = JSON.stringify(args);
-  return h64(`${name}${argsString}`).toString(36);
+  return h64(`${name}:${argsString}`).toString(36);
 }
