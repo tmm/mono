@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746225830138,
+  "lastUpdate": 1750344982549,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52505,6 +52505,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 31684,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "63d29c0124df49af38707c8fa03a0bdcc96bb243",
+          "message": "chore: Fix turbo deps a bit (#4512)\n\nNo need to rebuild replicache* when zero* changes.",
+          "timestamp": "2025-06-19T14:55:11Z",
+          "tree_id": "7016623d1134443493f678fd9572f3922d6ce86d",
+          "url": "https://github.com/rocicorp/mono/commit/63d29c0124df49af38707c8fa03a0bdcc96bb243"
+        },
+        "date": 1750344971377,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300339,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54143,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
             "unit": "bytes"
           }
         ]
