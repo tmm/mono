@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750344982549,
+  "lastUpdate": 1750413468117,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52529,6 +52529,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/63d29c0124df49af38707c8fa03a0bdcc96bb243"
         },
         "date": 1750344971377,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300339,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54143,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4f42d5286ced0e11a36c4b367bc438bc8bdfa40",
+          "message": "chore: Simplify turbo config (#4528)\n\nWe no longer have a postinstall script that runs so we can Simplify\nthe turbo config",
+          "timestamp": "2025-06-20T09:56:44Z",
+          "tree_id": "64c93efa0d97c54227d1c2e64775efe1097f41d3",
+          "url": "https://github.com/rocicorp/mono/commit/c4f42d5286ced0e11a36c4b367bc438bc8bdfa40"
+        },
+        "date": 1750413456403,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
