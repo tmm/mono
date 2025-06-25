@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750413468117,
+  "lastUpdate": 1750837383278,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52583,6 +52583,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.mjs.br (Brotli compressed)",
             "value": 54143,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a0d02c05a22876269f5fc2a666052de882312e2",
+          "message": "chore: Move broadcast channel to shared package (#4537)",
+          "timestamp": "2025-06-25T07:41:59Z",
+          "tree_id": "537611bde9843b73d9cf009e002644dbc4eeeefe",
+          "url": "https://github.com/rocicorp/mono/commit/6a0d02c05a22876269f5fc2a666052de882312e2"
+        },
+        "date": 1750837371950,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300349,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54140,
             "unit": "bytes"
           },
           {
