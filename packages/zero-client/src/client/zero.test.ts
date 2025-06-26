@@ -2355,7 +2355,7 @@ test('server ahead', async () => {
   );
   // There are a lot of timers that get scheduled before the reload timer
   // for dropping the database. TODO: Make this more robust.
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     await vi.advanceTimersToNextTimerAsync();
   }
   await promise;
