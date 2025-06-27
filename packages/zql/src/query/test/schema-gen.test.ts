@@ -16,72 +16,97 @@ test('stable generation', () => {
     {
       "relationships": {
         "adrenalin": {
+          "adrenalin": [
+            {
+              "cardinality": "one",
+              "destField": [
+                "curl",
+              ],
+              "destSchema": "adrenalin",
+              "sourceField": [
+                "hierarchy",
+              ],
+            },
+          ],
+        },
+        "chops": {
+          "chops": [
+            {
+              "cardinality": "one",
+              "destField": [
+                "birth",
+              ],
+              "destSchema": "chops",
+              "sourceField": [
+                "lox",
+              ],
+            },
+          ],
           "decongestant": [
             {
               "cardinality": "many",
               "destField": [
-                "community",
+                "language",
               ],
               "destSchema": "decongestant",
               "sourceField": [
-                "dime",
+                "outlaw",
               ],
             },
           ],
         },
-        "chops": {},
-        "decongestant": {
-          "adrenalin": [
+        "decongestant": {},
+        "elevator": {
+          "chops": [
             {
               "cardinality": "many",
               "destField": [
-                "dime",
+                "outlaw",
               ],
-              "destSchema": "adrenalin",
+              "destSchema": "chops",
               "sourceField": [
-                "community",
+                "asset",
               ],
             },
           ],
         },
-        "elevator": {},
         "habit": {},
         "sanity": {
           "sanity": [
             {
-              "cardinality": "one",
+              "cardinality": "many",
               "destField": [
-                "impostor",
+                "legging",
               ],
               "destSchema": "sanity",
               "sourceField": [
-                "impostor",
+                "legging",
               ],
             },
           ],
         },
         "stranger": {
+          "chops": [
+            {
+              "cardinality": "many",
+              "destField": [
+                "outlaw",
+              ],
+              "destSchema": "chops",
+              "sourceField": [
+                "newsstand",
+              ],
+            },
+          ],
           "decongestant": [
             {
               "cardinality": "many",
               "destField": [
-                "traffic",
+                "amnesty",
               ],
               "destSchema": "decongestant",
               "sourceField": [
-                "nougat",
-              ],
-            },
-          ],
-          "habit": [
-            {
-              "cardinality": "one",
-              "destField": [
-                "derby",
-              ],
-              "destSchema": "habit",
-              "sourceField": [
-                "marathon",
+                "gymnast",
               ],
             },
           ],
@@ -90,70 +115,98 @@ test('stable generation', () => {
       "tables": {
         "adrenalin": {
           "columns": {
-            "dime": {
-              "optional": true,
+            "cemetery": {
+              "insertDefault": [Function],
+              "nullable": false,
+              "type": "json",
+              "updateDefault": [Function],
+            },
+            "curl": {
+              "nullable": false,
+              "type": "string",
+              "updateDefault": [Function],
+            },
+            "hierarchy": {
+              "insertDefault": [Function],
+              "nullable": true,
               "type": "string",
             },
           },
           "name": "adrenalin",
           "primaryKey": [
-            "dime",
+            "curl",
+            "hierarchy",
           ],
         },
         "chops": {
           "columns": {
-            "gloom": {
-              "optional": true,
+            "birth": {
+              "insertDefault": [Function],
+              "nullable": false,
               "type": "string",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
             },
-            "newsprint": {
-              "optional": true,
+            "lox": {
+              "insertDefault": [Function],
+              "nullable": false,
               "type": "string",
+              "updateDefault": [Function],
+            },
+            "outlaw": {
+              "insertDefault": [Function],
+              "nullable": false,
+              "type": "number",
             },
           },
           "name": "chops",
           "primaryKey": [
-            "gloom",
-            "newsprint",
+            "lox",
+            "birth",
           ],
         },
         "decongestant": {
           "columns": {
             "amnesty": {
-              "optional": false,
+              "nullable": false,
               "type": "number",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
             },
             "circumference": {
-              "optional": true,
-              "type": "json",
+              "nullable": false,
+              "type": "string",
             },
             "community": {
-              "optional": false,
+              "nullable": false,
               "type": "string",
             },
             "ghost": {
-              "optional": true,
-              "type": "number",
+              "insertDefault": [Function],
+              "nullable": true,
+              "type": "string",
             },
             "language": {
-              "optional": false,
+              "insertDefault": [Function],
+              "nullable": true,
               "type": "number",
             },
             "lyre": {
-              "optional": false,
+              "nullable": false,
               "type": "string",
             },
             "pacemaker": {
-              "optional": false,
-              "type": "boolean",
+              "nullable": true,
+              "type": "number",
             },
             "status": {
-              "optional": false,
+              "nullable": true,
               "type": "string",
             },
             "traffic": {
-              "optional": true,
+              "nullable": false,
               "type": "string",
+              "updateDefault": [Function],
             },
           },
           "name": "decongestant",
@@ -163,123 +216,146 @@ test('stable generation', () => {
         },
         "elevator": {
           "columns": {
-            "bookcase": {
-              "optional": true,
+            "asset": {
+              "insertDefault": [Function],
+              "nullable": false,
               "type": "number",
             },
-            "phrase": {
-              "optional": false,
-              "type": "boolean",
+            "bonnet": {
+              "nullable": true,
+              "type": "string",
+              "updateDefault": [Function],
             },
-            "pliers": {
-              "optional": false,
+            "derby": {
+              "insertDefault": [Function],
+              "nullable": false,
               "type": "string",
             },
-            "switchboard": {
-              "optional": false,
-              "type": "string",
+            "metal": {
+              "insertDefault": [Function],
+              "nullable": false,
+              "type": "json",
             },
-            "widow": {
-              "optional": true,
+            "resource": {
+              "nullable": true,
               "type": "number",
+            },
+            "sandbar": {
+              "insertDefault": [Function],
+              "nullable": true,
+              "type": "string",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
             },
           },
           "name": "elevator",
           "primaryKey": [
-            "pliers",
-            "widow",
+            "resource",
           ],
         },
         "habit": {
           "columns": {
-            "adrenalin": {
-              "optional": true,
+            "coal": {
+              "nullable": true,
               "type": "string",
             },
-            "derby": {
-              "optional": false,
-              "type": "number",
-            },
-            "independence": {
-              "optional": false,
+            "secret": {
+              "insertDefault": [Function],
+              "nullable": false,
               "type": "string",
-            },
-            "lashes": {
-              "optional": true,
-              "type": "boolean",
-            },
-            "reporter": {
-              "optional": false,
-              "type": "boolean",
-            },
-            "resource": {
-              "optional": true,
-              "type": "boolean",
-            },
-            "sandbar": {
-              "optional": true,
-              "type": "string",
+              "updateDefault": [Function],
             },
           },
           "name": "habit",
           "primaryKey": [
-            "adrenalin",
+            "secret",
           ],
         },
         "sanity": {
           "columns": {
-            "impostor": {
-              "optional": false,
+            "advancement": {
+              "insertDefault": [Function],
+              "nullable": true,
               "type": "number",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
+            },
+            "flame": {
+              "nullable": true,
+              "type": "string",
+              "updateDefault": [Function],
+            },
+            "hygienic": {
+              "nullable": true,
+              "type": "number",
+              "updateDefault": [Function],
+            },
+            "lady": {
+              "nullable": false,
+              "type": "number",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
+            },
+            "legging": {
+              "insertDefault": [Function],
+              "nullable": true,
+              "type": "string",
+            },
+            "sesame": {
+              "nullable": true,
+              "type": "string",
             },
           },
           "name": "sanity",
           "primaryKey": [
-            "impostor",
+            "lady",
           ],
         },
         "stranger": {
           "columns": {
-            "footrest": {
-              "optional": true,
-              "type": "json",
-            },
-            "granny": {
-              "optional": false,
+            "airline": {
+              "nullable": true,
               "type": "string",
+              "updateDefault": [Function],
+            },
+            "guidance": {
+              "nullable": true,
+              "type": "string",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
+            },
+            "gymnast": {
+              "insertDefault": [Function],
+              "nullable": false,
+              "type": "number",
+              "updateDefault": [Function],
             },
             "marathon": {
-              "optional": false,
+              "insertDefault": [Function],
+              "nullable": false,
               "type": "number",
             },
-            "nougat": {
-              "optional": true,
+            "mathematics": {
+              "nullable": false,
               "type": "string",
+              "updateDefault": [Function],
             },
-            "pile": {
-              "optional": false,
-              "type": "boolean",
-            },
-            "rawhide": {
-              "optional": false,
-              "type": "string",
-            },
-            "ruin": {
-              "optional": true,
+            "newsstand": {
+              "nullable": false,
               "type": "number",
+              "updateDefault": [Function],
             },
-            "tuber": {
-              "optional": true,
+            "someplace": {
+              "insertDefault": [Function],
+              "nullable": true,
               "type": "number",
-            },
-            "valuable": {
-              "optional": false,
-              "type": "number",
+              "updateDefault": [Function],
+              "updateDefaultClientOnly": true,
             },
           },
           "name": "stranger",
           "primaryKey": [
-            "ruin",
+            "newsstand",
           ],
         },
       },

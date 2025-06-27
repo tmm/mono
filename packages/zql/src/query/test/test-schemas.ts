@@ -16,8 +16,14 @@ const issue = table('issue')
     title: string(),
     description: string(),
     closed: boolean(),
-    ownerId: string().from('owner_id').optional(),
-    createdAt: number(),
+    ownerId: string().from('owner_id').nullable(),
+    createdAt: number()
+      .onInsert(() => 1743018158555)
+      .from('created_at'),
+    updatedAt: number()
+      .onInsert(() => 1743018158555)
+      .onUpdate(() => 1743018158666)
+      .from('updated_at'),
   })
   .primaryKey('id');
 
@@ -30,7 +36,7 @@ const user = table('user')
       registrar: 'github' | 'google';
       email: string;
       altContacts?: string[];
-    }>().optional(),
+    }>().nullable(),
   })
   .primaryKey('id');
 
@@ -65,6 +71,24 @@ const revision = table('revision')
     authorId: string(),
     commentId: string(),
     text: string(),
+  })
+  .primaryKey('id');
+
+const auditLog = table('auditLog')
+  .from('audit_logs')
+  .columns({
+    id: string(),
+    action: string(),
+    userId: string().from('user_id'),
+    createdAt: number()
+      .onInsert(() => 1743018158777)
+      .dbGenerated('insert')
+      .from('created_at'),
+    updatedAt: number()
+      .onInsert(() => 1743018158777)
+      .onUpdate(() => 1743018158888)
+      .dbGenerated('insert', 'update')
+      .from('updated_at'),
   })
   .primaryKey('id');
 
@@ -153,7 +177,7 @@ const labelRelationships = relationships(label, ({many}) => ({
 }));
 
 export const schemaOptions = {
-  tables: [issue, user, comment, revision, label, issueLabel],
+  tables: [issue, user, comment, revision, label, issueLabel, auditLog],
   relationships: [
     issueRelationships,
     userRelationships,
@@ -171,6 +195,7 @@ export const issueLabelSchema = schema.tables.issueLabel;
 export const labelSchema = schema.tables.label;
 export const revisionSchema = schema.tables.revision;
 export const userSchema = schema.tables.user;
+export const auditLogSchema = schema.tables.auditLog;
 
 export type Issue = Row<typeof issueSchema>;
 export type Comment = Row<typeof commentSchema>;
@@ -178,6 +203,7 @@ export type IssueLabel = Row<typeof issueLabelSchema>;
 export type Label = Row<typeof labelSchema>;
 export type Revision = Row<typeof revisionSchema>;
 export type User = Row<typeof userSchema>;
+export type AuditLog = Row<typeof auditLogSchema>;
 
 export const createTableSQL = /*sql*/ `
 CREATE TABLE IF NOT EXISTS "issues" (
@@ -186,7 +212,8 @@ CREATE TABLE IF NOT EXISTS "issues" (
   "description" TEXT NOT NULL,
   "closed" BOOLEAN NOT NULL,
   "owner_id" TEXT,
-  "createdAt" TIMESTAMPTZ NOT NULL
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "users" (
@@ -220,5 +247,13 @@ CREATE TABLE IF NOT EXISTS "revision" (
   "authorId" TEXT NOT NULL,
   "commentId" TEXT NOT NULL,
   "text" TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "audit_logs" (
+  "id" TEXT PRIMARY KEY,
+  "action" TEXT NOT NULL,
+  "user_id" TEXT,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL
 );
 `;

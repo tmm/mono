@@ -20,7 +20,14 @@ type MakeAllFieldsRequired<T> = {
   t satisfies v.Infer<typeof schemaValueSchema>;
   inferredT satisfies SchemaValue;
 
-  inferredTR satisfies MakeAllFieldsRequired<SchemaValue>;
+  inferredTR satisfies Omit<
+    MakeAllFieldsRequired<SchemaValue>,
+    | 'insertDefault'
+    | 'updateDefault'
+    | 'insertDefaultClientOnly'
+    | 'updateDefaultClientOnly'
+    | 'customType'
+  >;
   tR satisfies MakeAllFieldsRequired<v.Infer<typeof schemaValueSchema>>;
 };
 

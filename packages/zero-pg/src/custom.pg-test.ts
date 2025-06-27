@@ -86,6 +86,7 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.insert(typesWithParamsRow),
         crud.uuidAndEnum.insert(uuidAndEnumRow),
         crud.alternate_basic.insert(basicRow),
+        crud.defaults.insert({id: '1'}),
       ]);
 
       await Promise.all([
@@ -105,6 +106,21 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'types_with_params', [typesWithParamsExpectedRow]),
         checkDb(tx, 'uuidAndEnum', [uuidAndEnumRow]),
         checkDb(tx, 'alternate_schema.basic', [basicRow]),
+        checkDb(tx, 'defaults', [
+          {
+            id: '1',
+            server_insert: 'on-insert-default-1',
+            server_update: null,
+            server_insert_update: 'on-insert-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'value-from-database-1',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+        ]),
       ]);
     });
   });
@@ -175,6 +191,21 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.upsert(typesWithParamsRow),
         crud.uuidAndEnum.upsert(uuidAndEnumRow),
         crud.alternate_basic.upsert(basicRow),
+        crud.defaults.upsert({
+          id: '1',
+          server_update: undefined,
+          no_server_update: undefined,
+        }),
+        crud.defaults.upsert({
+          id: '2',
+          server_update: undefined,
+          no_server_update: undefined,
+        }),
+        crud.defaults.upsert({
+          id: '3',
+          server_update: undefined,
+          no_server_update: undefined,
+        }),
       ]);
 
       await Promise.all([
@@ -194,6 +225,47 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'types_with_params', [typesWithParamsExpectedRow]),
         checkDb(tx, 'uuidAndEnum', [uuidAndEnumRow]),
         checkDb(tx, 'alternate_schema.basic', [basicRow]),
+        checkDb(tx, 'defaults', [
+          {
+            id: '1',
+            server_insert: 'on-insert-default-1',
+            server_update: null,
+            server_insert_update: 'on-insert-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'value-from-database-1',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+          {
+            id: '2',
+            server_insert: 'on-insert-default-1',
+            server_update: null,
+            server_insert_update: 'on-insert-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'value-from-database-1',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+          {
+            id: '3',
+            server_insert: 'on-insert-default-1',
+            server_update: null,
+            server_insert_update: 'on-insert-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'value-from-database-1',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+        ]),
       ]);
 
       // upsert all the existing rows to change non-primary key values
@@ -237,6 +309,19 @@ describe('makeSchemaCRUD', () => {
           a: 3,
           b: 'baz',
           c: false,
+        }),
+        crud.defaults.upsert({
+          id: '1',
+          server_insert: 'new-value-1',
+          server_update: undefined,
+          no_server_update: undefined,
+        }),
+        crud.defaults.upsert({
+          id: '3',
+          db_default: 'new-value-4',
+          db_default_server_override: 'new-value-5',
+          server_update: 'new-value-2',
+          no_server_update: 'new-value-3',
         }),
       ]);
 
@@ -295,6 +380,51 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'alternate_schema.basic', [
           {id: '1', a: 3, b: 'baz', c: false},
         ]),
+        checkDb(tx, 'defaults', [
+          {
+            id: '2',
+
+            server_insert: 'on-insert-default-1',
+            server_update: null,
+            server_insert_update: 'on-insert-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'value-from-database-1',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+          {
+            id: '1',
+            server_insert: 'new-value-1',
+            // this value was updated because the row was upserted (updated)
+            // and undefined was passed for it
+            server_update: 'on-update-default-1',
+            server_insert_update: 'on-update-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'value-from-database-1',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+          {
+            id: '3',
+
+            server_insert: 'on-insert-default-1',
+            server_update: 'new-value-2',
+            server_insert_update: 'on-update-default-2',
+
+            no_server_insert: null,
+            no_server_update: 'new-value-3',
+            no_server_insert_update: null,
+
+            db_default: 'new-value-4',
+            db_default_server_override: 'new-value-5',
+          },
+        ]),
       ]);
     });
   });
@@ -316,6 +446,7 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.insert(typesWithParamsRow),
         crud.uuidAndEnum.insert(uuidAndEnumRow),
         crud.alternate_basic.insert(basicRow),
+        crud.defaults.insert({id: '1'}),
       ]);
 
       await Promise.all([
@@ -357,6 +488,10 @@ describe('makeSchemaCRUD', () => {
           id: '1',
           a: 3,
           b: 'baz',
+        }),
+        crud.defaults.update({
+          id: '1',
+          db_default: 'update-value-from-inline-test-44',
         }),
       ]);
 
@@ -415,6 +550,21 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'alternate_schema.basic', [
           {id: '1', a: 3, b: 'baz', c: true},
         ]),
+        checkDb(tx, 'defaults', [
+          {
+            id: '1',
+            server_insert: 'on-insert-default-1',
+            server_update: 'on-update-default-1',
+            server_insert_update: 'on-update-default-2',
+
+            no_server_insert: null,
+            no_server_update: null,
+            no_server_insert_update: null,
+
+            db_default: 'update-value-from-inline-test-44',
+            db_default_server_override: 'on-insert-with-database-default-2',
+          },
+        ]),
       ]);
     });
   });
@@ -437,6 +587,7 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.insert(typesWithParamsRow),
         crud.uuidAndEnum.insert(uuidAndEnumRow),
         crud.alternate_basic.insert(basicRow),
+        crud.defaults.insert({id: '1'}),
       ]);
 
       await Promise.all([
@@ -449,6 +600,7 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.delete({id: typesWithParamsRow.id}),
         crud.uuidAndEnum.delete({id: uuidAndEnumRow.id}),
         crud.alternate_basic.delete({id: '1'}),
+        crud.defaults.delete({id: '1'}),
       ]);
 
       await Promise.all([
@@ -461,6 +613,229 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'types_with_params', []),
         checkDb(tx, 'uuidAndEnum', []),
         checkDb(tx, 'alternate_schema.basic', []),
+        checkDb(tx, 'defaults', []),
+      ]);
+    });
+  });
+
+  test('insert/update/upsert with default columns', async () => {
+    await pg.begin(async tx => {
+      const transaction = new Transaction(tx);
+      const crud = crudProvider(
+        transaction,
+        await getServerSchema(transaction, schema),
+      );
+
+      // Test insert with minimal columns - defaults should be applied
+      await crud.defaults.insert({
+        id: '1',
+        server_update: 'explicit_server_update_1',
+        no_server_update: 'explicit_no_server_update_1',
+      });
+      await checkDb(tx, 'defaults', [
+        {
+          id: '1',
+          server_insert: 'on-insert-default-1',
+          server_update: 'explicit_server_update_1',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update_1',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+      ]);
+
+      // Test insert with some overrides
+      await crud.defaults.insert({
+        id: '2',
+        server_update: 'explicit_server_update',
+        no_server_update: 'explicit_no_server_update',
+      });
+      await checkDb(tx, 'defaults', [
+        {
+          id: '1',
+          server_insert: 'on-insert-default-1',
+          server_update: 'explicit_server_update_1',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update_1',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '2',
+          server_insert: 'on-insert-default-1',
+          server_update: 'explicit_server_update',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+      ]);
+
+      // Test update with missing columns - update defaults should be applied
+      await crud.defaults.update({id: '1'});
+      await checkDb(tx, 'defaults', [
+        {
+          id: '2',
+          server_insert: 'on-insert-default-1',
+          server_update: 'explicit_server_update',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '1',
+          server_insert: 'on-insert-default-1',
+          server_update: 'on-update-default-1',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update_1',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+      ]);
+
+      // Test update with explicit values overriding defaults
+      await crud.defaults.update({
+        id: '2',
+        server_update: 'overridden_update',
+        db_default: 'overridden_db_default',
+      });
+      await checkDb(tx, 'defaults', [
+        {
+          id: '1',
+          server_insert: 'on-insert-default-1',
+          server_update: 'on-update-default-1',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update_1',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '2',
+          server_insert: 'on-insert-default-1',
+          server_update: 'overridden_update',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update',
+          no_server_insert_update: null,
+          db_default: 'overridden_db_default',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+      ]);
+
+      // Test upsert on non-existing row (insert behavior)
+      await crud.defaults.upsert({
+        id: '3',
+        server_update: 'upsert_insert_behavior',
+        no_server_update: 'upsert_insert_behavior',
+      });
+
+      // Test upsert on existing row (update behavior)
+      await crud.defaults.upsert({
+        id: '1',
+        server_update: 'upsert_override',
+        no_server_update: 'upsert_override',
+      });
+
+      await checkDb(tx, 'defaults', [
+        {
+          id: '2',
+          server_insert: 'on-insert-default-1',
+          server_update: 'overridden_update',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update',
+          no_server_insert_update: null,
+          db_default: 'overridden_db_default',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '3',
+          server_insert: 'on-insert-default-1',
+          server_update: 'upsert_insert_behavior',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'upsert_insert_behavior',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '1',
+          server_insert: 'on-insert-default-1',
+          server_update: 'upsert_override',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'upsert_override',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+      ]);
+
+      // Test with only required fields - should use defaults for the rest
+      await crud.defaults.insert({
+        id: '4',
+        server_update: 'explicit_4',
+        no_server_update: 'explicit_4',
+      });
+      await checkDb(tx, 'defaults', [
+        {
+          id: '2',
+          server_insert: 'on-insert-default-1',
+          server_update: 'overridden_update',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_no_server_update',
+          no_server_insert_update: null,
+          db_default: 'overridden_db_default',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '3',
+          server_insert: 'on-insert-default-1',
+          server_update: 'upsert_insert_behavior',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'upsert_insert_behavior',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '1',
+          server_insert: 'on-insert-default-1',
+          server_update: 'upsert_override',
+          server_insert_update: 'on-update-default-2',
+          no_server_insert: null,
+          no_server_update: 'upsert_override',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
+        {
+          id: '4',
+          server_insert: 'on-insert-default-1',
+          server_update: 'explicit_4',
+          server_insert_update: 'on-insert-default-2',
+          no_server_insert: null,
+          no_server_update: 'explicit_4',
+          no_server_insert_update: null,
+          db_default: 'value-from-database-1',
+          db_default_server_override: 'on-insert-with-database-default-2',
+        },
       ]);
     });
   });

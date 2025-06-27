@@ -24,7 +24,7 @@ export const schema = createSchema({
         id: string(),
         a: number(),
         b: string(),
-        c: boolean().optional(),
+        c: boolean().nullable(),
       })
       .primaryKey('id'),
     table('names')
@@ -33,14 +33,14 @@ export const schema = createSchema({
         id: string().from('divergent_id'),
         a: number().from('divergent_a'),
         b: string().from('divergent_b'),
-        c: boolean().from('divergent_c').optional(),
+        c: boolean().from('divergent_c').nullable(),
       })
       .primaryKey('id'),
     table('compoundPk')
       .columns({
         a: string(),
         b: number(),
-        c: string().optional(),
+        c: string().nullable(),
       })
       .primaryKey('a', 'b'),
     table('dateTypes')
@@ -84,7 +84,46 @@ export const schema = createSchema({
         id: string(),
         a: number(),
         b: string(),
-        c: boolean().optional(),
+        c: boolean().nullable(),
+      })
+      .primaryKey('id'),
+    table('defaults')
+      .columns({
+        id: string(),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        server_insert: string().onInsert(() => 'on-insert-default-1'),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        server_update: string()
+          .onUpdate(() => 'on-update-default-1')
+          .nullable(),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        server_insert_update: string()
+          .onInsert(() => 'on-insert-default-2')
+          .onUpdate(() => 'on-update-default-2'),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        no_server_insert: string()
+          .onInsert(() => 'on-insert-client-only-1')
+          .dbGenerated('insert')
+          .nullable(),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        no_server_update: string()
+          .onUpdate(() => 'on-update-client-only-1')
+          .dbGenerated('update')
+          .nullable(),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        no_server_insert_update: string()
+          .onInsert(() => 'on-insert-client-only-2')
+          .onUpdate(() => 'on-update-client-only-2')
+          .dbGenerated('insert', 'update')
+          .nullable(),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        db_default: string()
+          .onInsert(() => 'on-insert-client-only-with-database-default')
+          .dbGenerated('insert'),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        db_default_server_override: string().onInsert(
+          () => 'on-insert-with-database-default-2',
+        ),
       })
       .primaryKey('id'),
   ],
@@ -167,6 +206,18 @@ CREATE TABLE alternate_schema.basic (
   a INTEGER,
   b TEXT,
   C BOOLEAN
+);
+
+CREATE TABLE "defaults" (
+  id TEXT PRIMARY KEY,
+  "server_insert" TEXT,
+  "server_update" TEXT,
+  "server_insert_update" TEXT,
+  "no_server_insert" TEXT,
+  "no_server_update" TEXT,
+  "no_server_insert_update" TEXT,
+  "db_default" TEXT DEFAULT 'value-from-database-1',
+  "db_default_server_override" TEXT DEFAULT 'value-from-database-2'
 );
 `;
 

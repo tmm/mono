@@ -17,7 +17,7 @@ const user = table('user')
   .columns({
     id: string(),
     login: string(),
-    name: string().optional(),
+    name: string().nullable(),
     avatar: string(),
     role: enumeration<Role>(),
   })
@@ -26,13 +26,15 @@ const user = table('user')
 const issue = table('issue')
   .columns({
     id: string(),
-    shortID: number().optional(),
+    shortID: number().nullable(),
     title: string(),
     open: boolean(),
-    modified: number(),
-    created: number(),
+    modified: number()
+      .onInsert(() => Date.now())
+      .onUpdate(() => Date.now()),
+    created: number().onInsert(() => Date.now()),
     creatorID: string(),
-    assigneeID: string().optional(),
+    assigneeID: string().nullable(),
     description: string(),
     visibility: enumeration<'internal' | 'public'>(),
   })
@@ -50,7 +52,7 @@ const comment = table('comment')
   .columns({
     id: string(),
     issueID: string(),
-    created: number(),
+    created: number().onInsert(() => Date.now()),
     body: string(),
     creatorID: string(),
   })
@@ -77,7 +79,7 @@ const emoji = table('emoji')
     annotation: string(),
     subjectID: string(),
     creatorID: string(),
-    created: number(),
+    created: number().onInsert(() => Date.now()),
   })
   .primaryKey('id');
 
