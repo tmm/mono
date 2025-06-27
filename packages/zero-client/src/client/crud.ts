@@ -180,7 +180,7 @@ export function makeBatchCRUDMutate<S extends TableSchema>(
   schema: Schema,
   ops: CRUDOp[],
 ): TableMutator<S> {
-  const {primaryKey} = schema.tables[tableName]
+  const {primaryKey} = schema.tables[tableName];
   return {
     insert: (value: InsertValue<S>) => {
       const op: InsertOp = {
@@ -273,7 +273,7 @@ function addDefaultToOptionalFields({
   value: ReadonlyJSONObject;
   operation: 'insert' | 'update';
 }): ReadonlyJSONObject {
-  const rv = {...value}; 
+  const rv = {...value};
 
   for (const name in schema.columns) {
     // only apply overrides if the column was not explicitly provided
@@ -293,7 +293,7 @@ function addDefaultToOptionalFields({
     }
   }
 
-  return rv
+  return rv;
 }
 
 export async function insertImpl(

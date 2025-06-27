@@ -72,9 +72,7 @@ test('relationship schema types', () => {
 
   expectTypeOf(schema.tables.issue).toExtend<TableSchema>();
 
-  expectTypeOf(
-    schema.relationships.issue.comments,
-  ).toExtend<Relationship>();
+  expectTypeOf(schema.relationships.issue.comments).toExtend<Relationship>();
 
   expectTypeOf(schema.relationships.issue.labels).toExtend<Relationship>();
 });
