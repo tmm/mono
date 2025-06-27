@@ -157,9 +157,8 @@ export function makeSchemaCRUD<S extends Schema>(
 }
 
 /**
- * If the column is not provided, has a default function, and the server
- * option is set, we override the value with the result of the default
- * function.
+ * If the column is not provided, has a default function, and it's not client-only,
+ * we override the value with the result of the default function.
  */
 function addDefaultToOptionalFields<T extends Record<string, unknown>>({
   value,

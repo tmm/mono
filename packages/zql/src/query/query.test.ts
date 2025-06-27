@@ -106,9 +106,9 @@ const schemaWithAdvancedTypes = table('schemaWithAdvancedTypes')
 
 const schemaWithUpdateDefaults = table('schemaWithUpdateDefaults')
   .columns({
-    s: string().onUpdate(() => 'default'),
+    s: string(),
     n: number<Timestamp>().onUpdate(() => timestamp(42)),
-    b: boolean().onUpdate(() => true),
+    b: boolean().onUpdate(() => true).nullable(),
     j: json<{foo: string; bar: boolean}>().onUpdate(() => ({
       foo: 'bar',
       bar: true,
@@ -120,7 +120,7 @@ const schemaWithUpdateDefaults = table('schemaWithUpdateDefaults')
 
 const schemaWithInsertDefaults = table('schemaWithInsertDefaults')
   .columns({
-    s: string().onInsert(() => 'default'),
+    s: string(),
     n: number<Timestamp>().onInsert(() => timestamp(42)),
     b: boolean().onInsert(() => true),
     j: json<{foo: string; bar: boolean}>().onInsert(() => ({
@@ -319,7 +319,7 @@ describe('types', () => {
         ReadonlyArray<{
           s: string;
           n: Timestamp;
-          b: boolean;
+          b: boolean | null;
           j: {foo: string; bar: boolean};
           e: 'open' | 'closed';
           otherId: `custom_${string}`;
