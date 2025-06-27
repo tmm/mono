@@ -547,7 +547,7 @@ test('alternate db names', () => {
   `);
 
   const foo = table('foo')
-    .from('fooz')
+    .from('public.fooz')
     .columns({
       bar: string().from('baz'),
       baz: string().from('boo'),
