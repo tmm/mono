@@ -108,7 +108,9 @@ const schemaWithUpdateDefaults = table('schemaWithUpdateDefaults')
   .columns({
     s: string(),
     n: number<Timestamp>().onUpdate(() => timestamp(42)),
-    b: boolean().onUpdate(() => true).nullable(),
+    b: boolean()
+      .onUpdate(() => true)
+      .nullable(),
     j: json<{foo: string; bar: boolean}>().onUpdate(() => ({
       foo: 'bar',
       bar: true,
