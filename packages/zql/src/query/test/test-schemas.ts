@@ -17,13 +17,10 @@ const issue = table('issue')
     description: string(),
     closed: boolean(),
     ownerId: string().from('owner_id').nullable(),
-    createdAt: number()
-      .onInsert(() => 1743018158555)
-      .from('created_at'),
+    createdAt: number().onInsert(() => 1743018158555),
     updatedAt: number()
       .onInsert(() => 1743018158555)
-      .onUpdate(() => 1743018158666)
-      .from('updated_at'),
+      .onUpdate(() => 1743018158666),
   })
   .primaryKey('id');
 
@@ -212,8 +209,8 @@ CREATE TABLE IF NOT EXISTS "issues" (
   "description" TEXT NOT NULL,
   "closed" BOOLEAN NOT NULL,
   "owner_id" TEXT,
-  "created_at" TIMESTAMPTZ NOT NULL,
-  "updated_at" TIMESTAMPTZ NOT NULL
+  "createdAt" TIMESTAMPTZ NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "users" (

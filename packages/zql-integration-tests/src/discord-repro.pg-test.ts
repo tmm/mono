@@ -29,7 +29,7 @@ beforeAll(async () => {
   sqlite = new Database(lc, ':memory:');
 
   await pg.unsafe(/*sql*/ `
-    INSERT INTO "issues" ("id", "title", "description", "closed", "owner_id", "created_at", "updated_at") VALUES (
+    INSERT INTO "issues" ("id", "title", "description", "closed", "owner_id", "createdAt", "updatedAt") VALUES (
       'issue1', 'Test Issue 1', 'Description for issue 1', false, 'user1', TIMESTAMPTZ '2001-02-16T20:38:40.000Z', TIMESTAMPTZ '2001-02-16T20:38:40.000Z'
     );
 

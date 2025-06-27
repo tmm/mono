@@ -770,7 +770,7 @@ test('onInsert and onUpdate', () => {
       table('issue')
         .from('issues')
         .columns({
-          id: string().onInsert(() => Math.random().toString()),
+          id: string(),
           createdAt: number().onInsert(() => new Date().getTime()),
           updatedAt: number()
             .onInsert(() => new Date().getTime())
@@ -792,13 +792,13 @@ test('onInsert and onUpdate', () => {
         "tables": {
           "issues": {
             "columns": {
+              "createdAt": {
+                "type": "number"
+              },
               "dbGeneratedCreatedAt": {
                 "type": "number"
               },
               "dbGeneratedUpdatedAt": {
-                "type": "number"
-              },
-              "createdAt": {
                 "type": "number"
               },
               "id": {
@@ -811,7 +811,7 @@ test('onInsert and onUpdate', () => {
           }
         }
       },
-      "hash": "3iie5i803h7j7"
+      "hash": "1xi4by8sbgoth"
     }"
   `);
 
