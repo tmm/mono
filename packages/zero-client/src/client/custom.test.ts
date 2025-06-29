@@ -334,7 +334,7 @@ describe('rebasing custom mutators', () => {
     expect(issues[0].updatedAt).toEqual(1743018158666);
   });
 
-  test('custom mutators use default values when dbGenerated is used', async () => {
+  test('custom mutators use default values when server "db" is used', async () => {
     const z = zeroForTest({
       logLevel: 'debug',
       schema,

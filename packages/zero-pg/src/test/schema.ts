@@ -90,40 +90,58 @@ export const schema = createSchema({
     table('defaults')
       .columns({
         id: string(),
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        server_insert: string().onInsert(() => 'on-insert-default-1'),
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        server_update: string()
-          .onUpdate(() => 'on-update-default-1')
+        insert: string().default({
+          insert: {
+            client: () => 'client-insert-default-1' as const,
+            server: () => 'server-insert-default-1' as const,
+          },
+        }),
+        update: string()
+          .default({
+            update: {
+              client: () => 'client-update-default-2' as const,
+              server: () => 'server-update-default-2' as const,
+            },
+          })
           .nullable(),
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        server_insert_update: string()
-          .onInsert(() => 'on-insert-default-2')
-          .onUpdate(() => 'on-update-default-2'),
+        insert_update: string().default({
+          insert: {
+            client: () => 'client-insert-default-3' as const,
+            server: () => 'server-insert-default-3' as const,
+          },
+          update: {
+            client: () => 'client-update-default-3' as const,
+            server: () => 'server-update-default-3' as const,
+          },
+        }),
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        no_server_insert: string()
-          .onInsert(() => 'on-insert-client-only-1')
-          .dbGenerated('insert')
+        insert_db_generated: string().default({
+          insert: {
+            client: () => 'client-insert-default-4' as const,
+            server: 'db',
+          },
+        }),
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        update_db_generated: string()
+          .default({
+            update: {
+              client: () => 'client-update-default-5' as const,
+              server: 'db',
+            },
+          })
           .nullable(),
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        no_server_update: string()
-          .onUpdate(() => 'on-update-client-only-1')
-          .dbGenerated('update')
-          .nullable(),
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        no_server_insert_update: string()
-          .onInsert(() => 'on-insert-client-only-2')
-          .onUpdate(() => 'on-update-client-only-2')
-          .dbGenerated('insert', 'update')
-          .nullable(),
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        db_default: string()
-          .onInsert(() => 'on-insert-client-only-with-database-default')
-          .dbGenerated('insert'),
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        db_default_server_override: string().onInsert(
-          () => 'on-insert-with-database-default-2',
-        ),
+        insert_update_db_generated: string().default({
+          insert: {
+            client: () => 'client-insert-default-6' as const,
+            server: 'db',
+          },
+          update: {
+            client: () => 'client-update-default-6' as const,
+            server: 'db',
+          },
+        }),
       })
       .primaryKey('id'),
   ],
@@ -210,15 +228,27 @@ CREATE TABLE alternate_schema.basic (
 
 CREATE TABLE "defaults" (
   id TEXT PRIMARY KEY,
-  "server_insert" TEXT,
-  "server_update" TEXT,
-  "server_insert_update" TEXT,
-  "no_server_insert" TEXT,
-  "no_server_update" TEXT,
-  "no_server_insert_update" TEXT,
-  "db_default" TEXT DEFAULT 'value-from-database-1',
-  "db_default_server_override" TEXT DEFAULT 'value-from-database-2'
+  "insert" TEXT,
+  "update" TEXT,
+  "insert_update" TEXT,
+  "insert_db_generated" TEXT DEFAULT 'db-insert-default-1',
+  "update_db_generated" TEXT,
+  "insert_update_db_generated" TEXT DEFAULT 'db-insert-update-default-2'
 );
+
+CREATE OR REPLACE FUNCTION update_defaults_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW."update_db_generated" = 'db-update-default-3';
+  NEW."insert_update_db_generated" = 'db-insert-update-default-4';
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER defaults_update_trigger
+  BEFORE UPDATE ON "defaults"
+  FOR EACH ROW
+  EXECUTE FUNCTION update_defaults_trigger();
 `;
 
 export const seedDataSql = `

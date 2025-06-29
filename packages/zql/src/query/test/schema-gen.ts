@@ -149,16 +149,18 @@ function generateColumn(
     {
       type,
       nullable: rng() < 0.5,
-      ...(rng() < 0.5 && generateDefault
+      ...(rng() < 0.7 && generateDefault
         ? {
-            insertDefault: generateDefault,
-            ...(rng() < 0.3 ? {insertDefaultClientOnly: true} : {}),
-          }
-        : {}),
-      ...(rng() < 0.5 && generateDefault
-        ? {
-            updateDefault: generateDefault,
-            ...(rng() < 0.3 ? {updateDefaultClientOnly: true} : {}),
+            defaultConfig: {
+              insert: {
+                client: generateDefault,
+                server: rng() < 0.5 ? 'db' : generateDefault,
+              },
+              update: {
+                client: generateDefault,
+                server: rng() < 0.5 ? 'db' : generateDefault,
+              },
+            },
           }
         : {}),
     },

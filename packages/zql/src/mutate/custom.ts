@@ -2,6 +2,7 @@ import {assert} from '../../../shared/src/asserts.ts';
 import type {Expand} from '../../../shared/src/expand.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {
+  SchemaValue,
   SchemaValueToTSType,
   TableSchema,
 } from '../../../zero-schema/src/table-schema.ts';
@@ -81,9 +82,8 @@ export type TableCRUD<S extends TableSchema> = {
    * `undefined`. Such fields will be assigned the value `null` optimistically
    * and then the default value as defined by the server.
    *
-   * If there is a `onInsert` function defined for a field, and no value is
-   * provided, it will be called to generate the value for that field. Then,
-   * if the field is marked as server-generated, it will not be sent to the server.
+   * If there is a `default` function defined for a field, and no value is
+   * provided, it will be called to generate the value for that field.
    */
   insert: (value: InsertValue<S>) => Promise<void>;
 
@@ -95,10 +95,9 @@ export type TableCRUD<S extends TableSchema> = {
    * set to `undefined`. Such fields will be assigned the value `null`
    * optimistically and then the default value as defined by the server.
    *
-   * If there is a `onInsert` or `onUpdate` function defined for a field, and
-   * no value is provided, then either will be called to generate the value for
-   * the field, depending on if the primary key already exists. Then, if that
-   * field is marked as server-generated, it will not be sent to the server.
+   * If there is a `default` function defined for a field, and
+   * no value is provided, then it will be called to generate the value for
+   * the field, depending on if the primary key already exists.
    */
   upsert: (value: UpsertValue<S>) => Promise<void>;
 
@@ -107,9 +106,8 @@ export type TableCRUD<S extends TableSchema> = {
    * function does nothing. All non-primary-key fields can be omitted or set to
    * `undefined`. Such fields will be left unchanged from previous value.
    *
-   * If there is a `onUpdate` function defined for the field, and no value is
-   * provided, it will be called to generate the value for that field. Then,
-   * if the field is marked as server-generated, it will not be sent to the server.
+   * If there is a `default` function defined for the field, and no value is
+   * provided, it will be called to generate the value for that field.
    */
   update: (value: UpdateValue<S>) => Promise<void>;
 
@@ -142,8 +140,26 @@ type NonPrimaryKeyFields<S extends TableSchema> = Exclude<
   PrimaryKeys<S>
 >;
 
-type HasInsertDefault<T> = T extends {insertDefault: unknown} ? true : false;
-type HasUpdateDefault<T> = T extends {updateDefault: unknown} ? true : false;
+type HasInsertDefault<T extends SchemaValue> = T extends {
+  defaultConfig: {
+    insert: {
+      client: () => unknown;
+    }
+  }
+}
+  ? true
+  : false;
+
+type HasUpdateDefault<T extends SchemaValue> = T extends {
+  defaultConfig: {
+    update: {
+      client: () => unknown;
+    }
+  }
+}
+  ? true
+  : false;
+
 type IsNullable<T> = T extends {nullable: true} ? true : false;
 
 // columns that are not nullable and have no insert default
@@ -155,7 +171,7 @@ type RequiredInsertFields<S extends TableSchema> = {
       : K;
 }[NonPrimaryKeyFields<S>];
 
-// Optional non-PK columns for insert: nullable or has insert default
+// optional non-PK columns for insert: nullable or has insert default
 type OptionalInsertFields<S extends TableSchema> = {
   [K in NonPrimaryKeyFields<S>]: HasInsertDefault<S['columns'][K]> extends true
     ? K

@@ -17,10 +17,22 @@ const issue = table('issue')
     description: string(),
     closed: boolean(),
     ownerId: string().from('owner_id').nullable(),
-    createdAt: number().onInsert(() => 1743018158555),
-    updatedAt: number()
-      .onInsert(() => 1743018158555)
-      .onUpdate(() => 1743018158666),
+    createdAt: number().default({
+      insert: {
+        client: () => 1743018158555,
+        server: () => 1743018158555,
+      },
+    }),
+    updatedAt: number().default({
+      insert: {
+        client: () => 1743018158555,
+        server: () => 1743018158555,
+      },
+      update: {
+        client: () => 1743018158666,
+        server: () => 1743018158666,
+      },
+    }),
   })
   .primaryKey('id');
 
@@ -78,13 +90,24 @@ const auditLog = table('auditLog')
     action: string(),
     userId: string().from('user_id'),
     createdAt: number()
-      .onInsert(() => 1743018158777)
-      .dbGenerated('insert')
+      .default({
+        insert: {
+          client: () => 1743018158777,
+          server: 'db',
+        },
+      })
       .from('created_at'),
     updatedAt: number()
-      .onInsert(() => 1743018158777)
-      .onUpdate(() => 1743018158888)
-      .dbGenerated('insert', 'update')
+      .default({
+        insert: {
+          client: () => 1743018158777,
+          server: 'db',
+        },
+        update: {
+          client: () => 1743018158888,
+          server: 'db',
+        },
+      })
       .from('updated_at'),
   })
   .primaryKey('id');

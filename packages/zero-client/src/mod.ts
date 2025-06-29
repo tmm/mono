@@ -68,7 +68,6 @@ export {
   string,
   table,
   type ColumnBuilder,
-  type ColumnBuilderWithDefault,
   type TableBuilderWithColumns,
 } from '../../zero-schema/src/builder/table-builder.ts';
 export type {
@@ -91,6 +90,7 @@ export type {
 export {type TableSchema} from '../../zero-schema/src/table-schema.ts';
 export type {
   BaseSchemaValue,
+  DefaultConfig,
   DefaultValueFunction,
   EnumSchemaValue,
   SchemaValue,

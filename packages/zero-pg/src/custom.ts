@@ -182,18 +182,18 @@ function addDefaultToOptionalFields<T extends Record<string, unknown>>({
       // if the column was not explicitly provided, we add the default
       // or if the value is explicitly undefined, we add the default
       if (!(key in value) || value[key] === undefined) {
+        const defaultConfig = colSchema?.defaultConfig;
+
         if (
           type === 'insert' &&
-          !colSchema.insertDefaultClientOnly &&
-          colSchema.insertDefault
+          typeof defaultConfig?.insert?.server === 'function'
         ) {
-          rv[key] = colSchema.insertDefault();
+          rv[key] = defaultConfig.insert.server();
         } else if (
           type === 'update' &&
-          !colSchema.updateDefaultClientOnly &&
-          colSchema.updateDefault
+          typeof defaultConfig?.update?.server === 'function'
         ) {
-          rv[key] = colSchema.updateDefault();
+          rv[key] = defaultConfig.update.server();
         }
       }
     }

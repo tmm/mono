@@ -664,16 +664,16 @@ test('round trip', () => {
 
   expect(codes).toMatchInlineSnapshot(`
     [
-      ".where('heating', false).where('typeface', 'IS NOT', 'corrupti circumvenio ustilo').limit(2)",
-      ".where(({exists, not}) => not(exists('other', q => q.orderBy('morbidity', 'asc').orderBy('guidance', 'desc').orderBy('monasticism', 'asc')))).orderBy('request', 'desc').orderBy('cruelty', 'asc').orderBy('knitting', 'asc').limit(4)",
-      ".where(({exists, not}) => not(exists('guide', q => q.where('backbone', 'IS', 'verto derideo vulgivagus').where('cash', false).where('backbone', 'ILIKE', 'texo cogo aggero').orderBy('antelope', 'desc').orderBy('crest', 'asc').limit(121)))).where('backbone', null).orderBy('igloo', 'asc').orderBy('antelope', 'desc').orderBy('crest', 'desc').orderBy('tuba', 'asc')",
-      "",
-      ".where(({exists, not}) => not(exists('vanadyl', q => q.orderBy('nucleotidase', 'desc').orderBy('information', 'asc').orderBy('vol', 'asc')))).where('phrase', 'ILIKE', 'trepide vorax civitas').where('hyena', 'IS', 'hic arguo iste').where('thigh', 'LIKE', 'decet cognatus caveo').where('scorpion', 'voco labore conor').related('vanadyl', q => q.where('cappelletti', '!=', 1284373868304998).where('cinema', 'IS', 'acies sint repellendus').where('nucleotidase', 'colo spiculum pecto').orderBy('following', 'asc').orderBy('information', 'asc').orderBy('vol', 'asc')).orderBy('rubric', 'desc').orderBy('hyena', 'desc').limit(79)",
-      ".where('collectivization', 7807173291138031).where('collectivization', 'IS NOT', 5224975719318282).limit(56)",
-      ".whereExists('forager', q => q.where(({exists, not}) => not(exists('help', q => q.where('eggplant', 'terebro infit aeger').orderBy('mantua', 'desc').orderBy('fireplace', 'desc').orderBy('atrium', 'desc').orderBy('omelet', 'desc').orderBy('adrenalin', 'asc').orderBy('pinstripe', 'asc').limit(115)))).where('finding', 'IS', 'balbus combibo carbo').where('finding', 'IS', 'audeo aestus subito').where('finding', 'LIKE', 'cernuus stultus celer').orderBy('finding', 'asc').orderBy('stock', 'asc').limit(64)).where('subsidy', 'LIKE', 'celo somniculosus tot').limit(37)",
-      ".where('carnival', 'IS NOT', true).where('hornet', 'IS NOT', 'vigilo attonbitus qui').orderBy('flint', 'asc')",
-      ".where('deer', 'IS NOT', 0.07675806188873802).where('disposer', '!=', 4410321756724066).where('teammate', 'altus viscus patruus').where('handover', '!=', 'capillus alo atrox').orderBy('synergy', 'asc').orderBy('designation', 'desc').limit(48)",
-      ".where('density', 'IS NOT', null).where('asset', '!=', true).where('sweatshop', '>=', 1771609784252409).where('sweatshop', '>', 0.36250198453151317).orderBy('asset', 'desc')",
+      ".where('deed', 'IS', 'vinitor vos tardus').where('deed', 'labore curriculum ventus').related('procurement', q => q.where('majority', '>=', 1054445943121483).where('majority', 'IS', 6313768638475026).orderBy('majority', 'asc').orderBy('effector', 'asc').limit(141))",
+      ".where('basket', true).where('release', '!=', 'suppono umbra triduana').where('basket', 'IS', true)",
+      ".where('best-seller', 5404504633849474).limit(172)",
+      ".where('bandwidth', 'LIKE', 'quia et cursim').where('papa', 'ILIKE', 'corona cupio tres').orderBy('rawhide', 'asc').limit(152)",
+      ".where('gastropod', 0.9671266152591704).where('trash', 'IS NOT', 0.165954895295785).orderBy('gastropod', 'desc').orderBy('declaration', 'asc').orderBy('flame', 'desc')",
+      ".whereExists('slime', q => q.whereExists('instructor', q => q.where('ownership', 'IS', 'adimpleo asperiores decumbo').orderBy('nougat', 'asc').orderBy('expense', 'asc')).where('slipper', 'LIKE', 'vitium auxilium virgo').where('slipper', 'LIKE', 'caveo debilito optio').where('poppy', '>=', 7139062140744076).where('slipper', 'ILIKE', 'voluptatum templum arx').orderBy('section', 'asc').orderBy('slipper', 'asc').orderBy('poppy', 'asc').limit(185)).where('grouper', '!=', 'ubi suspendo allatus').related('slime', q => q.whereExists('instructor', q => q.whereExists('mainstream', q => q.where('shadowbox', 'animi cena accommodo').where('affiliate', 'IS', 12192376535563).where('affiliate', '!=', 8093514408766828).where('earth', 'LIKE', 'cognatus aedificium calco').orderBy('supplier', 'desc').orderBy('resource', 'asc').orderBy('shadowbox', 'asc')).where('expense', '!=', 'terminatio nesciunt arca').orderBy('valuable', 'asc').orderBy('nougat', 'desc').orderBy('ownership', 'desc').orderBy('expense', 'asc')).orderBy('poppy', 'asc').limit(89))",
+      ".where('pharmacopoeia', 'IS NOT', null).where('steak', 0.6284264566145871).where('steak', '>', 0.5356565993475786).where('steak', 'IS', 3005057438342249).orderBy('steak', 'desc').limit(93)",
+      ".where('foodstuffs', false).where('bathrobe', 'IS', 8660352949343127).where('daughter', 'IS', false).orderBy('gastropod', 'desc').orderBy('peony', 'asc').orderBy('foodstuffs', 'asc').orderBy('injunction', 'asc').limit(52)",
+      ".where('hydrolyze', '>=', 4212497868550148).where('hydrolyze', '<=', 5082148398742109).where('hydrolyze', '<', 0.8232732126800302).limit(3)",
+      ".where('petal', 'spargo sapiente cunctatio').limit(4)",
     ]
   `);
 });

@@ -12,6 +12,24 @@ import {
 } from '@rocicorp/zero';
 import type {Role} from './auth.ts';
 
+const created = number().default({
+  insert: {
+    client: () => Date.now(),
+    server: () => Date.now(),
+  },
+});
+
+const modified = number().default({
+  insert: {
+    client: () => Date.now(),
+    server: () => Date.now(),
+  },
+  update: {
+    client: () => Date.now(),
+    server: () => Date.now(),
+  },
+});
+
 // Table definitions
 const user = table('user')
   .columns({
@@ -29,10 +47,8 @@ const issue = table('issue')
     shortID: number().nullable(),
     title: string(),
     open: boolean(),
-    modified: number()
-      .onInsert(() => Date.now())
-      .onUpdate(() => Date.now()),
-    created: number().onInsert(() => Date.now()),
+    modified,
+    created,
     creatorID: string(),
     assigneeID: string().nullable(),
     description: string(),
@@ -52,7 +68,7 @@ const comment = table('comment')
   .columns({
     id: string(),
     issueID: string(),
-    created: number().onInsert(() => Date.now()),
+    created,
     body: string(),
     creatorID: string(),
   })
@@ -79,7 +95,7 @@ const emoji = table('emoji')
     annotation: string(),
     subjectID: string(),
     creatorID: string(),
-    created: number().onInsert(() => Date.now()),
+    created,
   })
   .primaryKey('id');
 

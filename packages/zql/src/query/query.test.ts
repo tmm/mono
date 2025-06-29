@@ -107,30 +107,80 @@ const schemaWithAdvancedTypes = table('schemaWithAdvancedTypes')
 const schemaWithUpdateDefaults = table('schemaWithUpdateDefaults')
   .columns({
     s: string(),
-    n: number<Timestamp>().onUpdate(() => timestamp(42)),
+    n: number<Timestamp>().default({
+      update: {
+        client: () => timestamp(42),
+        server: 'db',
+      },
+    }),
     b: boolean()
-      .onUpdate(() => true)
+      .default({
+        update: {
+          client: () => true,
+          server: 'db',
+        },
+      })
       .nullable(),
-    j: json<{foo: string; bar: boolean}>().onUpdate(() => ({
-      foo: 'bar',
-      bar: true,
-    })),
-    e: enumeration<'open' | 'closed'>().onUpdate(() => 'open'),
-    otherId: string<`custom_${string}`>().onUpdate(() => 'custom_1'),
+    j: json<{foo: string; bar: boolean}>().default({
+      update: {
+        client: () => ({
+          foo: 'bar',
+          bar: true,
+        }),
+        server: 'db',
+      },
+    }),
+    e: enumeration<'open' | 'closed'>().default({
+      update: {
+        client: () => 'open',
+        server: 'db',
+      },
+    }),
+    otherId: string<`custom_${string}`>().default({
+      update: {
+        client: () => 'custom_1',
+        server: 'db',
+      },
+    }),
   })
   .primaryKey('s');
 
 const schemaWithInsertDefaults = table('schemaWithInsertDefaults')
   .columns({
     s: string(),
-    n: number<Timestamp>().onInsert(() => timestamp(42)),
-    b: boolean().onInsert(() => true),
-    j: json<{foo: string; bar: boolean}>().onInsert(() => ({
-      foo: 'bar',
-      bar: true,
-    })),
-    e: enumeration<'open' | 'closed'>().onInsert(() => 'open'),
-    otherId: string<`custom_${string}`>().onInsert(() => 'custom_1'),
+    n: number<Timestamp>().default({
+      insert: {
+        client: () => timestamp(42),
+        server: 'db',
+      },
+    }),
+    b: boolean().default({
+      insert: {
+        client: () => true,
+        server: 'db',
+      },
+    }),
+    j: json<{foo: string; bar: boolean}>().default({
+      insert: {
+        client: () => ({
+          foo: 'bar',
+          bar: true,
+        }),
+        server: 'db',
+      },
+    }),
+    e: enumeration<'open' | 'closed'>().default({
+      insert: {
+        client: () => 'open',
+        server: 'db',
+      },
+    }),
+    otherId: string<`custom_${string}`>().default({
+      insert: {
+        client: () => 'custom_1',
+        server: 'db',
+      },
+    }),
   })
   .primaryKey('s');
 

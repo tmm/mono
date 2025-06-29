@@ -38,9 +38,8 @@ export type TableMutator<S extends TableSchema> = {
    * `undefined`. Such fields will be assigned the value `null` optimistically
    * and then the default value as defined by the server.
    *
-   * If there is a `onInsert` function defined for a field, and no value is
-   * provided, it will be called to generate the value for that field. Then,
-   * if the field is server-generated, it will not be sent to the server.
+   * If there is a `default` function defined for a field, and no value is
+   * provided, it will be called to generate the value for that field.
    */
   insert: (value: InsertValue<S>) => Promise<void>;
 
@@ -52,10 +51,9 @@ export type TableMutator<S extends TableSchema> = {
    * set to `undefined`. Such fields will be assigned the value `null`
    * optimistically and then the default value as defined by the server.
    *
-   * If there is a `onInsert` or `onUpdate` function defined for a field, and
-   * no value is provided, then either will be called to generate the value for
-   * the field, depending on if the primary key already exists. Then, if that
-   * operation has a server-generated value, it will not be sent to the server.
+   * If there is a `default` function defined for a field, and
+   * no value is provided, then it will be called to generate the value for
+   * the field, depending on if the primary key already exists.
    */
   upsert: (value: UpsertValue<S>) => Promise<void>;
 
@@ -64,9 +62,8 @@ export type TableMutator<S extends TableSchema> = {
    * function does nothing. All non-primary-key fields can be omitted or set to
    * `undefined`. Such fields will be left unchanged from previous value.
    *
-   * If there is a `onUpdate` function defined for the field, and no value is
-   * provided, it will be called to generate the value for that field. Then,
-   * if the field is server-generated, it will not be sent to the server.
+   * If there is a `default` function defined for the field, and no value is
+   * provided, it will be called to generate the value for that field.
    */
   update: (value: UpdateValue<S>) => Promise<void>;
 
@@ -280,13 +277,20 @@ function addDefaultToOptionalFields({
     if (value[name] === undefined) {
       let override: ReadonlyJSONValue | null = null;
 
-      if (operation === 'insert' && schema.columns[name]?.insertDefault) {
-        override = schema.columns[name].insertDefault() as ReadonlyJSONValue;
+      const defaultConfig = schema.columns[name]?.defaultConfig;
+
+      if (
+        operation === 'insert' &&
+        defaultConfig?.insert?.client &&
+        typeof defaultConfig.insert.client === 'function'
+      ) {
+        override = defaultConfig.insert.client() as ReadonlyJSONValue;
       } else if (
         operation === 'update' &&
-        schema.columns[name]?.updateDefault
+        defaultConfig?.update?.client &&
+        typeof defaultConfig.update.client === 'function'
       ) {
-        override = schema.columns[name].updateDefault() as ReadonlyJSONValue;
+        override = defaultConfig.update.client() as ReadonlyJSONValue;
       }
 
       rv[name] = override;

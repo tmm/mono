@@ -15,6 +15,17 @@ export type SchemaValueWithCustomType<T = unknown> = BaseSchemaValue & {
   customType: T;
 };
 
+export type DefaultConfig<T> = {
+  insert?: {
+    client: DefaultValueFunction<T>;
+    server: DefaultValueFunction<T> | 'db';
+  };
+  update?: {
+    client: DefaultValueFunction<T>;
+    server: DefaultValueFunction<T> | 'db';
+  };
+};
+
 /**
  * `related` calls need to know what the available relationships are.
  * The `schema` type encodes this information.
@@ -27,10 +38,7 @@ export type SchemaValue<T = unknown> = (
   (Record<string, never> | SchemaValueWithDefaults<T>);
 
 export type SchemaValueWithDefaults<T> = {
-  insertDefault?: DefaultValueFunction<T> | undefined;
-  insertDefaultClientOnly?: boolean | undefined;
-  updateDefault?: DefaultValueFunction<T> | undefined;
-  updateDefaultClientOnly?: boolean | undefined;
+  defaultConfig?: DefaultConfig<T> | undefined;
 };
 
 export type EnumSchemaValue<T> = Omit<SchemaValueWithCustomType<T>, 'type'> & {

@@ -39,16 +39,38 @@ test('building a schema', async () => {
   const user = table('user')
     .columns({
       id: string(),
-      createdAt: number().onInsert(() => new Date().getTime()),
-      updatedAt: number()
-        .onInsert(() => new Date().getTime())
-        .onUpdate(() => new Date().getTime()),
-      dbGeneratedCreatedAt: number()
-        .onInsert(() => new Date().getTime())
-        .dbGenerated('insert'),
-      dbGeneratedUpdatedAt: number()
-        .onUpdate(() => new Date().getTime())
-        .dbGenerated('update'),
+      createdAt: number().default({
+        insert: {
+          client: () => new Date().getTime(),
+          server: () => new Date().getTime(),
+        },
+      }),
+      updatedAt: number().default({
+        insert: {
+          client: () => new Date().getTime(),
+          server: () => new Date().getTime(),
+        },
+        update: {
+          client: () => new Date().getTime(),
+          server: () => new Date().getTime(),
+        },
+      }),
+      dbCreatedAt: number().default({
+        insert: {
+          client: () => new Date().getTime(),
+          server: 'db',
+        },
+      }),
+      dbUpdatedAt: number().default({
+        insert: {
+          client: () => new Date().getTime(),
+          server: 'db',
+        },
+        update: {
+          client: () => new Date().getTime(),
+          server: 'db',
+        },
+      }),
       name: string(),
       recruiterId: number(),
     })
@@ -59,6 +81,8 @@ test('building a schema', async () => {
       id: string(),
       title: string(),
       ownerId: number(),
+      optional: string().optional(),
+      nullable: string().nullable(),
     })
     .primaryKey('id');
 
@@ -139,8 +163,8 @@ test('building a schema', async () => {
         readonly id: string;
         readonly createdAt: number;
         readonly updatedAt: number;
-        readonly dbGeneratedCreatedAt: number;
-        readonly dbGeneratedUpdatedAt: number;
+        readonly dbCreatedAt: number;
+        readonly dbUpdatedAt: number;
         readonly name: string;
         readonly recruiterId: number;
         readonly recruiter:
@@ -148,8 +172,8 @@ test('building a schema', async () => {
               readonly id: string;
               readonly createdAt: number;
               readonly updatedAt: number;
-              readonly dbGeneratedCreatedAt: number;
-              readonly dbGeneratedUpdatedAt: number;
+              readonly dbCreatedAt: number;
+              readonly dbUpdatedAt: number;
               readonly name: string;
               readonly recruiterId: number;
               readonly recruiter:
@@ -157,8 +181,8 @@ test('building a schema', async () => {
                     readonly id: string;
                     readonly createdAt: number;
                     readonly updatedAt: number;
-                    readonly dbGeneratedCreatedAt: number;
-                    readonly dbGeneratedUpdatedAt: number;
+                    readonly dbCreatedAt: number;
+                    readonly dbUpdatedAt: number;
                     readonly name: string;
                     readonly recruiterId: number;
                   }
@@ -176,8 +200,8 @@ test('building a schema', async () => {
       readonly id: string;
       readonly createdAt: number;
       readonly updatedAt: number;
-      readonly dbGeneratedCreatedAt: number;
-      readonly dbGeneratedUpdatedAt: number;
+      readonly dbCreatedAt: number;
+      readonly dbUpdatedAt: number;
       readonly name: string;
       readonly recruiterId: number;
       readonly recruiter:
@@ -185,8 +209,8 @@ test('building a schema', async () => {
             readonly id: string;
             readonly createdAt: number;
             readonly updatedAt: number;
-            readonly dbGeneratedCreatedAt: number;
-            readonly dbGeneratedUpdatedAt: number;
+            readonly dbCreatedAt: number;
+            readonly dbUpdatedAt: number;
             readonly name: string;
             readonly recruiterId: number;
           }
@@ -200,8 +224,8 @@ test('building a schema', async () => {
       readonly id: string;
       readonly createdAt: number;
       readonly updatedAt: number;
-      readonly dbGeneratedCreatedAt: number;
-      readonly dbGeneratedUpdatedAt: number;
+      readonly dbCreatedAt: number;
+      readonly dbUpdatedAt: number;
       readonly name: string;
       readonly recruiterId: number;
       readonly recruiter:
@@ -209,8 +233,8 @@ test('building a schema', async () => {
             readonly id: string;
             readonly createdAt: number;
             readonly updatedAt: number;
-            readonly dbGeneratedCreatedAt: number;
-            readonly dbGeneratedUpdatedAt: number;
+            readonly dbCreatedAt: number;
+            readonly dbUpdatedAt: number;
             readonly name: string;
             readonly recruiterId: number;
           }
@@ -226,19 +250,23 @@ test('building a schema', async () => {
       readonly id: string;
       readonly title: string;
       readonly ownerId: number;
+      readonly optional: string | null;
+      readonly nullable: string | null;
       readonly owner:
         | {
             readonly id: string;
             readonly createdAt: number;
             readonly updatedAt: number;
-            readonly dbGeneratedCreatedAt: number;
-            readonly dbGeneratedUpdatedAt: number;
+            readonly dbCreatedAt: number;
+            readonly dbUpdatedAt: number;
             readonly name: string;
             readonly recruiterId: number;
             readonly ownedIssues: readonly {
               readonly id: string;
               readonly title: string;
               readonly ownerId: number;
+              readonly optional: string | null;
+              readonly nullable: string | null;
             }[];
           }
         | undefined;
@@ -251,6 +279,8 @@ test('building a schema', async () => {
       readonly id: string;
       readonly title: string;
       readonly ownerId: number;
+      readonly optional: string | null;
+      readonly nullable: string | null;
       readonly labels: readonly {
         readonly id: number;
         readonly name: string;
@@ -268,6 +298,8 @@ test('building a schema', async () => {
         readonly id: string;
         readonly title: string;
         readonly ownerId: number;
+        readonly optional: string | null;
+        readonly nullable: string | null;
       }[];
     }[]
   >();
@@ -749,7 +781,7 @@ test('array column', () => {
   `);
 });
 
-test('onInsert and onUpdate', () => {
+test('defaults', () => {
   const schemaWithoutOn = createSchema({
     tables: [
       table('issue')
@@ -758,8 +790,8 @@ test('onInsert and onUpdate', () => {
           id: string(),
           createdAt: number(),
           updatedAt: number(),
-          dbGeneratedCreatedAt: number(),
-          dbGeneratedUpdatedAt: number(),
+          dbCreatedAt: number(),
+          dbUpdatedAt: number(),
         })
         .primaryKey('id'),
     ],
@@ -771,16 +803,34 @@ test('onInsert and onUpdate', () => {
         .from('issues')
         .columns({
           id: string(),
-          createdAt: number().onInsert(() => new Date().getTime()),
-          updatedAt: number()
-            .onInsert(() => new Date().getTime())
-            .onUpdate(() => new Date().getTime()),
-          dbGeneratedCreatedAt: number()
-            .onInsert(() => new Date().getTime())
-            .dbGenerated('insert'),
-          dbGeneratedUpdatedAt: number()
-            .onUpdate(() => new Date().getTime())
-            .dbGenerated('update'),
+          createdAt: number().default({
+            insert: {
+              client: () => new Date().getTime(),
+              server: () => new Date().getTime(),
+            },
+          }),
+          updatedAt: number().default({
+            insert: {
+              client: () => new Date().getTime(),
+              server: () => new Date().getTime(),
+            },
+            update: {
+              client: () => new Date().getTime(),
+              server: () => new Date().getTime(),
+            },
+          }),
+          dbCreatedAt: number().default({
+            insert: {
+              client: () => new Date().getTime(),
+              server: 'db',
+            },
+          }),
+          dbUpdatedAt: number().default({
+            update: {
+              client: () => new Date().getTime(),
+              server: 'db',
+            },
+          }),
         })
         .primaryKey('id'),
     ],
@@ -795,10 +845,10 @@ test('onInsert and onUpdate', () => {
               "createdAt": {
                 "type": "number"
               },
-              "dbGeneratedCreatedAt": {
+              "dbCreatedAt": {
                 "type": "number"
               },
-              "dbGeneratedUpdatedAt": {
+              "dbUpdatedAt": {
                 "type": "number"
               },
               "id": {
@@ -811,7 +861,7 @@ test('onInsert and onUpdate', () => {
           }
         }
       },
-      "hash": "1xi4by8sbgoth"
+      "hash": "insv3f5if348"
     }"
   `);
 
