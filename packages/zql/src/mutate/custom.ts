@@ -144,8 +144,8 @@ type HasInsertDefault<T extends SchemaValue> = T extends {
   defaultConfig: {
     insert: {
       client: () => unknown;
-    }
-  }
+    };
+  };
 }
   ? true
   : false;
@@ -154,8 +154,8 @@ type HasUpdateDefault<T extends SchemaValue> = T extends {
   defaultConfig: {
     update: {
       client: () => unknown;
-    }
-  }
+    };
+  };
 }
   ? true
   : false;
