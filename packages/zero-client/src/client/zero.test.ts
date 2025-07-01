@@ -385,6 +385,7 @@ describe('createSocket', () => {
     now: number,
     expectedURL: string,
     additionalConnectParams?: Record<string, string>,
+    activeClients = new Set([clientID]),
   ) => {
     const clientSchema: ClientSchema = {
       tables: {
@@ -416,6 +417,7 @@ describe('createSocket', () => {
         undefined,
         1048 * 8,
         additionalConnectParams,
+        {activeClients},
       );
       expect(`${mockSocket.url}`).equal(expectedURL);
       expect(mockSocket.protocol).equal(
@@ -426,6 +428,7 @@ describe('createSocket', () => {
               desiredQueriesPatch: [],
               deleted: {clientIDs: ['old-deleted-client']},
               ...(baseCookie === null ? {clientSchema} : {}),
+              activeClients: [...activeClients],
             },
           ],
           auth,
@@ -452,6 +455,7 @@ describe('createSocket', () => {
         undefined,
         0, // do not put any extra information into headers
         additionalConnectParams,
+        {activeClients},
       );
       expect(`${mockSocket.url}`).equal(expectedURL);
       expect(mockSocket2.protocol).equal(encodeSecProtocols(undefined, auth));
@@ -801,43 +805,37 @@ describe('initConnection', () => {
         decodeSecProtocols(mockSocket.protocol).initConnectionMessage,
         initConnectionMessageSchema,
       ),
-    ).toMatchInlineSnapshot(`
-      [
-        "initConnection",
-        {
-          "clientSchema": {
-            "tables": {
-              "e": {
-                "columns": {
-                  "id": {
-                    "type": "string",
-                  },
-                  "value": {
-                    "type": "string",
-                  },
+    ).toEqual([
+      'initConnection',
+      {
+        activeClients: [r.clientID],
+        clientSchema: {
+          tables: {
+            e: {
+              columns: {
+                id: {
+                  type: 'string',
+                },
+                value: {
+                  type: 'string',
                 },
               },
             },
           },
-          "desiredQueriesPatch": [
-            {
-              "ast": {
-                "orderBy": [
-                  [
-                    "id",
-                    "asc",
-                  ],
-                ],
-                "table": "e",
-              },
-              "hash": "29j3x0l4bxthp",
-              "op": "put",
-              "ttl": 0,
-            },
-          ],
         },
-      ]
-    `);
+        desiredQueriesPatch: [
+          {
+            ast: {
+              orderBy: [['id', 'asc']],
+              table: 'e',
+            },
+            hash: '29j3x0l4bxthp',
+            op: 'put',
+            ttl: 0,
+          },
+        ],
+      },
+    ]);
 
     expect(mockSocket.messages.length).toEqual(0);
     await r.triggerConnected();
@@ -898,52 +896,45 @@ describe('initConnection', () => {
         decodeSecProtocols(mockSocket.protocol).initConnectionMessage,
         initConnectionMessageSchema,
       ),
-    ).toMatchInlineSnapshot(`
-      [
-        "initConnection",
-        {
-          "clientSchema": {
-            "tables": {
-              "e": {
-                "columns": {
-                  "id": {
-                    "type": "string",
-                  },
-                  "value": {
-                    "type": "string",
-                  },
+    ).toEqual([
+      'initConnection',
+      {
+        activeClients: [r.clientID],
+        clientSchema: {
+          tables: {
+            e: {
+              columns: {
+                id: {
+                  type: 'string',
+                },
+                value: {
+                  type: 'string',
                 },
               },
             },
           },
-          "deleted": {
-            "clientIDs": [
-              "a",
-            ],
-          },
-          "desiredQueriesPatch": [
-            {
-              "ast": {
-                "orderBy": [
-                  [
-                    "id",
-                    "asc",
-                  ],
-                ],
-                "table": "e",
-              },
-              "hash": "29j3x0l4bxthp",
-              "op": "put",
-              "ttl": 0,
-            },
-          ],
         },
-      ]
-    `);
+        deleted: {
+          clientIDs: ['a'],
+        },
+        desiredQueriesPatch: [
+          {
+            ast: {
+              orderBy: [['id', 'asc']],
+              table: 'e',
+            },
+            hash: '29j3x0l4bxthp',
+            op: 'put',
+            ttl: 0,
+          },
+        ],
+      },
+    ]);
 
     expect(mockSocket.messages.length).toEqual(0);
     await r.triggerConnected();
     expect(mockSocket.messages.length).toEqual(0);
+    await r.close();
   });
 
   test('sends desired queries patch in `initConnectionMessage` when the patch is over maxHeaderLength', async () => {
@@ -1010,6 +1001,8 @@ describe('initConnection', () => {
     view.addListener(() => {});
     await r.triggerConnected();
     expect(mockSocket.messages.length).toEqual(1);
+
+    await r.close();
   });
 
   test('sends desired queries patch in `initConnectionMessage` when the patch is over maxHeaderLength with deleted clients', async () => {
@@ -1129,6 +1122,7 @@ describe('initConnection', () => {
     ).toEqual([
       'initConnection',
       {
+        activeClients: [r.clientID],
         desiredQueriesPatch: [],
         clientSchema: {
           tables: {
@@ -2355,15 +2349,13 @@ test('server ahead', async () => {
     ErrorKind.InvalidConnectionRequestBaseCookie,
     'unexpected BaseCookie',
   );
-  // There are a lot of timers that get scheduled before the reload timer
-  // for dropping the database. TODO: Make this more robust.
-  for (let i = 0; i < 8; i++) {
-    await vi.advanceTimersToNextTimerAsync();
-  }
+
+  await vi.waitUntil(() => storage[RELOAD_REASON_STORAGE_KEY]);
+
   await promise;
 
-  expect(storage[RELOAD_REASON_STORAGE_KEY]).toMatchInlineSnapshot(
-    `"["InvalidConnectionRequestBaseCookie","Server reported that client is ahead of server. This probably happened because the server is in development mode and restarted. Currently when this happens, the dev server loses its state and on reconnect sees the client as ahead. If you see this in other cases, it may be a bug in Zero."]"`,
+  expect(storage[RELOAD_REASON_STORAGE_KEY]).toEqual(
+    `["InvalidConnectionRequestBaseCookie","Server reported that client is ahead of server. This probably happened because the server is in development mode and restarted. Currently when this happens, the dev server loses its state and on reconnect sees the client as ahead. If you see this in other cases, it may be a bug in Zero."]`,
   );
 });
 
@@ -3527,64 +3519,14 @@ test('Logging stack on close', async () => {
   );
 });
 
-test('Close should send a special close reason', async () => {
+test('Close should call socket close', async () => {
   const z = zeroForTest();
   const socket = await z.socket;
   const close = (socket.close = vi.fn(socket.close));
   await z.close();
   expect(socket.closed).toBe(true);
   expect(close).toHaveBeenCalledOnce();
-  expect(close).toHaveBeenCalledWith(
-    1000,
-    JSON.stringify(['closeConnection', []]),
-  );
-});
-
-describe('Should call close on pagehide', () => {
-  async function setup(persisted: boolean) {
-    const z = zeroForTest();
-    const zeroClose = vi.spyOn(z, 'close');
-    const socket = await z.socket;
-    const socketClose = vi.spyOn(socket, 'close');
-    await z.triggerConnected();
-    await z.waitForConnectionState(ConnectionState.Connected);
-
-    window.dispatchEvent(new PageTransitionEvent('pagehide', {persisted}));
-    return {z, socket, zeroClose, socketClose};
-  }
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-    window.dispatchEvent(new PageTransitionEvent('pageshow'));
-    expect(document.visibilityState).toBe('visible');
-  });
-
-  test('persisted: false', async () => {
-    const {z, socket, zeroClose, socketClose} = await setup(false);
-
-    expect(z.closed).toBe(true);
-    expect(socket.closed).toBe(true);
-    expect(zeroClose).toHaveBeenCalledOnce();
-    expect(zeroClose).toHaveBeenCalledWith();
-    expect(socketClose).toHaveBeenCalledOnce();
-    expect(socketClose).toHaveBeenCalledWith(
-      1000,
-      JSON.stringify(['closeConnection', []]),
-    );
-
-    await z.close();
-  });
-
-  test('persisted: true', async () => {
-    const {z, socket, zeroClose, socketClose} = await setup(true);
-
-    expect(z.closed).toBe(false);
-    expect(socket.closed).toBe(false);
-    expect(zeroClose).not.toHaveBeenCalled();
-    expect(socketClose).not.toHaveBeenCalled();
-
-    await z.close();
-  });
+  expect(close).toHaveBeenCalledWith(1000);
 });
 
 test('push is called on initial connect and reconnect', async () => {
