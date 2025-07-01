@@ -4,7 +4,10 @@ import {getConnectionURI, testDBs} from '../../../zero-cache/src/test/db.ts';
 import type {Row} from '../../../zero-protocol/src/data.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import {clientToServer} from '../../../zero-schema/src/name-mapper.ts';
+import type {ServerSchema} from '../../../zero-schema/src/server-schema.ts';
+import {generateShrinkableQuery} from '../../../zql/src/query/test/query-gen.ts';
 import {Database} from '../../../zqlite/src/db.ts';
+import {en, Faker, generateMersenne53Randomizer} from '@faker-js/faker';
 
 export async function fillPgAndSync(
   schema: Schema,
@@ -42,4 +45,22 @@ export async function fillPgAndSync(
   );
 
   return {pg, sqlite};
+}
+
+export function createCase(
+  schema: Schema,
+  serverSchema: ServerSchema,
+  seed?: number | undefined,
+) {
+  seed = seed ?? Date.now() ^ (Math.random() * 0x100000000);
+  const randomizer = generateMersenne53Randomizer(seed);
+  const rng = () => randomizer.next();
+  const faker = new Faker({
+    locale: en,
+    randomizer,
+  });
+  return {
+    seed,
+    query: generateShrinkableQuery(schema, {}, rng, faker, serverSchema),
+  };
 }

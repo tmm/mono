@@ -1,11 +1,9 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {en, Faker, generateMersenne53Randomizer} from '@faker-js/faker';
 import {bootstrap, runAndCompare} from '../helpers/runner.ts';
 import {getChinook} from './get-deps.ts';
 import {schema} from './schema.ts';
 import {expect, test} from 'vitest';
-import {generateShrinkableQuery} from '../../../zql/src/query/test/query-gen.ts';
 import '../helpers/comparePg.ts';
 import {ast} from '../../../zql/src/query/query-impl.ts';
 import type {
@@ -15,6 +13,7 @@ import type {
 import {astToZQL} from '../../../ast-to-zql/src/ast-to-zql.ts';
 import {formatOutput} from '../../../ast-to-zql/src/format.ts';
 import {staticToRunnable} from '../helpers/static.ts';
+import {createCase} from '../helpers/setup.ts';
 
 const pgContent = await getChinook();
 
@@ -27,10 +26,11 @@ const harness = await bootstrap({
   pgContent,
 });
 
-test.each(Array.from({length: 0}, () => createCase()))(
-  'fuzz-hydration $seed',
-  runCase,
-);
+test.each(
+  Array.from({length: 0}, () =>
+    createCase(schema, harness.delegates.pg.serverSchema),
+  ),
+)('fuzz-hydration $seed', runCase);
 
 test('sentinel', () => {
   expect(true).toBe(true);
@@ -39,32 +39,16 @@ test('sentinel', () => {
 if (REPRO_SEED) {
   // eslint-disable-next-line no-only-tests/no-only-tests
   test.only('repro', async () => {
-    const {query} = createCase(REPRO_SEED);
+    const {query} = createCase(
+      schema,
+      harness.delegates.pg.serverSchema,
+      REPRO_SEED,
+    );
     console.log(
       'ZQL',
       await formatOutput(ast(query[0]).table + astToZQL(ast(query[0]))),
     );
   });
-}
-
-function createCase(seed?: number | undefined) {
-  seed = seed ?? Date.now() ^ (Math.random() * 0x100000000);
-  const randomizer = generateMersenne53Randomizer(seed);
-  const rng = () => randomizer.next();
-  const faker = new Faker({
-    locale: en,
-    randomizer,
-  });
-  return {
-    seed,
-    query: generateShrinkableQuery(
-      schema,
-      {},
-      rng,
-      faker,
-      harness.delegates.pg.serverSchema,
-    ),
-  };
 }
 
 async function runCase({
