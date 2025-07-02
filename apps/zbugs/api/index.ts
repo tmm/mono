@@ -3,7 +3,7 @@ import '../../../packages/shared/src/dotenv.ts';
 import cookie from '@fastify/cookie';
 import oauthPlugin, {type OAuth2Namespace} from '@fastify/oauth2';
 import {Octokit} from '@octokit/core';
-import type {ReadonlyJSONValue} from '@rocicorp/zero';
+import type {CustomMutatorImpl, ReadonlyJSONValue} from '@rocicorp/zero';
 import assert from 'assert';
 import Fastify, {type FastifyReply, type FastifyRequest} from 'fastify';
 import type {IncomingHttpHeaders} from 'http';
@@ -11,12 +11,13 @@ import {jwtVerify, SignJWT, type JWK} from 'jose';
 import {nanoid} from 'nanoid';
 import postgres from 'postgres';
 import {must} from '../../../packages/shared/src/must.ts';
-import {handlePush} from '../server/push-handler.ts';
 import {jwtDataSchema, type JWTData} from '../shared/auth.ts';
 import {getQuery} from '../server/get-query.ts';
 import type {ServerContext} from '../server/server-queries.ts';
-import {processQueries} from '@rocicorp/zero/server';
+import {processQueries, processMutations} from '@rocicorp/zero/server';
 import {schema} from '../shared/schema.ts';
+import {createServerMutators} from '../server/server-mutators.ts';
+import {PostgresJSConnection, ZQLDatabase} from '@rocicorp/zero/pg';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -121,6 +122,11 @@ fastify.get<{
     );
 });
 
+const dbProvider = new ZQLDatabase(
+  new PostgresJSConnection(postgres(process.env.ZERO_UPSTREAM_DB as string)),
+  schema,
+);
+
 fastify.post<{
   Querystring: Record<string, string>;
   Body: ReadonlyJSONValue;
@@ -136,7 +142,31 @@ fastify.post<{
     throw e;
   }
 
-  const response = await handlePush(jwtData, request.query, request.body);
+  const postCommitTasks: (() => Promise<void>)[] = [];
+  const mutators = createServerMutators(jwtData, postCommitTasks);
+
+  function isMutator(key: string): key is keyof typeof mutators {
+    return key in mutators;
+  }
+
+  const response = await processMutations(
+    async transact => {
+      const ret = await transact(dbProvider, async (tx, name, args) => {
+        if (!isMutator(name)) {
+          console.error(`Unknown mutator: ${name}. Skipping the mutation.`);
+          return;
+        }
+        await (mutators[name] as CustomMutatorImpl<typeof schema>)(tx, args);
+      });
+
+      return ret;
+    },
+    request.query,
+    request.body,
+    'info',
+  );
+
+  await Promise.all(postCommitTasks.map(task => task()));
   reply.send(response);
 });
 
