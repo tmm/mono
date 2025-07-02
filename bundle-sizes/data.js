@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751449684199,
+  "lastUpdate": 1751455661885,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52661,6 +52661,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/a2cc22178cf076207842c12e3462c86ae1089cd0"
         },
         "date": 1751449673062,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300349,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54140,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3155b5c8401d6500c4f90d02d31fcfea48699206",
+          "message": "chore: Update playwright to 1.53.2 (#4568)",
+          "timestamp": "2025-07-02T11:26:26Z",
+          "tree_id": "5a094cd2be87b162694db117578e2a1917fd852e",
+          "url": "https://github.com/rocicorp/mono/commit/3155b5c8401d6500c4f90d02d31fcfea48699206"
+        },
+        "date": 1751455649947,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
