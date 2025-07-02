@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750837383278,
+  "lastUpdate": 1751449684199,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52617,6 +52617,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/6a0d02c05a22876269f5fc2a666052de882312e2"
         },
         "date": 1750837371950,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300349,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54140,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2cc22178cf076207842c12e3462c86ae1089cd0",
+          "message": "chore: Update vitest to 5.2 (#4566)",
+          "timestamp": "2025-07-02T09:46:49Z",
+          "tree_id": "f84b9cd1b5ae60fb28347d6918d41d089cae3ecd",
+          "url": "https://github.com/rocicorp/mono/commit/a2cc22178cf076207842c12e3462c86ae1089cd0"
+        },
+        "date": 1751449673062,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
