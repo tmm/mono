@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751455661885,
+  "lastUpdate": 1751617576719,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52715,6 +52715,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.mjs.br (Brotli compressed)",
             "value": 54140,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "01297545ada40b0e7de0ea5ae79a33f9084c924c",
+          "message": "chore(shared): Add T-Digest implementation  (#4574)\n\nThis is a port of the T-Digest implementation from InfluxData to Go,\nproviding a data structure for approximating quantiles in large\ndatasets.\n\nApache License 2.0\nhttps://github.com/influxdata/tdigest",
+          "timestamp": "2025-07-04T10:25:13+02:00",
+          "tree_id": "a7d89e90b108d1b896d5f7acd92348020bcf2c48",
+          "url": "https://github.com/rocicorp/mono/commit/01297545ada40b0e7de0ea5ae79a33f9084c924c"
+        },
+        "date": 1751617564924,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300359,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54180,
             "unit": "bytes"
           },
           {
