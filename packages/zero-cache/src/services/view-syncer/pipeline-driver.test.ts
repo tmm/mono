@@ -332,8 +332,8 @@ describe('view-syncer/pipeline-driver', () => {
     expect([
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ]).toMatchInlineSnapshot(`
@@ -440,8 +440,8 @@ describe('view-syncer/pipeline-driver', () => {
     expect([
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ]).toMatchInlineSnapshot(`[]`);
@@ -452,8 +452,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -521,8 +521,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -571,8 +571,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -587,8 +587,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -654,7 +654,7 @@ describe('view-syncer/pipeline-driver', () => {
   test('timeout on slow advancement', () => {
     pipelines.init(null);
     [
-      ...pipelines.addQuery('hash1', 'queryID1', ISSUES_AND_COMMENTS, {
+      ...pipelines.addQuery('hash1', ISSUES_AND_COMMENTS, 'hash1', {
         totalElapsed: () => 10,
       }),
     ];
@@ -678,8 +678,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -699,8 +699,8 @@ describe('view-syncer/pipeline-driver', () => {
     expect([
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ]).toMatchInlineSnapshot(`
@@ -810,7 +810,7 @@ describe('view-syncer/pipeline-driver', () => {
   test('update unique non-primary key', () => {
     pipelines.init(null);
     expect([
-      ...pipelines.addQuery('hash1', 'queryID1', UNIQUES_QUERY, startTimer()),
+      ...pipelines.addQuery('hash1', UNIQUES_QUERY, 'hash1', startTimer()),
     ]).toMatchInlineSnapshot(`
         [
           {
@@ -889,8 +889,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID',
         ISSUES_QUERY_WITH_EXISTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -944,8 +944,8 @@ describe('view-syncer/pipeline-driver', () => {
     expect([
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_QUERY_WITH_EXISTS_FROM_PERMISSIONS,
+        'hash1',
         startTimer(),
       ),
     ]).toMatchInlineSnapshot(`
@@ -969,8 +969,8 @@ describe('view-syncer/pipeline-driver', () => {
     expect([
       ...pipelines.addQuery(
         'hash2',
-        'queryID',
         ISSUES_QUERY_WITH_EXISTS_FROM_PERMISSIONS2,
+        'hash1',
         startTimer(),
       ),
     ]).toMatchInlineSnapshot(`
@@ -1111,7 +1111,7 @@ describe('view-syncer/pipeline-driver', () => {
     };
 
     pipelines.init(null);
-    [...pipelines.addQuery('hash1', 'queryID1', query, startTimer())];
+    [...pipelines.addQuery('hash1', query, 'hash1', startTimer())];
 
     replicator.processTransaction(
       '134',
@@ -1268,8 +1268,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -1305,8 +1305,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash2',
-        'queryID2',
         ISSUES_QUERY_WITH_EXISTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -1346,8 +1346,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         mutationResultsQuery.id,
-        'queryID1',
         mutationResultsQuery.ast,
+        mutationResultsQuery.id,
         startTimer(),
       ),
     ];
@@ -1366,8 +1366,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -1416,8 +1416,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -1500,8 +1500,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
@@ -1527,8 +1527,8 @@ describe('view-syncer/pipeline-driver', () => {
     [
       ...pipelines.addQuery(
         'hash1',
-        'queryID1',
         ISSUES_AND_COMMENTS,
+        'hash1',
         startTimer(),
       ),
     ];
