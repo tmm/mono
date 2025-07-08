@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751617576719,
+  "lastUpdate": 1752017417833,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52749,6 +52749,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/01297545ada40b0e7de0ea5ae79a33f9084c924c"
         },
         "date": 1751617564924,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300359,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54180,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fcda8dd22fc3be327f51e5f64286458994a07bbc",
+          "message": "chore(replicache, zero-client): fix worker test URL handling (#4592)\n\nTo correctly have Vite bundle the worker files, the `new URL` call\nmust be inside the `new Worker` constructor. This change ensures that\nthe worker test files are correctly loaded in both the Replicache and\nZero Client packages.",
+          "timestamp": "2025-07-08T23:29:04Z",
+          "tree_id": "3e5487827831ce4338faf92be526edb61b680a80",
+          "url": "https://github.com/rocicorp/mono/commit/fcda8dd22fc3be327f51e5f64286458994a07bbc"
+        },
+        "date": 1752017405268,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
