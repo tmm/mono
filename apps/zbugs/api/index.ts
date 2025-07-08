@@ -136,6 +136,13 @@ fastify.post<{
     throw e;
   }
 
+  reply.status(401).send('no!');
+  return;
+
+  // if (Math.random() < 0.5) {
+  //   throw new Error('foo');
+  // }
+
   const response = await handlePush(jwtData, request.query, request.body);
   reply.send(response);
 });

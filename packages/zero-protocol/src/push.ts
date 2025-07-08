@@ -144,12 +144,7 @@ const unsupportedSchemaVersionSchema = v.object({
   // were not processed by the server.
   mutationIDs: v.array(mutationIDSchema).optional(),
 });
-const httpErrorSchema = v.object({
-  error: v.literal('http'),
-  status: v.number(),
-  details: v.string(),
-  mutationIDs: v.array(mutationIDSchema).optional(),
-});
+
 const zeroPusherErrorSchema = v.object({
   error: v.literal('zeroPusher'),
   details: v.string(),
@@ -159,7 +154,6 @@ const zeroPusherErrorSchema = v.object({
 const pushErrorSchema = v.union(
   unsupportedPushVersionSchema,
   unsupportedSchemaVersionSchema,
-  httpErrorSchema,
   zeroPusherErrorSchema,
 );
 

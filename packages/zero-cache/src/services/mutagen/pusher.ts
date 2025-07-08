@@ -278,8 +278,11 @@ class PushWorker {
             }),
           );
         } else if (response.error === 'forClient') {
+          console.log('ERR FOR CLIENT', response.cause);
           client.downstream.fail(response.cause);
         } else {
+          // hmm... should we fail the client to force a reconnect?
+          console.log('ERR not for client', response);
           responses.push(
             client.downstream.push([
               'pushResponse',
@@ -372,11 +375,20 @@ class PushWorker {
         entry.push,
       );
 
+      // any HTTP error will cause us to return `ErrorForClient` and cause
+      // the zero-client to reconnect and retry outstanding mutations.
+      // TODO: can we do something less nuclear? Like just retry the outstanding mutations
+      // without reconnecting?
+      // What if a new mutation comes in? While all prior mutations be sent with it?
+      // Did not that used to happen? Or is that only for CRUD?
+      // This could be a more graceful way to handle the errors / retrying.
       if (!response.ok) {
         return {
-          error: 'http',
-          status: response.status,
-          details: await response.text(),
+          error: 'forClient',
+          cause: new ErrorForClient({
+            kind: ErrorKind.MutationFailed,
+            message: await response.text(),
+          }),
           mutationIDs: entry.push.mutations.map(m => ({
             id: m.id,
             clientID: m.clientID,
