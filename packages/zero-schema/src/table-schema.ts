@@ -1,3 +1,4 @@
+import type {ReadonlyJSONValue} from '../../shared/src/json.ts';
 import type {ValueType} from '../../zero-protocol/src/client-schema.ts';
 import type {PrimaryKey} from '../../zero-protocol/src/primary-key.ts';
 
@@ -11,7 +12,9 @@ export type BaseSchemaValue = {
   nullable?: boolean | undefined;
 };
 
-export type SchemaValueWithCustomType<T = unknown> = BaseSchemaValue & {
+export type SchemaValueWithCustomType<
+  T extends ReadonlyJSONValue = ReadonlyJSONValue,
+> = BaseSchemaValue & {
   customType: T;
 };
 
@@ -30,7 +33,7 @@ export type DefaultConfig<T> = {
  * `related` calls need to know what the available relationships are.
  * The `schema` type encodes this information.
  */
-export type SchemaValue<T = unknown> = (
+export type SchemaValue<T extends ReadonlyJSONValue = ReadonlyJSONValue> = (
   | BaseSchemaValue
   | EnumSchemaValue<T>
   | SchemaValueWithCustomType<T>
@@ -41,7 +44,10 @@ export type SchemaValueWithDefaults<T> = {
   defaultConfig?: DefaultConfig<T> | undefined;
 };
 
-export type EnumSchemaValue<T> = Omit<SchemaValueWithCustomType<T>, 'type'> & {
+export type EnumSchemaValue<T extends ReadonlyJSONValue> = Omit<
+  SchemaValueWithCustomType<T>,
+  'type'
+> & {
   kind: 'enum';
   type: 'string';
 };

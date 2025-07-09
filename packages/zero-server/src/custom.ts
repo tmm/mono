@@ -19,6 +19,7 @@ import type {
 } from '../../zero-schema/src/server-schema.ts';
 import {getServerSchema} from './schema.ts';
 import {assert} from '../../shared/src/asserts.ts';
+import {addDefaultToOptionalFields} from '../../zero-schema/src/add-defaults.ts';
 
 interface ServerTransaction<S extends Schema, TWrappedTransaction>
   extends TransactionBase<S> {
@@ -156,59 +157,14 @@ export function makeSchemaCRUD<S extends Schema>(
     ) as SchemaCRUD<S>;
 }
 
-/**
- * If the column is not provided and has a server default function,
- * we override the value with the result of the default function.
- */
-function addDefaultToOptionalFields<T extends Record<string, unknown>>({
-  value,
-  schema,
-  type,
-}: {
-  value: T;
-  schema: TableSchema;
-  type?: 'insert' | 'update';
-}): T {
-  const rv: Record<string, unknown> = {};
-
-  for (const [key, val] of Object.entries(value)) {
-    if (val !== undefined) {
-      rv[key] = val;
-    }
-  }
-
-  if (type) {
-    for (const [key, colSchema] of Object.entries(schema.columns)) {
-      // if the column was not explicitly provided, we add the default
-      // or if the value is explicitly undefined, we add the default
-      if (!(key in value) || value[key] === undefined) {
-        const defaultConfig = colSchema?.defaultConfig;
-
-        if (
-          type === 'insert' &&
-          typeof defaultConfig?.insert?.server === 'function'
-        ) {
-          rv[key] = defaultConfig.insert.server();
-        } else if (
-          type === 'update' &&
-          typeof defaultConfig?.update?.server === 'function'
-        ) {
-          rv[key] = defaultConfig.update.server();
-        }
-      }
-    }
-  }
-
-  return rv as T;
-}
-
 function makeTableCRUD(schema: TableSchema): TableCRUD<TableSchema> {
   return {
     async insert(this: WithHiddenTxAndSchema, value) {
       const insertWithDefaults = addDefaultToOptionalFields({
         value,
         schema,
-        type: 'insert',
+        operation: 'insert',
+        location: 'server',
       });
       const serverTableSchema = this[serverSchemaSymbol][serverName(schema)];
 
@@ -236,12 +192,14 @@ function makeTableCRUD(schema: TableSchema): TableCRUD<TableSchema> {
       const insertWithDefaults = addDefaultToOptionalFields({
         value,
         schema,
-        type: 'insert',
+        operation: 'insert',
+        location: 'server',
       });
       const updateWithDefaults = addDefaultToOptionalFields({
         value,
         schema,
-        type: 'update',
+        operation: 'update',
+        location: 'server',
       });
 
       const serverTableSchema = this[serverSchemaSymbol][serverName(schema)];
@@ -282,7 +240,8 @@ function makeTableCRUD(schema: TableSchema): TableCRUD<TableSchema> {
       const updateWithDefaults = addDefaultToOptionalFields({
         value,
         schema,
-        type: 'update',
+        operation: 'update',
+        location: 'server',
       });
       const serverTableSchema = this[serverSchemaSymbol][serverName(schema)];
       const targetedColumns = origAndServerNamesFor(
@@ -302,15 +261,11 @@ function makeTableCRUD(schema: TableSchema): TableCRUD<TableSchema> {
       await tx.query(stmt.text, stmt.values);
     },
     async delete(this: WithHiddenTxAndSchema, value) {
-      const deleteWithDefaults = addDefaultToOptionalFields({
-        value,
-        schema,
-      });
       const serverTableSchema = this[serverSchemaSymbol][serverName(schema)];
       const stmt = formatPgInternalConvert(
         sql`DELETE FROM ${sql.ident(
           serverName(schema),
-        )} WHERE ${primaryKeyClause(schema, serverTableSchema, deleteWithDefaults)}`,
+        )} WHERE ${primaryKeyClause(schema, serverTableSchema, value)}`,
       );
       const tx = this[dbTxSymbol];
       await tx.query(stmt.text, stmt.values);

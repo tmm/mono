@@ -158,7 +158,7 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
   }
 }
 
-class ColumnBuilder<TShape extends SchemaValue<any>> {
+class ColumnBuilder<TShape extends SchemaValue> {
   protected readonly _schema: TShape;
   constructor(schema: TShape) {
     this._schema = schema;

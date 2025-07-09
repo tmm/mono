@@ -1,7 +1,4 @@
-import type {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from '../../../shared/src/json.ts';
+import type {ReadonlyJSONObject} from '../../../shared/src/json.ts';
 import {must} from '../../../shared/src/must.ts';
 import {promiseVoid} from '../../../shared/src/resolved-promises.ts';
 import type {MaybePromise} from '../../../shared/src/types.ts';
@@ -16,6 +13,7 @@ import {
   type UpsertOp,
 } from '../../../zero-protocol/src/push.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
+import {addDefaultToOptionalFields} from '../../../zero-schema/src/add-defaults.ts';
 import type {TableSchema} from '../../../zero-schema/src/table-schema.ts';
 import type {IVMSourceBranch} from './ivm-branch.ts';
 import {toPrimaryKeyString} from './keys.ts';
@@ -261,45 +259,6 @@ export function makeCRUDMutator(schema: Schema): CRUDMutator {
   };
 }
 
-function addDefaultToOptionalFields({
-  schema,
-  value,
-  operation,
-}: {
-  schema: TableSchema;
-  value: ReadonlyJSONObject;
-  operation: 'insert' | 'update';
-}): ReadonlyJSONObject {
-  const rv = {...value};
-
-  for (const name in schema.columns) {
-    // only apply overrides if the column was not explicitly provided
-    if (value[name] === undefined) {
-      let override: ReadonlyJSONValue | null = null;
-
-      const defaultConfig = schema.columns[name]?.defaultConfig;
-
-      if (
-        operation === 'insert' &&
-        defaultConfig?.insert?.client &&
-        typeof defaultConfig.insert.client === 'function'
-      ) {
-        override = defaultConfig.insert.client() as ReadonlyJSONValue;
-      } else if (
-        operation === 'update' &&
-        defaultConfig?.update?.client &&
-        typeof defaultConfig.update.client === 'function'
-      ) {
-        override = defaultConfig.update.client() as ReadonlyJSONValue;
-      }
-
-      rv[name] = override;
-    }
-  }
-
-  return rv;
-}
-
 export async function insertImpl(
   tx: WriteTransaction,
   arg: InsertOp,
@@ -310,6 +269,7 @@ export async function insertImpl(
     schema: schema.tables[arg.tableName],
     value: arg.value,
     operation: 'insert',
+    location: 'client',
   });
   const key = toPrimaryKeyString(
     arg.tableName,
@@ -344,6 +304,7 @@ export async function upsertImpl(
     schema: tableSchema,
     value: arg.value,
     operation: prev === undefined ? 'insert' : 'update',
+    location: 'client',
   });
   await tx.set(key, value);
   if (ivmBranch) {
@@ -374,6 +335,7 @@ export async function updateImpl(
     schema: schema.tables[arg.tableName],
     value: update,
     operation: 'update',
+    location: 'client',
   });
   const next = {...(prev as ReadonlyJSONObject)};
   // we first update with the default values
