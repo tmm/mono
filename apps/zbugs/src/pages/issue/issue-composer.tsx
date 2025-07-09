@@ -49,16 +49,19 @@ export function IssueComposer({isOpen, onDismiss}: Props) {
     });
   }, [description]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const id = nanoid();
 
-    z.mutate.issue.create({
+    const r = z.mutate.issue.create({
       id,
       title,
       description: description ?? '',
       created: Date.now(),
       modified: Date.now(),
     });
+    console.log('AWAIT SERVER');
+    await r.server;
+    console.log('DONE AWAIT SERVER');
     reset();
     onDismiss(id);
   };

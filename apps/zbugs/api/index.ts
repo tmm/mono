@@ -121,6 +121,7 @@ fastify.get<{
     );
 });
 
+let c = 0;
 fastify.post<{
   Querystring: Record<string, string>;
   Body: ReadonlyJSONValue;
@@ -134,6 +135,12 @@ fastify.post<{
       return;
     }
     throw e;
+  }
+
+  if (c === 0) {
+    c++;
+    reply.status(401).send('fail one');
+    return;
   }
 
   const response = await handlePush(jwtData, request.query, request.body);

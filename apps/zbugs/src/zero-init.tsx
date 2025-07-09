@@ -14,11 +14,13 @@ export function ZeroInit({children}: {children: ReactNode}) {
       userID: login.loginState?.decoded?.sub ?? 'anon',
       mutators: createMutators(login.loginState?.decoded),
       logLevel: 'info' as const,
-      auth: (error?: 'invalid-token') => {
-        if (error === 'invalid-token') {
-          login.logout();
-          return undefined;
-        }
+      auth: async (error?: 'invalid-token') => {
+        // if (error === 'invalid-token') {
+        //   login.logout();
+        //   return undefined;
+        // }
+        console.log('REVALIDATED!');
+        await new Promise(resolve => setTimeout(resolve, 0));
         return login.loginState?.encoded;
       },
     };
