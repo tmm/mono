@@ -7,8 +7,6 @@ import {
   test,
 } from 'vitest';
 import {fetchFromAPIServer} from './fetch.ts';
-import {ErrorForClient} from '../types/error-for-client.ts';
-import {ErrorKind} from '../../../zero-protocol/src/error-kind.ts';
 import type {ShardID} from '../types/shards.ts';
 
 // Mock the global fetch function
@@ -222,32 +220,7 @@ describe('fetchFromAPIServer', () => {
     expect(result).toBe(mockResponse);
   });
 
-  test('should throw ErrorForClient on 401 unauthorized response', async () => {
-    const errorMessage = 'Unauthorized access';
-
-    // First call - just test that it throws ErrorForClient
-    const mockResponse1 = new Response(errorMessage, {status: 401});
-    mockFetch.mockResolvedValueOnce(mockResponse1);
-
-    await expect(
-      fetchFromAPIServer(baseUrl, mockShard, {}, undefined, body),
-    ).rejects.toThrow(ErrorForClient);
-
-    // Second call - test the error details
-    const mockResponse2 = new Response(errorMessage, {status: 401});
-    mockFetch.mockResolvedValueOnce(mockResponse2);
-
-    try {
-      await fetchFromAPIServer(baseUrl, mockShard, {}, undefined, body);
-    } catch (error) {
-      expect(error).toBeInstanceOf(ErrorForClient);
-      const errorForClient = error as ErrorForClient;
-      expect(errorForClient.errorBody.kind).toBe(ErrorKind.AuthInvalidated);
-      expect(errorForClient.errorBody.message).toBe(errorMessage);
-    }
-  });
-
-  test('should not throw for non-401 error status codes', async () => {
+  test('should not throw for error status codes', async () => {
     const mockResponse = new Response('Server Error', {status: 500});
     mockFetch.mockResolvedValue(mockResponse);
 

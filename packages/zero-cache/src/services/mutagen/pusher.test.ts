@@ -984,6 +984,109 @@ describe('pusher streaming', () => {
       }),
     );
   });
+
+  test('returns response details even if an http error code was returned', async () => {
+    const fetch = (global.fetch = vi.fn());
+    const successResponse: PushResponse = {
+      mutations: [
+        {
+          id: {clientID, id: 1},
+          result: {},
+        },
+      ],
+    };
+
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve(JSON.stringify(successResponse)),
+      json: () => Promise.resolve(successResponse),
+    });
+
+    const pusher = new PusherService(
+      config,
+      {
+        url: 'http://example.com',
+        apiKey: 'api-key',
+        forwardCookies: false,
+      },
+      lc,
+      'cgid',
+    );
+    void pusher.run();
+
+    const stream = pusher.initConnection(clientID, 'ws1', undefined);
+    pusher.enqueuePush(clientID, makePush(1, clientID), 'jwt', undefined);
+
+    await expect(stream[Symbol.asyncIterator]().next()).resolves.toEqual({
+      value: [
+        'pushResponse',
+        {
+          mutations: [
+            {
+              id: {clientID, id: 1},
+              result: {},
+            },
+          ],
+        },
+      ],
+    });
+  });
+});
+
+test('returns successful push responses then fails the stream on a 401 error with successful json response', async () => {
+  const fetch = (global.fetch = vi.fn());
+  const successResponse: PushResponse = {
+    mutations: [
+      {
+        id: {clientID, id: 1},
+        result: {},
+      },
+    ],
+  };
+  fetch.mockResolvedValueOnce({
+    ok: false,
+    status: 401,
+    text: () => Promise.resolve(JSON.stringify(successResponse)),
+  });
+
+  const pusher = new PusherService(
+    config,
+    {
+      url: 'http://example.com',
+      apiKey: 'api-key',
+      forwardCookies: false,
+    },
+    lc,
+    'cgid',
+  );
+  void pusher.run();
+
+  const stream = pusher.initConnection(clientID, 'ws1', undefined);
+  pusher.enqueuePush(clientID, makePush(1, clientID), 'jwt', undefined);
+
+  let error: unknown;
+  try {
+    for await (const m of stream) {
+      expect(m).toEqual([
+        'pushResponse',
+        {
+          mutations: [
+            {
+              id: {clientID, id: 1},
+              result: {},
+            },
+          ],
+        },
+      ]);
+    }
+  } catch (e) {
+    error = e;
+  }
+
+  expect(error).toMatchInlineSnapshot(
+    `[Error: {"kind":"AuthInvalidated","message":"mutations applied but client needs to re-authenticate"}]`,
+  );
 });
 
 let timestamp = 0;

@@ -46,6 +46,11 @@ export interface Pusher extends RefCountedService {
 
 type Config = Pick<ZeroConfig, 'app' | 'shard'>;
 
+type CodedResponse = {
+  code: number;
+  response: PushResponse;
+};
+
 /**
  * Receives push messages from zero-client and forwards
  * them the the user's API server.
@@ -247,9 +252,15 @@ class PushWorker {
    * Each client is on a different websocket connection though, so we need to fan out the response
    * to all the clients that were part of the push.
    */
-  async #fanOutResponses(response: PushResponse | Fatal) {
+  async #fanOutResponses(response: PushResponse | Fatal | CodedResponse) {
     const responses: Promise<Result>[] = [];
     const connectionTerminations: (() => void)[] = [];
+    let codedResponse: CodedResponse | undefined;
+    if ('code' in response) {
+      codedResponse = response;
+      response = response.response;
+    }
+
     if ('error' in response) {
       this.#lc.warn?.(
         'The server behind ZERO_PUSH_URL returned a push error.',
@@ -279,6 +290,13 @@ class PushWorker {
           );
         } else if (response.error === 'forClient') {
           client.downstream.fail(response.cause);
+        } else if (response.error === 'http' && response.status === 401) {
+          client.downstream.fail(
+            new ErrorForClient({
+              kind: ErrorKind.AuthInvalidated,
+              message: response.details,
+            }),
+          );
         } else {
           responses.push(
             client.downstream.push([
@@ -299,7 +317,7 @@ class PushWorker {
           continue;
         }
 
-        let failure: ErrorForClient | undefined;
+        let failure: ErrorForClient | undefined = undefined;
         let i = 0;
         for (; i < mutations.length; i++) {
           const m = mutations[i];
@@ -329,10 +347,36 @@ class PushWorker {
         const successes = failure ? mutations.slice(0, i) : mutations;
 
         if (successes.length > 0) {
-          responses.push(
-            client.downstream.push(['pushResponse', {mutations: successes}])
-              .result,
-          );
+          if (codedResponse) {
+            responses.push(
+              client.downstream.push([
+                'pushResponse',
+                {
+                  error: 'http',
+                  mutations: successes,
+                  code: codedResponse.code,
+                },
+              ]).result,
+            );
+          } else {
+            responses.push(
+              client.downstream.push([
+                'pushResponse',
+                {
+                  mutations: successes,
+                },
+              ]).result,
+            );
+          }
+        }
+
+        if (codedResponse) {
+          if (codedResponse.code === 401) {
+            failure = new ErrorForClient({
+              kind: ErrorKind.AuthInvalidated,
+              message: 'mutations applied but client needs to re-authenticate',
+            });
+          }
         }
 
         if (failure) {
@@ -348,7 +392,9 @@ class PushWorker {
     }
   }
 
-  async #processPush(entry: PusherEntry): Promise<PushResponse | Fatal> {
+  async #processPush(
+    entry: PusherEntry,
+  ): Promise<PushResponse | Fatal | CodedResponse> {
     counters.customMutations().add(entry.push.mutations.length, {
       clientGroupID: entry.push.clientGroupID,
     });
@@ -373,15 +419,28 @@ class PushWorker {
       );
 
       if (!response.ok) {
-        return {
-          error: 'http',
-          status: response.status,
-          details: await response.text(),
-          mutationIDs: entry.push.mutations.map(m => ({
-            id: m.id,
-            clientID: m.clientID,
-          })),
-        };
+        // get the response as text but check if it was json compatible with `pushResponseSchema`
+        // the reason is someone may return an error code with a valid push response.
+        // doing it this way is simpler (code wise) than `await response.json()`
+        // given a response can only be read once.
+        const details = await response.text();
+        try {
+          const pushResponse = v.parse(JSON.parse(details), pushResponseSchema);
+          return {
+            code: response.status,
+            response: pushResponse,
+          };
+        } catch (e) {
+          return {
+            error: 'http',
+            status: response.status,
+            details,
+            mutationIDs: entry.push.mutations.map(m => ({
+              id: m.id,
+              clientID: m.clientID,
+            })),
+          };
+        }
       }
 
       const json = await response.json();

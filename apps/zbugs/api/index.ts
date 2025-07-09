@@ -137,7 +137,7 @@ fastify.post<{
   }
 
   const response = await handlePush(jwtData, request.query, request.body);
-  reply.send(response);
+  reply.code(401).send(response);
 });
 
 fastify.post<{
