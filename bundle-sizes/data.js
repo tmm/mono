@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752017417833,
+  "lastUpdate": 1752080657202,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52793,6 +52793,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/fcda8dd22fc3be327f51e5f64286458994a07bbc"
         },
         "date": 1752017405268,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300359,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54180,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110596,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matt.wonlaw@gmail.com",
+            "name": "Matt Wonlaw",
+            "username": "tantaman"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "25f06f274ee53b5958a8f3ac8b19fd7c31b845b3",
+          "message": "chore(zero): fix replicache.test.ts (#4596)",
+          "timestamp": "2025-07-09T13:03:11-04:00",
+          "tree_id": "de981e0b0950d2f59e2bad49e5c3c35a19641b17",
+          "url": "https://github.com/rocicorp/mono/commit/25f06f274ee53b5958a8f3ac8b19fd7c31b845b3"
+        },
+        "date": 1752080644601,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
