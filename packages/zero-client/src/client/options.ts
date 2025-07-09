@@ -13,7 +13,8 @@ import {UpdateNeededReasonType} from './update-needed-reason-type.ts';
  */
 export interface ZeroOptions<
   S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
+  TWrappedTransaction = unknown,
 > {
   /**
    * URL to the zero-cache. This can be a simple hostname, e.g.
@@ -228,6 +229,14 @@ export interface ZeroOptions<
    * @deprecated Use ttl instead
    */
   maxRecentQueries?: number | undefined;
+
+  /**
+   * Changes to queries are sent to server in batches. This option controls
+   * the number of milliseconds to wait before sending the next batch.
+   *
+   * Defaults is 10.
+   */
+  queryChangeThrottleMs?: number | undefined;
 }
 
 /**
@@ -235,8 +244,9 @@ export interface ZeroOptions<
  */
 export interface ZeroAdvancedOptions<
   S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
-> extends ZeroOptions<S, MD> {}
+  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
+  TWrappedTransaction = unknown,
+> extends ZeroOptions<S, MD, TWrappedTransaction> {}
 
 export type UpdateNeededReason =
   | {type: UpdateNeededReasonType.NewClientGroup}

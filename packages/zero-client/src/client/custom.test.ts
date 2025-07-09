@@ -584,13 +584,12 @@ describe('server results and keeping read queries', () => {
     const q = z.query.issue.limit(1).materialize();
     q.destroy();
 
-    // tick a time to be sure everything is collected
-    await new Promise(resolve => setTimeout(resolve, 0));
+    z.queryDelegate.flushQueryChanges();
 
     // query is not removed, only put.
     expect(filter(messages)).toMatchInlineSnapshot(`
       [
-        "["changeDesiredQueries",{"desiredQueriesPatch":[{"op":"put","hash":"1vsd9vcx6ynd4","ast":{"table":"issues","limit":1,"orderBy":[["id","asc"]]},"ttl":0}]}]",
+        "["changeDesiredQueries",{"desiredQueriesPatch":[{"op":"put","hash":"1vsd9vcx6ynd4","ast":{"table":"issues","limit":1,"orderBy":[["id","asc"]]},"ttl":1000}]}]",
       ]
     `);
     messages.length = 0;
@@ -603,6 +602,8 @@ describe('server results and keeping read queries', () => {
         },
       ],
     });
+
+    z.queryDelegate.flushQueryChanges();
 
     // mutation is no longer outstanding, query is removed.
     expect(filter(messages)).toMatchInlineSnapshot(`
@@ -617,12 +618,12 @@ describe('server results and keeping read queries', () => {
     const close = z.mutate.issue.close({});
     await close;
     q2.destroy();
-    // tick a time to be sure everything is collected
-    await new Promise(resolve => setTimeout(resolve, 0));
+
+    z.queryDelegate.flushQueryChanges();
 
     expect(filter(messages)).toMatchInlineSnapshot(`
       [
-        "["changeDesiredQueries",{"desiredQueriesPatch":[{"op":"put","hash":"12hwg3ihkijhm","ast":{"table":"issues","orderBy":[["id","asc"]]},"ttl":0}]}]",
+        "["changeDesiredQueries",{"desiredQueriesPatch":[{"op":"put","hash":"12hwg3ihkijhm","ast":{"table":"issues","orderBy":[["id","asc"]]},"ttl":1000}]}]",
       ]
     `);
     messages.length = 0;
@@ -637,6 +638,8 @@ describe('server results and keeping read queries', () => {
         },
       ],
     });
+
+    z.queryDelegate.flushQueryChanges();
 
     expect(messages).toMatchInlineSnapshot(`
       [

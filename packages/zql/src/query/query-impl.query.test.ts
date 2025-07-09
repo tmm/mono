@@ -988,28 +988,28 @@ describe('pk lookup optimization', () => {
         .where('id', '=', '0001')
         .related('comments', q => q.where('id', '=', '0001')),
     ).toMatchInlineSnapshot(`
-    [
-      {
-        "closed": false,
-        "comments": [
-          {
-            "authorId": "0001",
-            "createdAt": 1,
-            "id": "0001",
-            "issueId": "0001",
-            "text": "comment 1",
-            Symbol(rc): 1,
-          },
-        ],
-        "createdAt": 1,
-        "description": "description 1",
-        "id": "0001",
-        "ownerId": "0001",
-        "title": "issue 1",
-        Symbol(rc): 1,
-      },
-    ]
-  `);
+      [
+        {
+          "closed": false,
+          "comments": [
+            {
+              "authorId": "0001",
+              "createdAt": 1,
+              "id": "0001",
+              "issueId": "0001",
+              "text": "comment 1",
+              Symbol(rc): 1,
+            },
+          ],
+          "createdAt": 1,
+          "description": "description 1",
+          "id": "0001",
+          "ownerId": "0001",
+          "title": "issue 1",
+          Symbol(rc): 1,
+        },
+      ]
+    `);
   });
 
   test('exists with pk constraint', async () => {
@@ -1018,18 +1018,18 @@ describe('pk lookup optimization', () => {
         .where('id', '=', '0001')
         .whereExists('comments', q => q.where('id', '=', '0001')),
     ).toMatchInlineSnapshot(`
-    [
-      {
-        "closed": false,
-        "createdAt": 1,
-        "description": "description 1",
-        "id": "0001",
-        "ownerId": "0001",
-        "title": "issue 1",
-        Symbol(rc): 1,
-      },
-    ]
-  `);
+      [
+        {
+          "closed": false,
+          "createdAt": 1,
+          "description": "description 1",
+          "id": "0001",
+          "ownerId": "0001",
+          "title": "issue 1",
+          Symbol(rc): 1,
+        },
+      ]
+    `);
   });
 
   test('junction with pk constraint', async () => {
@@ -1038,25 +1038,25 @@ describe('pk lookup optimization', () => {
         .where('id', '=', '0001')
         .related('labels', q => q.where('id', '=', '0001')),
     ).toMatchInlineSnapshot(`
-    [
-      {
-        "closed": false,
-        "createdAt": 1,
-        "description": "description 1",
-        "id": "0001",
-        "labels": [
-          {
-            "id": "0001",
-            "name": "label 1",
-            Symbol(rc): 1,
-          },
-        ],
-        "ownerId": "0001",
-        "title": "issue 1",
-        Symbol(rc): 1,
-      },
-    ]
-  `);
+      [
+        {
+          "closed": false,
+          "createdAt": 1,
+          "description": "description 1",
+          "id": "0001",
+          "labels": [
+            {
+              "id": "0001",
+              "name": "label 1",
+              Symbol(rc): 1,
+            },
+          ],
+          "ownerId": "0001",
+          "title": "issue 1",
+          Symbol(rc): 1,
+        },
+      ]
+    `);
   });
 
   test('junction with exists with pk constraint', async () => {

@@ -6,6 +6,7 @@ const special = [
   'zero-cache',
   'z2s',
   'zero-pg',
+  'zero-server',
   'zql-integration-tests',
 ];
 
@@ -23,6 +24,6 @@ function getPackages() {
 
 export default defineConfig({
   test: {
-    workspace: [...getPackages(), 'apps/zbugs/vitest.config.*.ts', 'tools/*'],
+    projects: [...getPackages(), 'apps/zbugs/vitest.config.*.ts', 'tools/*'],
   },
 });

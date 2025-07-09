@@ -180,8 +180,9 @@ interface TestZero {
 
 function asTestZero<
   S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined,
->(z: Zero<S, MD>): TestZero {
+  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined,
+  TWrappedTransaction = unknown,
+>(z: Zero<S, MD, TWrappedTransaction>): TestZero {
   return z as TestZero;
 }
 
@@ -214,6 +215,8 @@ export const CONNECT_TIMEOUT_MS = 10_000;
 const CHECK_CONNECTIVITY_ON_ERROR_FREQUENCY = 6;
 
 const NULL_LAST_MUTATION_ID_SENT = {clientID: '', id: -1} as const;
+
+const DEFAULT_QUERY_CHANGE_THROTTLE_MS = 10;
 
 function convertOnUpdateNeededReason(
   reason: ReplicacheUpdateNeededReason,
@@ -276,7 +279,8 @@ type CloseCode = typeof CLOSE_CODE_NORMAL | typeof CLOSE_CODE_GOING_AWAY;
 
 export class Zero<
   const S extends Schema,
-  MD extends CustomMutatorDefs<S> | undefined = undefined,
+  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
+  TWrappedTransaction = unknown,
 > {
   readonly version = version;
 
@@ -395,7 +399,7 @@ export class Zero<
   // 2. client successfully connects
   #totalToConnectStart: number | undefined = undefined;
 
-  readonly #options: ZeroOptions<S, MD>;
+  readonly #options: ZeroOptions<S, MD, TWrappedTransaction>;
 
   readonly query: MakeEntityQueriesFromSchema<S>;
 
@@ -410,7 +414,7 @@ export class Zero<
   /**
    * Constructs a new Zero client.
    */
-  constructor(options: ZeroOptions<S, MD>) {
+  constructor(options: ZeroOptions<S, MD, TWrappedTransaction>) {
     const {
       userID,
       storageKey,
@@ -422,7 +426,7 @@ export class Zero<
       batchViewUpdates = applyViewUpdates => applyViewUpdates(),
       maxRecentQueries = 0,
       slowMaterializeThreshold = 5_000,
-    } = options as ZeroOptions<S>;
+    } = options as ZeroOptions<S, MD, TWrappedTransaction>;
     if (!userID) {
       throw new Error('ZeroOptions.userID must not be empty.');
     }
@@ -432,7 +436,7 @@ export class Zero<
       false /*options.enableAnalytics,*/, // Reenable analytics
     );
 
-    let {kvStore = 'idb'} = options as ZeroOptions<S>;
+    let {kvStore = 'idb'} = options as ZeroOptions<S, MD, TWrappedTransaction>;
     if (kvStore === 'idb') {
       if (!getBrowserGlobal('indexedDB')) {
         // eslint-disable-next-line no-console
@@ -564,6 +568,7 @@ export class Zero<
         this.#queryManager.addCustom(queryName, queryArgs, ttl, gotCallback),
       (ast, ttl) => this.#queryManager.updateLegacy(ast, ttl),
       (name, args, ttl) => this.#queryManager.updateCustom(name, args, ttl),
+      () => this.#queryManager.flushBatch(),
       batchViewUpdates,
       slowMaterializeThreshold,
       assertValidRunOptions,
@@ -599,6 +604,8 @@ export class Zero<
       rep.clientGroupID,
       this.clientID,
       this.#closeAbortController.signal,
+      (clientID: string) =>
+        this.#deleteClientsManager.onClientsDeleted([clientID], []),
     );
 
     const onUpdateNeededCallback = (
@@ -670,6 +677,7 @@ export class Zero<
       msg => this.#send(msg),
       rep.experimentalWatch.bind(rep),
       maxRecentQueries,
+      options.queryChangeThrottleMs ?? DEFAULT_QUERY_CHANGE_THROTTLE_MS,
     );
     this.#clientToServer = clientToServer(schema.tables);
 
@@ -840,8 +848,11 @@ export class Zero<
    * await zero.mutate.issue.update({id: '1', title: 'Updated title'});
    * ```
    */
-  readonly mutate: MD extends CustomMutatorDefs<S>
-    ? DeepMerge<DBMutator<S>, MakeCustomMutatorInterfaces<S, MD>>
+  readonly mutate: MD extends CustomMutatorDefs<S, TWrappedTransaction>
+    ? DeepMerge<
+        DBMutator<S>,
+        MakeCustomMutatorInterfaces<S, MD, TWrappedTransaction>
+      >
     : DBMutator<S>;
 
   /**
@@ -2077,6 +2088,13 @@ async function makeActiveClientsManager(
   clientGroupID: Promise<string>,
   clientID: string,
   signal: AbortSignal,
+  onDelete: ActiveClientsManager['onDelete'],
 ): Promise<ActiveClientsManager> {
-  return ActiveClientsManager.create(await clientGroupID, clientID, signal);
+  const manager = await ActiveClientsManager.create(
+    await clientGroupID,
+    clientID,
+    signal,
+  );
+  manager.onDelete = onDelete;
+  return manager;
 }
