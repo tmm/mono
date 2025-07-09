@@ -137,14 +137,8 @@ fastify.post<{
     throw e;
   }
 
-  if (c === 0) {
-    c++;
-    reply.status(401).send('fail one');
-    return;
-  }
-
   const response = await handlePush(jwtData, request.query, request.body);
-  reply.send(response);
+  reply.code(401).send(response);
 });
 
 fastify.post<{

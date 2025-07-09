@@ -126,7 +126,7 @@ const mutationResponseSchema = v.object({
   result: mutationResultSchema,
 });
 
-const pushOkSchema = v.object({
+export const pushOkSchema = v.object({
   mutations: v.array(mutationResponseSchema),
 });
 
@@ -144,12 +144,14 @@ const unsupportedSchemaVersionSchema = v.object({
   // were not processed by the server.
   mutationIDs: v.array(mutationIDSchema).optional(),
 });
+
 const httpErrorSchema = v.object({
   error: v.literal('http'),
   status: v.number(),
   details: v.string(),
   mutationIDs: v.array(mutationIDSchema).optional(),
 });
+
 const zeroPusherErrorSchema = v.object({
   error: v.literal('zeroPusher'),
   details: v.string(),

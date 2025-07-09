@@ -46,6 +46,11 @@ export interface Pusher extends RefCountedService {
 
 type Config = Pick<ZeroConfig, 'app' | 'shard'>;
 
+type CodedResponse = {
+  code: number;
+  response: PushResponse;
+};
+
 /**
  * Receives push messages from zero-client and forwards
  * them the the user's API server.
@@ -247,9 +252,15 @@ class PushWorker {
    * Each client is on a different websocket connection though, so we need to fan out the response
    * to all the clients that were part of the push.
    */
-  async #fanOutResponses(response: PushResponse | Fatal) {
+  async #fanOutResponses(response: PushResponse | Fatal | CodedResponse) {
     const responses: Promise<Result>[] = [];
     const connectionTerminations: (() => void)[] = [];
+    let codedResponse: CodedResponse | undefined;
+    if ('code' in response) {
+      codedResponse = response;
+      response = response.response;
+    }
+
     if ('error' in response) {
       this.#lc.warn?.(
         'The server behind ZERO_PUSH_URL returned a push error.',
@@ -338,6 +349,21 @@ class PushWorker {
         if (failure) {
           connectionTerminations.push(() => client.downstream.fail(failure));
         }
+
+        if (!failure && codedResponse) {
+          if (codedResponse.code === 401) {
+            // unauthorized
+            connectionTerminations.push(() =>
+              client.downstream.fail(
+                new ErrorForClient({
+                  kind: ErrorKind.AuthInvalidated,
+                  message:
+                    'mutations applied but client needs to re-authenticate',
+                }),
+              ),
+            );
+          }
+        }
       }
     }
 
@@ -348,7 +374,9 @@ class PushWorker {
     }
   }
 
-  async #processPush(entry: PusherEntry): Promise<PushResponse | Fatal> {
+  async #processPush(
+    entry: PusherEntry,
+  ): Promise<PushResponse | Fatal | CodedResponse> {
     counters.customMutations().add(entry.push.mutations.length, {
       clientGroupID: entry.push.clientGroupID,
     });
@@ -373,6 +401,28 @@ class PushWorker {
       );
 
       if (!response.ok) {
+        const contentType = response.headers.get('content-type')?.toLowerCase();
+        if (contentType && contentType.includes('application/json')) {
+          const json = await response.json();
+          try {
+            const pushResponse = v.parse(json, pushResponseSchema);
+            return {
+              code: response.status,
+              response: pushResponse,
+            };
+          } catch (e) {
+            return {
+              error: 'http',
+              status: response.status,
+              details: json,
+              mutationIDs: entry.push.mutations.map(m => ({
+                id: m.id,
+                clientID: m.clientID,
+              })),
+            };
+          }
+        }
+
         return {
           error: 'http',
           status: response.status,

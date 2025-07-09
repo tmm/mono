@@ -11,6 +11,8 @@ import type {ShardID} from '../types/shards.ts';
 import * as v from '../../../shared/src/valita.ts';
 import {hashOfAST} from '../../../zero-protocol/src/query-hash.ts';
 import {TimedCache} from '../../../shared/src/cache.ts';
+import {ErrorForClient} from '../types/error-for-client.ts';
+import {ErrorKind} from '../../../zero-protocol/src/error-kind.ts';
 
 type HttpError = {
   error: 'http';
@@ -94,6 +96,13 @@ export class CustomQueryTransformer {
     );
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new ErrorForClient({
+          kind: ErrorKind.AuthInvalidated,
+          message: await response.text(),
+        });
+      }
+
       return {
         error: 'http',
         status: response.status,
