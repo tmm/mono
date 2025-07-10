@@ -10,7 +10,6 @@ import {ErrorKind} from '../../../../zero-protocol/src/error-kind.ts';
 import {
   pushResponseSchema,
   type PushBody,
-  type PushError,
   type PushResponseToClient,
 } from '../../../../zero-protocol/src/push.ts';
 import {type ZeroConfig} from '../../config/zero-config.ts';
@@ -25,7 +24,6 @@ import {fetchFromAPIServer} from '../../custom/fetch.ts';
 type Fatal = {
   error: 'forClient';
   cause: ErrorForClient;
-  mutationIDs: PushError['mutationIDs'];
 };
 
 export interface Pusher extends RefCountedService {
@@ -228,7 +226,7 @@ class PushWorker {
       const [pushes, terminate] = combinePushes([task, ...rest]);
       for (const push of pushes) {
         const response = await this.#processPush(push);
-        await this.#fanOutResponses(response);
+        await this.#fanOutResponses(push, response);
       }
 
       if (terminate) {
@@ -247,24 +245,22 @@ class PushWorker {
    * Each client is on a different websocket connection though, so we need to fan out the response
    * to all the clients that were part of the push.
    */
-  async #fanOutResponses(response: PushResponseToClient | Fatal) {
+  async #fanOutResponses(
+    push: PusherEntry,
+    response: PushResponseToClient | Fatal,
+  ) {
     const responses: Promise<Result>[] = [];
     const connectionTerminations: (() => void)[] = [];
+
+    // If the entire push request failed, we notify the single client that sent the push.
     if ('error' in response) {
       this.#lc.warn?.(
         'The server behind ZERO_PUSH_URL returned a push error.',
         response,
       );
-      const groupedMutationIDs = groupBy(
-        response.mutationIDs ?? [],
-        m => m.clientID,
-      );
-      for (const [clientID, mutationIDs] of groupedMutationIDs) {
-        const client = this.#clients.get(clientID);
-        if (!client) {
-          continue;
-        }
 
+      const client = this.#clients.get(push.clientID);
+      if (client) {
         // We do not resolve mutations on the client if the push fails
         // as those mutations will be retried.
         if (
@@ -281,13 +277,7 @@ class PushWorker {
           client.downstream.fail(response.cause);
         } else {
           responses.push(
-            client.downstream.push([
-              'pushResponse',
-              {
-                ...response,
-                mutationIDs,
-              },
-            ]).result,
+            client.downstream.push(['pushResponse', response]).result,
           );
         }
       }
@@ -379,10 +369,6 @@ class PushWorker {
           error: 'http',
           status: response.status,
           details: await response.text(),
-          mutationIDs: entry.push.mutations.map(m => ({
-            id: m.id,
-            clientID: m.clientID,
-          })),
         };
       }
 
@@ -394,17 +380,11 @@ class PushWorker {
         throw e;
       }
     } catch (e) {
-      const mutationIDs = entry.push.mutations.map(m => ({
-        id: m.id,
-        clientID: m.clientID,
-      }));
-
       this.#lc.error?.('failed to push', e);
       if (e instanceof ErrorForClient) {
         return {
           error: 'forClient',
           cause: e,
-          mutationIDs,
         };
       }
 
@@ -414,7 +394,6 @@ class PushWorker {
       return {
         error: 'zeroPusher',
         details: String(e),
-        mutationIDs,
       };
     }
   }

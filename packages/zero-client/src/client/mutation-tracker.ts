@@ -11,7 +11,7 @@ import type {
   MutationOk,
   PushError,
   PushOk,
-  PushResponse,
+  PushResponseToClient,
 } from '../../../zero-protocol/src/push.ts';
 import type {ZeroLogContext} from './zero-log-context.ts';
 
@@ -20,16 +20,6 @@ type ErrorType =
   | Omit<PushError, 'mutationIDs'>
   | Error
   | unknown;
-
-const transientPushErrorTypes: PushError['error'][] = [
-  'zeroPusher',
-  'http',
-
-  // These should never actually be received as they cause the websocket
-  // connection to be closed.
-  'unsupportedPushVersion',
-  'unsupportedSchemaVersion',
-];
 
 let currentEphemeralID = 0;
 function nextEphemeralID(): EphemeralID {
@@ -92,13 +82,15 @@ export class MutationTracker {
     }
   }
 
-  processPushResponse(response: PushResponse): void {
+  processPushResponse(response: PushResponseToClient): void {
     if ('error' in response) {
       this.#lc.error?.(
         'Received an error response when pushing mutations',
         response,
       );
-      this.#processPushError(response);
+      // We do not reject any mutations when receiving a push error.
+      // If the entire push failed then the mutations will remain queued on the client
+      // and be retried.
     } else {
       this.#processPushOk(response);
     }
@@ -143,25 +135,6 @@ export class MutationTracker {
 
   get size() {
     return this.#outstandingMutations.size;
-  }
-
-  #processPushError(error: PushError): void {
-    // Mutations suffering from transient errors are not removed from the
-    // outstanding mutations list. The client will retry.
-    if (transientPushErrorTypes.includes(error.error)) {
-      return;
-    }
-
-    const mids = error.mutationIDs;
-
-    // TODO: remove this check once the server always sends mutationIDs
-    if (!mids) {
-      return;
-    }
-
-    for (const mid of mids) {
-      this.#processMutationError(mid, error);
-    }
   }
 
   #processPushOk(ok: PushOk): void {

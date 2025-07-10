@@ -149,29 +149,13 @@ const httpErrorSchema = v.object({
   status: v.number(),
   details: v.string(),
 
-  // If the server did process mutations but returned an error code,
-  // these are the mutations that were processed.
-  mutations: v.array(mutationResponseSchema).optional(),
-
-  // If we did not receive a response from the server,
-  // these are the mutations that were supposed to be processed.
-  // There is a wrinkle here:
-  // The server could have applied the mutations but then crashed.
-  // We'll report the mutations as failed to the client.
-  // The client won't get out of sync since the sync process will confirm the mutations via lmid update.
-  // The promises on the mutations will be rejected with an error, however, if this response
-  // comes back before the lmid update.
-  // This is the problem of not having push responses being written to the DB
-  // and synced transactionally via the sync protocol.
-  //
-  // This is a normal http api problem, however.
-  // Any time you make a call and fail to receive a response,
-  // you cannot be certain that the server did not process the request.
+  // DEPRECATED: this field is never read for http errors.
   mutationIDs: v.array(mutationIDSchema).optional(),
 });
 const zeroPusherErrorSchema = v.object({
   error: v.literal('zeroPusher'),
   details: v.string(),
+  // DEPRECATED: this field is never read for zeroPusher errors.
   mutationIDs: v.array(mutationIDSchema).optional(),
 });
 
