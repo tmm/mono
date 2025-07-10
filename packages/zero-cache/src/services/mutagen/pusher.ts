@@ -11,7 +11,7 @@ import {
   pushResponseSchema,
   type PushBody,
   type PushError,
-  type PushResponse,
+  type PushResponseToClient,
 } from '../../../../zero-protocol/src/push.ts';
 import {type ZeroConfig} from '../../config/zero-config.ts';
 import * as counters from '../../observability/counters.ts';
@@ -247,7 +247,7 @@ class PushWorker {
    * Each client is on a different websocket connection though, so we need to fan out the response
    * to all the clients that were part of the push.
    */
-  async #fanOutResponses(response: PushResponse | Fatal) {
+  async #fanOutResponses(response: PushResponseToClient | Fatal) {
     const responses: Promise<Result>[] = [];
     const connectionTerminations: (() => void)[] = [];
     if ('error' in response) {
@@ -348,7 +348,9 @@ class PushWorker {
     }
   }
 
-  async #processPush(entry: PusherEntry): Promise<PushResponse | Fatal> {
+  async #processPush(
+    entry: PusherEntry,
+  ): Promise<PushResponseToClient | Fatal> {
     counters.customMutations().add(entry.push.mutations.length, {
       clientGroupID: entry.push.clientGroupID,
     });

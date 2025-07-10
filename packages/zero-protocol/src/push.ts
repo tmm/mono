@@ -148,6 +148,25 @@ const httpErrorSchema = v.object({
   error: v.literal('http'),
   status: v.number(),
   details: v.string(),
+
+  // If the server did process mutations but returned an error code,
+  // these are the mutations that were processed.
+  mutations: v.array(mutationResponseSchema).optional(),
+
+  // If we did not receive a response from the server,
+  // these are the mutations that were supposed to be processed.
+  // There is a wrinkle here:
+  // The server could have applied the mutations but then crashed.
+  // We'll report the mutations as failed to the client.
+  // The client won't get out of sync since the sync process will confirm the mutations via lmid update.
+  // The promises on the mutations will be rejected with an error, however, if this response
+  // comes back before the lmid update.
+  // This is the problem of not having push responses being written to the DB
+  // and synced transactionally via the sync protocol.
+  //
+  // This is a normal http api problem, however.
+  // Any time you make a call and fail to receive a response,
+  // you cannot be certain that the server did not process the request.
   mutationIDs: v.array(mutationIDSchema).optional(),
 });
 const zeroPusherErrorSchema = v.object({
@@ -159,7 +178,6 @@ const zeroPusherErrorSchema = v.object({
 const pushErrorSchema = v.union(
   unsupportedPushVersionSchema,
   unsupportedSchemaVersionSchema,
-  httpErrorSchema,
   zeroPusherErrorSchema,
 );
 
@@ -167,6 +185,19 @@ export const pushResponseSchema = v.union(pushOkSchema, pushErrorSchema);
 export const pushResponseMessageSchema = v.tuple([
   v.literal('pushResponse'),
   pushResponseSchema,
+]);
+
+export const pushErrorToClientSchema = v.union(
+  pushErrorSchema,
+  httpErrorSchema,
+);
+export const pushResponseToClientSchema = v.union(
+  pushOkSchema,
+  pushErrorToClientSchema,
+);
+export const pushResponseMessageToClientSchema = v.tuple([
+  v.literal('pushResponse'),
+  pushResponseToClientSchema,
 ]);
 
 /**
@@ -190,7 +221,11 @@ export type Mutation = v.Infer<typeof mutationSchema>;
 export type PushBody = v.Infer<typeof pushBodySchema>;
 export type PushMessage = v.Infer<typeof pushMessageSchema>;
 export type PushResponse = v.Infer<typeof pushResponseSchema>;
+export type PushResponseToClient = v.Infer<typeof pushResponseToClientSchema>;
 export type PushResponseMessage = v.Infer<typeof pushResponseMessageSchema>;
+export type PushResponseMessageToClient = v.Infer<
+  typeof pushResponseMessageToClientSchema
+>;
 export type MutationResponse = v.Infer<typeof mutationResponseSchema>;
 export type MutationOk = v.Infer<typeof mutationOkSchema>;
 export type MutationError = v.Infer<typeof mutationErrorSchema>;

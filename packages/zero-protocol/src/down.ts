@@ -10,7 +10,7 @@ import {
 } from './poke.ts';
 import {pongMessageSchema} from './pong.ts';
 import {pullResponseMessageSchema} from './pull.ts';
-import {pushResponseMessageSchema} from './push.ts';
+import {pushResponseMessageToClientSchema} from './push.ts';
 
 export const downstreamSchema = v.union(
   connectedMessageSchema,
@@ -21,7 +21,7 @@ export const downstreamSchema = v.union(
   pokeEndMessageSchema,
   pullResponseMessageSchema,
   deleteClientsMessageSchema,
-  pushResponseMessageSchema,
+  pushResponseMessageToClientSchema,
   inspectDownMessageSchema,
 );
 
