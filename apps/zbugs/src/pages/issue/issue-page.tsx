@@ -72,7 +72,9 @@ function softNavigate(path: string, state?: ZbugsHistoryState) {
 
 const emojiToastShowDuration = 3_000;
 
+let c = 0;
 export function IssuePage({onReady}: {onReady: () => void}) {
+  console.log('RENDERING', ++c);
   const z = useZero();
   const params = useParams();
 
@@ -87,11 +89,11 @@ export function IssuePage({onReady}: {onReady: () => void}) {
     issueDetail(idField, id, z.userID),
     CACHE_AWHILE,
   );
-  useEffect(() => {
-    if (issue || issueResult.type === 'complete') {
-      onReady();
-    }
-  }, [issue, onReady, issueResult.type]);
+  const [ready, setReady] = useState(issue != undefined);
+  if (!ready && (issue || issueResult.type === 'complete')) {
+    setReady(true);
+    onReady();
+  }
 
   const login = useLogin();
 
