@@ -28,6 +28,9 @@ import {
 } from '../../../shared/schema.ts';
 import statusClosed from '../../assets/icons/issue-closed.svg';
 import statusOpen from '../../assets/icons/issue-open.svg';
+import circle from '../../assets/icons/circle.svg';
+import halfCircle from '../../assets/icons/half-circle.svg';
+import circleDot from '../../assets/icons/circle-dot.svg';
 import {commentQuery} from '../../comment-query.ts';
 import {AvatarImage} from '../../components/avatar-image.tsx';
 import {Button} from '../../components/button.tsx';
@@ -62,7 +65,7 @@ import {isCtrlEnter} from './is-ctrl-enter.ts';
 import {emojiChange, issueDetail, prevNext} from '../../../shared/queries.ts';
 import {INITIAL_COMMENT_LIMIT} from '../../../shared/consts.ts';
 import {preload} from '../../zero-preload.ts';
-import {ButtonWithLoginCheck} from '../../components/button-with-login-check.tsx';
+import type {NotificationType} from '../../../shared/mutators.ts';
 
 function softNavigate(path: string, state?: ZbugsHistoryState) {
   navigate(path, {state});
@@ -560,31 +563,45 @@ export function IssuePage({onReady}: {onReady: () => void}) {
           ) : null}
 
           {(() => {
-            const isSubscribed =
-              issue?.notificationState?.subscribed ||
-              displayed.creatorID === z.userID ||
-              displayed.comments.some(c => c.creatorID === z.userID);
+            const isSubscribed = issue?.notificationState?.subscribed;
+            const currentState: NotificationType =
+              isSubscribed === undefined
+                ? 'if-interacted'
+                : isSubscribed
+                  ? 'subscribe'
+                  : 'unsubscribe';
 
             return (
               <div className="sidebar-item">
                 <p className="issue-detail-label">Notifications</p>
-                <ButtonWithLoginCheck
-                  loginMessage="You need to be logged in to subscribe to issues."
-                  className="button"
-                  eventName={
-                    !isSubscribed
-                      ? 'Subscribe to issue'
-                      : 'Unsubscribe from issue'
-                  }
-                  onAction={() => {
+                <Combobox<NotificationType>
+                  editable={false}
+                  disabled={!canEdit}
+                  items={[
+                    {
+                      text: 'If interacted',
+                      value: 'if-interacted',
+                      icon: halfCircle,
+                    },
+                    {
+                      text: 'Subscribe',
+                      value: 'subscribe',
+                      icon: statusClosed,
+                    },
+                    {
+                      text: 'Unsubscribe',
+                      value: 'unsubscribe',
+                      icon: circle,
+                    },
+                  ]}
+                  selectedValue={currentState}
+                  onChange={value =>
                     z.mutate.issue.toggleNotification({
                       issueID: displayed.id,
-                      subscribed: !isSubscribed,
-                    });
-                  }}
-                >
-                  {!isSubscribed ? 'Subscribe' : 'Unsubscribe'}
-                </ButtonWithLoginCheck>
+                      subscribed: value,
+                    })
+                  }
+                />
               </div>
             );
           })()}

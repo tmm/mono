@@ -29,7 +29,7 @@ npm install
 ### Run the "upstream" Postgres database
 
 ```bash
-npm run docker-up
+npm run db-up
 ```
 
 ### Run the zero-cache server
@@ -108,10 +108,10 @@ After you have visited the local website and the sync / replica tables have popu
 rm /tmp/zbugs-sync-replica.db*
 ```
 
-### To clear the upstream postgres database
+### To clear both SQLite replica and upstream db:
 
 ```bash
-npm run docker-clear
+npm run clean
 ```
 
 ---
@@ -119,7 +119,7 @@ npm run docker-clear
 ## To Run 1.5GB Rocinante Data
 
 ```bash
-npm run docker-clear
+npm run db:clean
 ```
 
 Pull large data set from s3

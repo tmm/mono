@@ -33,6 +33,8 @@ export type AddCommentArgs = {
   created: number;
 };
 
+export type NotificationType = 'subscribe' | 'unsubscribe' | 'if-interacted';
+
 export function createMutators(authData: AuthData | undefined) {
   return {
     issue: {
@@ -85,30 +87,31 @@ export function createMutators(authData: AuthData | undefined) {
 
       async toggleNotification(
         tx,
-        {issueID, subscribed}: {issueID: string; subscribed: boolean},
+        {issueID, subscribed}: {issueID: string; subscribed: NotificationType},
       ) {
         assertIsLoggedIn(authData);
         const userID = authData.sub;
         await assertUserCanSeeIssue(tx, authData, issueID);
 
-        const existing = await tx.query.issueNotifications
-          .where('userID', userID)
-          .where('issueID', issueID)
-          .one();
-
-        if (!existing) {
-          await tx.mutate.issueNotifications.insert({
+        if (subscribed === 'subscribe') {
+          // NOTE: NO AWAIT HERE.
+          // CAUSES CHUNK NOT FOUND ERROR
+          tx.mutate.issueNotifications.upsert({
             userID,
             issueID,
-            subscribed,
+            subscribed: true,
+            created: Date.now(),
+          });
+        } else if (subscribed === 'unsubscribe') {
+          tx.mutate.issueNotifications.upsert({
+            userID,
+            issueID,
+            subscribed: false,
             created: Date.now(),
           });
         } else {
-          await tx.mutate.issueNotifications.update({
-            userID,
-            issueID,
-            subscribed,
-          });
+          assert(subscribed === 'if-interacted');
+          tx.mutate.issueNotifications.delete({userID, issueID});
         }
       },
     },
