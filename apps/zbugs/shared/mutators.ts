@@ -82,6 +82,35 @@ export function createMutators(authData: AuthData | undefined) {
         await assertIsCreatorOrAdmin(authData, tx.query.issue, issueID);
         await tx.mutate.issueLabel.delete({issueID, labelID});
       },
+
+      async toggleNotification(
+        tx,
+        {issueID, subscribed}: {issueID: string; subscribed: boolean},
+      ) {
+        assertIsLoggedIn(authData);
+        const userID = authData.sub;
+        await assertUserCanSeeIssue(tx, authData, issueID);
+
+        const existing = await tx.query.issueNotifications
+          .where('userID', userID)
+          .where('issueID', issueID)
+          .one();
+
+        if (!existing) {
+          await tx.mutate.issueNotifications.insert({
+            userID,
+            issueID,
+            subscribed,
+            created: Date.now(),
+          });
+        } else {
+          await tx.mutate.issueNotifications.update({
+            userID,
+            issueID,
+            subscribed,
+          });
+        }
+      },
     },
 
     emoji: {

@@ -323,10 +323,16 @@ export async function gatherRecipients(
       FROM "user"
       WHERE ${isAssigneeChange} 
         AND ${previousAssigneeID ? sql`"user".id = ${previousAssigneeID}` : sql`FALSE`}
+    ),
+    unsubscribed_users AS (
+      SELECT "userID"
+      FROM "issueNotifications"
+      WHERE "issueID" = ${issueID} AND "subscribed" = false
     )
     SELECT DISTINCT email
     FROM recipient_candidates
     WHERE email IS NOT NULL
+    AND id NOT IN (SELECT "userID" FROM unsubscribed_users)
     AND (
       -- If issue is public, include all candidates
       EXISTS (

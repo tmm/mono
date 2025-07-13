@@ -66,6 +66,7 @@ export const issueDetail = namedQuery(
       .related('viewState', viewState =>
         viewState.where('userID', userID).one(),
       )
+      .related('notificationState', q => q.where('userID', userID).one())
       .related('comments', comments =>
         comments
           .related('creator')

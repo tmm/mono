@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "check-types": "tsc && tsc -p tsconfig.node.json",
     "check-types:watch": "tsc --watch",
+    "docker-up": "cd docker && docker compose up",
+    "docker-clear": "cd docker && docker compose down -v",
     "format": "prettier --write .",
     "check-format": "prettier --check .",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/",

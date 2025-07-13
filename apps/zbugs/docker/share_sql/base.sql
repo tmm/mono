@@ -105,6 +105,16 @@ CREATE TABLE "userPref" (
     PRIMARY KEY ("userID", "key")
 );
 
+-- issueNotifications
+
+CREATE TABLE "issueNotifications" (
+    "userID" VARCHAR REFERENCES "user"(id) ON DELETE CASCADE,
+    "issueID" VARCHAR REFERENCES issue(id) ON DELETE CASCADE,
+    "subscribed" BOOLEAN DEFAULT true,
+    "created" double precision DEFAULT (EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000),
+    PRIMARY KEY ("userID", "issueID")
+);
+
 -- zero.schemaVersions
 
 CREATE SCHEMA IF NOT EXISTS zero;
@@ -132,6 +142,7 @@ CREATE PUBLICATION zero_zbugs
     "issueLabel",
     emoji,
     "userPref",
+    "issueNotifications",
     "user" (
       id,
       login,

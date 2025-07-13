@@ -112,7 +112,7 @@ rm /tmp/zbugs-sync-replica.db*
 ### To clear the upstream postgres database
 
 ```bash
-docker compose down -v
+npm run docker-clear
 ```
 
 ---
@@ -120,8 +120,7 @@ docker compose down -v
 ## To Run 1.5GB Rocinante Data
 
 ```bash
-cd docker
-docker compose down -v
+npm run docker-up
 ```
 
 Pull large data set from s3
