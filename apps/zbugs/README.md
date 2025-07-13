@@ -29,8 +29,7 @@ npm install
 ### Run the "upstream" Postgres database
 
 ```bash
-cd docker
-docker compose up
+npm run docker-up
 ```
 
 ### Run the zero-cache server
@@ -120,7 +119,7 @@ npm run docker-clear
 ## To Run 1.5GB Rocinante Data
 
 ```bash
-npm run docker-up
+npm run docker-clear
 ```
 
 Pull large data set from s3
