@@ -2842,7 +2842,6 @@ test('the type of collection should be inferred from options with parse', () => 
 });
 
 describe('CRUD', () => {
-  // TODO(chase) update tests to use default values
   const makeZero = () =>
     zeroForTest({
       schema: createSchema({
@@ -2869,6 +2868,33 @@ describe('CRUD', () => {
               text: string(),
             })
             .primaryKey('id1', 'id2'),
+          table('defaults')
+            .columns({
+              id: string(),
+              count: number().default({
+                insert: {
+                  client: () => 1,
+                  server: () => 2,
+                },
+                update: {
+                  client: () => 3,
+                  server: () => 4,
+                },
+              }),
+              updatedAt: number()
+                .default({
+                  insert: {
+                    client: () => 1743018158555,
+                    server: 'db',
+                  },
+                  update: {
+                    client: () => 1743018158557,
+                    server: 'db',
+                  },
+                })
+                .from('updated_at'),
+            })
+            .primaryKey('id'),
         ],
       }),
     });
@@ -3108,6 +3134,28 @@ describe('CRUD', () => {
     ]);
 
     await z.mutate.compoundPKTest.delete({id1: 'a', id2: 'a'});
+    expect(view.data).toEqual([]);
+  });
+
+  test('defaults', async () => {
+    const z = makeZero();
+    const view = z.query.defaults.materialize();
+    await z.mutate.defaults.insert({id: 'a'});
+    expect(view.data).toEqual([
+      {id: 'a', count: 1, updatedAt: 1743018158555, [refCountSymbol]: 1},
+    ]);
+
+    await z.mutate.defaults.upsert({id: 'a', count: 2});
+    expect(view.data).toEqual([
+      {id: 'a', count: 2, updatedAt: 1743018158557, [refCountSymbol]: 1},
+    ]);
+
+    await z.mutate.defaults.update({id: 'a', count: 3});
+    expect(view.data).toEqual([
+      {id: 'a', count: 3, updatedAt: 1743018158557, [refCountSymbol]: 1},
+    ]);
+
+    await z.mutate.defaults.delete({id: 'a'});
     expect(view.data).toEqual([]);
   });
 
