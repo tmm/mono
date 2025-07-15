@@ -79,6 +79,7 @@ import {DrainCoordinator} from './drain-coordinator.ts';
 import {PipelineDriver} from './pipeline-driver.ts';
 import {initViewSyncerSchema} from './schema/init.ts';
 import {Snapshotter} from './snapshotter.ts';
+import {ttlClockFromNumber} from './ttl-clock.ts';
 import {pickToken, type SyncContext, ViewSyncerService} from './view-syncer.ts';
 
 const APP_ID = 'this_app';
@@ -2349,6 +2350,7 @@ describe('view-syncer/service', () => {
   });
 
   test('initial hydration, schemaVersion unsupported with bad query', async () => {
+    vi.setSystemTime(Date.UTC(2025, 6, 14));
     // Simulate a connection when the replica is already ready.
     stateChanges.push({state: 'version-ready'});
     await sleep(5);
@@ -3568,12 +3570,13 @@ describe('view-syncer/service', () => {
       ON_FAILURE,
     );
     const now = Date.now();
+    const ttlClock = ttlClockFromNumber(now);
     await new CVRQueryDrivenUpdater(
       cvrStore,
       await cvrStore.load(lc, now),
       '07',
       REPLICA_VERSION,
-    ).flush(lc, now, now, now);
+    ).flush(lc, now, now, ttlClock);
 
     // Connect the client.
     const client = connect(SYNC_CONTEXT, [
@@ -3679,12 +3682,13 @@ describe('view-syncer/service', () => {
       ON_FAILURE,
     );
     const now = Date.now();
+    const ttlClock = ttlClockFromNumber(now);
     await new CVRQueryDrivenUpdater(
       cvrStore,
       await cvrStore.load(lc, now),
       '07',
       '1' + REPLICA_VERSION, // CVR is at a newer replica version.
-    ).flush(lc, now, now, now);
+    ).flush(lc, now, now, ttlClock);
 
     // Connect the client.
     const client = connect(SYNC_CONTEXT, [
@@ -3736,13 +3740,14 @@ describe('view-syncer/service', () => {
       ON_FAILURE,
     );
     const now = Date.now();
+    const ttlClock = ttlClockFromNumber(now);
     const otherTaskOwnershipTime = now - 600_000;
     await new CVRQueryDrivenUpdater(
       cvrStore,
       await cvrStore.load(lc, otherTaskOwnershipTime),
       '07',
       REPLICA_VERSION, // CVR is at a newer replica version.
-    ).flush(lc, otherTaskOwnershipTime, now, now);
+    ).flush(lc, otherTaskOwnershipTime, now, ttlClock);
 
     expect(await getCVROwner()).toBe('some-other-task-id');
 
@@ -3767,13 +3772,14 @@ describe('view-syncer/service', () => {
       ON_FAILURE,
     );
     const now = Date.now();
+    const ttlClock = ttlClockFromNumber(now);
     const otherTaskOwnershipTime = now;
     await new CVRQueryDrivenUpdater(
       cvrStore,
       await cvrStore.load(lc, otherTaskOwnershipTime),
       '07',
       REPLICA_VERSION, // CVR is at a newer replica version.
-    ).flush(lc, otherTaskOwnershipTime, now, now);
+    ).flush(lc, otherTaskOwnershipTime, now, ttlClock);
 
     expect(await getCVROwner()).toBe('some-other-task-id');
 
@@ -3799,12 +3805,13 @@ describe('view-syncer/service', () => {
       ON_FAILURE,
     );
     const now = Date.now();
+    const ttlClock = ttlClockFromNumber(now);
     await new CVRQueryDrivenUpdater(
       cvrStore,
       await cvrStore.load(lc, now),
       '07',
       REPLICA_VERSION,
-    ).flush(lc, now, now, now);
+    ).flush(lc, now, now, ttlClock);
 
     // Connect the client with a base cookie from the future.
     const client = connect({...SYNC_CONTEXT, baseCookie: '08'}, [
@@ -7236,6 +7243,140 @@ describe('view-syncer/service', () => {
         lastActive: t3 + 300_000,
       },
     ]);
+  });
+
+  test('TTL eviction based on service active time, not wallclock time', async () => {
+    const ttl = 10 * 1000; // 10 seconds for faster test
+    vi.setSystemTime(Date.UTC(2025, 6, 1, 12, 0, 0));
+    const t0 = Date.now();
+
+    // Connect a client with a TTL query.
+    const {queue: client, source} = connectWithQueueAndSource(SYNC_CONTEXT, [
+      {op: 'put', hash: 'query-hash1', ast: ISSUES_QUERY, ttl},
+    ]);
+
+    stateChanges.push({state: 'version-ready'});
+    await nextPoke(client); // config
+    await nextPoke(client); // hydration
+
+    // Advance 2 seconds, then inactivate the query.
+    const t1 = t0 + 2 * 1000;
+    vi.setSystemTime(t1);
+    await vs.changeDesiredQueries(SYNC_CONTEXT, [
+      'changeDesiredQueries',
+      {
+        desiredQueriesPatch: [{op: 'del', hash: 'query-hash1'}],
+      },
+    ]);
+    await nextPokeParts(client); // Should get a desiredQueriesPatches poke
+
+    // Verify the query is inactivated at ttlClock t1.
+    expect(
+      await cvrDB`
+      SELECT "ttlClock", "lastActive"
+      FROM "this_app_2/cvr".instances
+      WHERE "clientGroupID" = ${serviceID}
+    `,
+    ).toEqual([
+      {
+        ttlClock: t1,
+        lastActive: t1,
+      },
+    ]);
+
+    // Simulate service downtime: advance wallclock but keep ttlClock paused.
+    source.cancel();
+    const t2 = t1 + 60 * 1000; // 1 minute later in wallclock
+    vi.setSystemTime(t2);
+
+    // Clear previous setTimeout calls.
+    setTimeoutFn.mockClear();
+
+    // Connect a new client to restart the service.
+    const client2 = connect(SYNC_CONTEXT, []);
+    stateChanges.push({state: 'version-ready'});
+    await nextPokeParts(client2);
+
+    // The query should NOT be expired yet because:
+    // - inactivatedAt was t1 (when ttlClock was t1)
+    // - ttlClock is still t1 (service was down, so no time passed for TTL)
+    // - expiry should be at ttlClock = t1 + ttl (t1 + 10 seconds)
+    // - current ttlClock is still t1, so 10 seconds remain
+    const desires = await cvrDB`
+      SELECT "deleted", "inactivatedAt"
+      FROM "this_app_2/cvr".desires
+      WHERE "clientGroupID" = ${serviceID}
+    `;
+    expect(desires).toEqual([
+      {
+        deleted: true,
+        inactivatedAt: t1,
+      },
+    ]);
+
+    // A timer should be scheduled for the remaining TTL (10 seconds).
+    expect(setTimeoutFn).toHaveBeenCalledTimes(1);
+    const [, delay] = setTimeoutFn.mock.calls[0];
+    expect(delay).toBe(ttl); // Full 10 seconds since no service time passed
+
+    // Now simulate the service running for 10 seconds to trigger eviction.
+    callNextSetTimeout(ttl);
+
+    // The eviction should trigger a poke to notify clients about the deletion.
+    expect(await nextPokeParts(client2)).toMatchInlineSnapshot(`
+      [
+        {
+          "gotQueriesPatch": [
+            {
+              "hash": "query-hash1",
+              "op": "del",
+            },
+          ],
+          "pokeID": "01:02",
+          "rowsPatch": [
+            {
+              "id": {
+                "id": "1",
+              },
+              "op": "del",
+              "tableName": "issues",
+            },
+            {
+              "id": {
+                "id": "2",
+              },
+              "op": "del",
+              "tableName": "issues",
+            },
+            {
+              "id": {
+                "id": "3",
+              },
+              "op": "del",
+              "tableName": "issues",
+            },
+            {
+              "id": {
+                "id": "4",
+              },
+              "op": "del",
+              "tableName": "issues",
+            },
+          ],
+        },
+      ]
+    `);
+
+    await expectNoPokes(client2);
+
+    // The query should now be expired and cleaned up.
+    const desiresAfterEviction = await cvrDB`
+      SELECT "deleted"
+      FROM "this_app_2/cvr".desires
+      WHERE "clientGroupID" = ${serviceID}
+    `;
+    // Query should remain but be marked as deleted (tombstone)
+    expect(desiresAfterEviction).toEqual([{deleted: true}]);
   });
 });
 
