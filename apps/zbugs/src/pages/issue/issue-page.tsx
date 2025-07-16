@@ -601,35 +601,31 @@ export function IssuePage({onReady}: {onReady: () => void}) {
             </div>
           ) : null}
 
-          {(() => {
-            return (
-              <div className="sidebar-item">
-                <p className="issue-detail-label">Notifications</p>
-                <Combobox<NotificationType>
-                  items={[
-                    {
-                      text: 'Subscribed',
-                      value: 'subscribe',
-                      icon: statusClosed,
-                    },
-                    {
-                      text: 'Unsubscribed',
-                      value: 'unsubscribe',
-                      icon: circle,
-                    },
-                  ]}
-                  selectedValue={currentState}
-                  onChange={value =>
-                    z.mutate.notification.update({
-                      issueID: displayed.id,
-                      subscribed: value,
-                      created: Date.now(),
-                    })
-                  }
-                />
-              </div>
-            );
-          })()}
+          <div className="sidebar-item">
+            <p className="issue-detail-label">Notifications</p>
+            <Combobox<NotificationType>
+              items={[
+                {
+                  text: 'Subscribed',
+                  value: 'subscribe',
+                  icon: statusClosed,
+                },
+                {
+                  text: 'Unsubscribed',
+                  value: 'unsubscribe',
+                  icon: circle,
+                },
+              ]}
+              selectedValue={currentState}
+              onChange={value =>
+                z.mutate.notification.update({
+                  issueID: displayed.id,
+                  subscribed: value,
+                  created: Date.now(),
+                })
+              }
+            />
+          </div>
 
           <div className="sidebar-item">
             <p className="issue-detail-label">Creator</p>
