@@ -524,4 +524,25 @@ describe('Anonymous Telemetry Integration Tests', () => {
       }
     });
   });
+
+  test('should not initialize telemetry components when worker type is syncer', () => {
+    // Reset all mocks
+    vi.clearAllMocks();
+
+    // Mock config to return enabled analytics
+    vi.mocked(getZeroConfig).mockReturnValueOnce({
+      enableUsageAnalytics: true,
+      upstream: {
+        db: 'postgresql://test@localhost/test',
+      },
+    } as unknown as ZeroConfig);
+
+    // Start telemetry as syncer (child process)
+    startAnonymousTelemetry(createSilentLogContext(), undefined, 'syncer');
+
+    // Should not initialize telemetry components for child process
+    expect(OTLPMetricExporter).not.toHaveBeenCalled();
+    expect(PeriodicExportingMetricReader).not.toHaveBeenCalled();
+    expect(MeterProvider).not.toHaveBeenCalled();
+  });
 });

@@ -14,6 +14,11 @@ import {randomUUID} from 'crypto';
 import {existsSync, readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {join, dirname} from 'path';
 import {homedir} from 'os';
+import {
+  singleProcessMode,
+  type Worker,
+  type Message,
+} from '../types/processes.js';
 
 interface TelemetryMetrics {
   mutations: number;
@@ -24,10 +29,10 @@ interface TelemetryMetrics {
   workerType: string | undefined;
 }
 
-interface TelemetryMessage {
-  type: 'telemetry-metrics';
-  data: TelemetryMetrics;
-}
+type TelemetryMessage = Message<TelemetryMetrics>;
+
+// Re-export Worker type for convenience
+export type {Worker} from '../types/processes.js';
 
 class AnonymousTelemetryManager {
   static #instance: AnonymousTelemetryManager;
@@ -44,6 +49,7 @@ class AnonymousTelemetryManager {
   #isMainProcess: boolean;
   #childMetrics: Map<number, TelemetryMetrics> = new Map();
   #sendToParentInterval: ReturnType<typeof setInterval> | null = null;
+  #childWorkers: Set<Worker> = new Set();
 
   static getInstance(): AnonymousTelemetryManager {
     if (!AnonymousTelemetryManager.#instance) {
@@ -53,27 +59,30 @@ class AnonymousTelemetryManager {
   }
 
   constructor() {
-    // Determine if this is the main process or a child process
-    this.#isMainProcess = !process.send;
+    // isMainProcess will be determined in start() based on worker type
+    this.#isMainProcess = false; // Default to false, will be set correctly in start()
+  }
 
-    if (!this.#isMainProcess && process.send) {
-      // Child process: set up periodic sending of metrics to parent
-      this.#sendToParentInterval = setInterval(() => {
-        this.#sendMetricsToParent();
-      }, 10000); // Send every 10 seconds
-    }
+  /**
+   * Register a child worker to receive telemetry metrics from.
+   * Should be called from the main process when creating child workers.
+   */
+  static registerChildWorker(worker: Worker) {
+    const instance = AnonymousTelemetryManager.getInstance();
+    if (instance.#isMainProcess) {
+      instance.#childWorkers.add(worker);
 
-    if (this.#isMainProcess && process) {
-      // Main process: listen for metrics from child processes
-      process.on('message', (message: unknown) => {
-        if (
-          message &&
-          typeof message === 'object' &&
-          message !== null &&
-          'type' in message &&
-          message.type === 'telemetry-metrics'
-        ) {
-          this.#handleChildMetrics(message as TelemetryMessage);
+      // Listen for telemetry messages from this worker
+      worker.onMessageType('telemetry-metrics', (msg: unknown) => {
+        const metrics = msg as TelemetryMetrics;
+        instance.#handleChildMetrics(['telemetry-metrics', metrics]);
+      });
+
+      // Clean up when worker terminates
+      worker.once('close', () => {
+        instance.#childWorkers.delete(worker);
+        if (worker.pid !== undefined) {
+          instance.#childMetrics.delete(worker.pid);
         }
       });
     }
@@ -90,10 +99,7 @@ class AnonymousTelemetryManager {
         workerType: undefined, // TODO: Pass worker type via start() method
       };
 
-      const message: TelemetryMessage = {
-        type: 'telemetry-metrics',
-        data: metrics,
-      };
+      const message: TelemetryMessage = ['telemetry-metrics', metrics];
 
       try {
         process.send(message);
@@ -107,11 +113,14 @@ class AnonymousTelemetryManager {
   }
 
   #handleChildMetrics(message: TelemetryMessage) {
-    const {pid, ...metrics} = message.data;
-    this.#childMetrics.set(pid, message.data);
-    this.#lc?.debug?.(
-      `Received telemetry metrics from child ${pid}: ${JSON.stringify(metrics)}`,
-    );
+    const [type, metrics] = message;
+    if (type === 'telemetry-metrics') {
+      const {pid, ...metricData} = metrics;
+      this.#childMetrics.set(pid, metrics);
+      this.#lc?.debug?.(
+        `Received telemetry metrics from child ${pid}: ${JSON.stringify(metricData)}`,
+      );
+    }
   }
 
   #getAggregatedMetrics() {
@@ -137,7 +146,7 @@ class AnonymousTelemetryManager {
     };
   }
 
-  start(lc?: LogContext, config?: ZeroConfig) {
+  start(lc?: LogContext, config?: ZeroConfig, workerType?: string) {
     if (!config) {
       try {
         config = getZeroConfig();
@@ -161,11 +170,29 @@ class AnonymousTelemetryManager {
       return;
     }
 
+    // Determine if this is the main process based on worker type
+    // The dispatcher is the process that creates and manages all workers,
+    // so it should be the one collecting telemetry from child processes
+    // Priority: 1) explicit worker type, 2) single process mode, 3) process.send check
+    if (workerType) {
+      this.#isMainProcess = workerType === 'dispatcher';
+    } else {
+      this.#isMainProcess = singleProcessMode() || !process.send;
+    }
+
     this.#lc = lc;
     this.#config = config;
     this.#cachedAttributes = undefined;
 
-    // Only start the actual telemetry export in the main process
+    // Set up child process communication if not main process
+    if (!this.#isMainProcess && process.send) {
+      // Child process: set up periodic sending of metrics to parent
+      this.#sendToParentInterval = setInterval(() => {
+        this.#sendMetricsToParent();
+      }, 10000); // Send every 10 seconds
+    }
+
+    // Only start the actual telemetry export in the main process (dispatcher)
     if (this.#isMainProcess) {
       const resource = resourceFromAttributes(this.#getAttributes());
       const metricReader = new PeriodicExportingMetricReader({
@@ -454,8 +481,11 @@ class AnonymousTelemetryManager {
 
 const manager = () => AnonymousTelemetryManager.getInstance();
 
-export const startAnonymousTelemetry = (lc?: LogContext, config?: ZeroConfig) =>
-  manager().start(lc, config);
+export const startAnonymousTelemetry = (
+  lc?: LogContext,
+  config?: ZeroConfig,
+  workerType?: string,
+) => manager().start(lc, config, workerType);
 export const recordMutation = (count = 1) => manager().recordMutation(count);
 export const recordRowsSynced = (count: number) =>
   manager().recordRowsSynced(count);
@@ -464,3 +494,5 @@ export const recordConnectionSuccess = () =>
 export const recordConnectionAttempted = () =>
   manager().recordConnectionAttempted();
 export const shutdownAnonymousTelemetry = () => manager().shutdown();
+export const registerChildWorker = (worker: Worker) =>
+  AnonymousTelemetryManager.registerChildWorker(worker);

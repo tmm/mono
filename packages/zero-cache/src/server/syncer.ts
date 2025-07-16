@@ -47,7 +47,7 @@ export default function runWorker(
   const lc = createLogContext(config, {worker: 'syncer'});
 
   // Start telemetry in all workers
-  startAnonymousTelemetry(lc, config);
+  startAnonymousTelemetry(lc, config, 'syncer');
 
   assert(args.length > 0, `replicator mode not specified`);
   const fileMode = v.parse(args[0], replicaFileModeSchema);

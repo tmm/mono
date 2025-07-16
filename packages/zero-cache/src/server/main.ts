@@ -34,6 +34,7 @@ import {WorkerDispatcher} from './worker-dispatcher.ts';
 import {
   startAnonymousTelemetry,
   shutdownAnonymousTelemetry,
+  registerChildWorker,
 } from './anonymous-otel-start.ts';
 
 const clientConnectionBifurcated = false;
@@ -48,7 +49,7 @@ export default async function runWorker(
   const lc = createLogContext(config, {worker: 'dispatcher'});
 
   // Start telemetry in the main process to collect metrics from all child processes
-  startAnonymousTelemetry(lc, config);
+  startAnonymousTelemetry(lc, config, 'dispatcher');
 
   const processes = new ProcessManager(lc, parent);
 
@@ -89,6 +90,10 @@ export default async function runWorker(
   ): Worker {
     const worker = childWorker(modulePath, env, ...args, ...internalFlags);
     const name = path.basename(modulePath) + (id ? ` (${id})` : '');
+
+    // Register worker for telemetry collection
+    registerChildWorker(worker);
+
     return processes.addWorker(worker, type, name);
   }
 

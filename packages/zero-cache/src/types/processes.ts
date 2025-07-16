@@ -19,11 +19,12 @@ import {pid} from 'node:process';
  * the message of interest to filter messages to those of interest.
  */
 export const MESSAGE_TYPES = {
-  handoff: 'handoff',
-  status: 'status',
-  subscribe: 'subscribe',
-  notify: 'notify',
-  ready: 'ready',
+  'handoff': 'handoff',
+  'status': 'status',
+  'subscribe': 'subscribe',
+  'notify': 'notify',
+  'ready': 'ready',
+  'telemetry-metrics': 'telemetry-metrics',
 } as const;
 
 export type Message<Payload> = [keyof typeof MESSAGE_TYPES, Payload];

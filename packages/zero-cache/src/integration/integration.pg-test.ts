@@ -41,6 +41,7 @@ import type {PostgresDB} from '../types/pg.ts';
 import {childWorker, type Worker} from '../types/processes.ts';
 import {stream, type Sink} from '../types/streams.ts';
 import {PROTOCOL_ERROR} from '../types/ws.ts';
+import {registerChildWorker} from '../server/anonymous-otel-start.ts';
 
 // Adjust to debug.
 const LOG_LEVEL: LogLevel = 'error';
@@ -491,6 +492,10 @@ describe('integration', {timeout: 30000}, () => {
       zerosExited.push(done);
 
       const zero = childWorker('./server/runner/main.ts', env);
+
+      // Register worker for telemetry collection
+      registerChildWorker(zero);
+
       zero.onMessageType('ready', onReady);
       zero.on('close', onClose);
       zeros.push(zero);

@@ -5,6 +5,7 @@ import {normalizeZeroConfig} from '../../config/normalize.ts';
 import {getZeroConfig} from '../../config/zero-config.ts';
 import {ProcessManager, runUntilKilled} from '../../services/life-cycle.ts';
 import {childWorker, type Worker} from '../../types/processes.ts';
+import {registerChildWorker} from '../anonymous-otel-start.ts';
 import {createLogContext} from '../logging.ts';
 import {getTaskID} from './runtime.ts';
 import {ZeroDispatcher} from './zero-dispatcher.ts';
@@ -48,6 +49,9 @@ export async function runWorker(
           lc.info?.(`zero-cache ready (${performance.now() - startMs} ms)`);
         })
         .once('error', r.reject);
+
+      // Register worker for telemetry collection
+      registerChildWorker(w);
 
       processes.addWorker(w, 'user-facing', 'zero-cache');
     }
