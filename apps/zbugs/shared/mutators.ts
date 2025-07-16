@@ -288,9 +288,6 @@ export function createMutators(authData: AuthData | undefined) {
         subscribed: false,
         created,
       });
-    } else {
-      assert(subscribed === 'if-interacted');
-      await tx.mutate.issueNotifications.delete({userID, issueID});
     }
   }
 }
