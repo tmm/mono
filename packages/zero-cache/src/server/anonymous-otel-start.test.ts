@@ -38,10 +38,15 @@ describe('Anonymous Telemetry Integration Tests', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockObservableCounter: any;
   let originalEnv: NodeJS.ProcessEnv;
+  let originalSend: typeof process.send;
 
   beforeAll(() => {
-    // Store original environment
+    // Store original environment and process.send
     originalEnv = {...process.env};
+    originalSend = process.send;
+
+    // Mock process.send to prevent IPC interference with Vitest
+    process.send = undefined as any;
 
     // Reset all mocks
     vi.clearAllMocks();
@@ -100,8 +105,11 @@ describe('Anonymous Telemetry Integration Tests', () => {
   });
 
   afterAll(() => {
-    // Restore environment
+    // Restore environment and process.send
     process.env = originalEnv;
+    if (originalSend) {
+      process.send = originalSend;
+    }
 
     // Shutdown telemetry
     shutdownAnonymousTelemetry();
