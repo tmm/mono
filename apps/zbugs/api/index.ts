@@ -167,6 +167,37 @@ fastify.post<{
   );
 });
 
+fastify.get<{
+  Querystring: {id: string; email: string};
+}>('/api/unsubscribe', async (request, reply) => {
+  const existingUserResult =
+    await sql`SELECT id, email FROM "user" WHERE "email" = ${request.query.email}`;
+
+  const existingUser = existingUserResult[0];
+
+  if (!existingUser) {
+    reply.status(401).send('Unauthorized');
+    return;
+  }
+
+  // Look up the actual issue ID from the shortID
+  const issueResult =
+    await sql`SELECT id FROM "issue" WHERE "shortID" = ${parseInt(request.query.id)}`;
+
+  const issue = issueResult[0];
+
+  if (!issue) {
+    reply.status(404).send('Issue not found');
+    return;
+  }
+
+  await sql`INSERT INTO "issueNotifications" ("userID", "issueID", "subscribed") 
+    VALUES (${existingUser.id}, ${issue.id}, false)
+    ON CONFLICT ("userID", "issueID") 
+    DO UPDATE SET "subscribed" = false`;
+  reply.redirect(`/issue/${request.query.id}?unsubscribed=true`);
+});
+
 async function maybeVerifyAuth(
   headers: IncomingHttpHeaders,
 ): Promise<JWTData | undefined> {

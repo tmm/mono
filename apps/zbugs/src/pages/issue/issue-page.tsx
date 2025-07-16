@@ -16,7 +16,7 @@ import {
 import TextareaAutosize from 'react-textarea-autosize';
 import {toast, ToastContainer} from 'react-toastify';
 import {assert} from 'shared/src/asserts.js';
-import {useParams} from 'wouter';
+import {useParams, useSearchParams} from 'wouter';
 import {navigate, useHistoryState} from 'wouter/use-browser-location';
 import {findLastIndex} from '../../../../../packages/shared/src/find-last-index.ts';
 import {must} from '../../../../../packages/shared/src/must.ts';
@@ -29,8 +29,6 @@ import {
 import statusClosed from '../../assets/icons/issue-closed.svg';
 import statusOpen from '../../assets/icons/issue-open.svg';
 import circle from '../../assets/icons/circle.svg';
-import halfCircle from '../../assets/icons/half-circle.svg';
-import circleDot from '../../assets/icons/circle-dot.svg';
 import {commentQuery} from '../../comment-query.ts';
 import {AvatarImage} from '../../components/avatar-image.tsx';
 import {Button} from '../../components/button.tsx';
@@ -83,6 +81,9 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   const idStr = must(params.id);
   const idField = /[^\d]/.test(idStr) ? 'id' : 'shortID';
   const id = idField === 'shortID' ? parseInt(idStr) : idStr;
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showUnsubscribeToast = searchParams?.get('unsubscribed') === 'true';
 
   const zbugsHistoryState = useHistoryState<ZbugsHistoryState | undefined>();
   const listContext = zbugsHistoryState?.zbugsListContext;
@@ -345,6 +346,28 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   useEmojiDataSourcePreload();
   useShowToastForNewComment(comments, virtualizer, highlightComment);
 
+  useEffect(() => {
+    if (showUnsubscribeToast) {
+      const toastID = `unsubscribe-${id}`;
+      toast(
+        <ToastContent toastID={toastID}>
+          You have been unsubscribed from this issue.
+        </ToastContent>,
+        {
+          toastId: toastID,
+          containerId: 'bottom',
+          autoClose: 5000,
+          onClose: () => {
+            setSearchParams(prev => {
+              prev.delete('unsubscribed');
+              return prev;
+            });
+          },
+        },
+      );
+    }
+  }, [showUnsubscribeToast, id, setSearchParams]);
+
   if (!displayed && issueResult.type === 'complete') {
     return (
       <div>
@@ -373,6 +396,11 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   }
 
   const rendering = editing ? {...editing, ...edits} : displayed;
+
+  const isSubscribed = issue?.notificationState?.subscribed;
+  const currentState: NotificationType = isSubscribed
+    ? 'subscribe'
+    : 'unsubscribe';
 
   return (
     <div className="issue-detail-container">
@@ -563,42 +591,28 @@ export function IssuePage({onReady}: {onReady: () => void}) {
           ) : null}
 
           {(() => {
-            const isSubscribed = issue?.notificationState?.subscribed;
-            const currentState: NotificationType =
-              isSubscribed === undefined
-                ? 'if-interacted'
-                : isSubscribed
-                  ? 'subscribe'
-                  : 'unsubscribe';
-
             return (
               <div className="sidebar-item">
                 <p className="issue-detail-label">Notifications</p>
                 <Combobox<NotificationType>
-                  editable={false}
-                  disabled={!canEdit}
                   items={[
                     {
-                      text: 'If interacted',
-                      value: 'if-interacted',
-                      icon: halfCircle,
-                    },
-                    {
-                      text: 'Subscribe',
+                      text: 'Subscribed',
                       value: 'subscribe',
                       icon: statusClosed,
                     },
                     {
-                      text: 'Unsubscribe',
+                      text: 'Unsubscribed',
                       value: 'unsubscribe',
                       icon: circle,
                     },
                   ]}
                   selectedValue={currentState}
                   onChange={value =>
-                    z.mutate.issue.toggleNotification({
+                    z.mutate.notification.update({
                       issueID: displayed.id,
                       subscribed: value,
+                      created: Date.now(),
                     })
                   }
                 />

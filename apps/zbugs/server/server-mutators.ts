@@ -1,14 +1,15 @@
-import {
-  createMutators,
-  type CreateIssueArgs,
-  type AddEmojiArgs,
-  type AddCommentArgs,
-} from '../shared/mutators.ts';
 import {type CustomMutatorDefs, type UpdateValue} from '@rocicorp/zero';
-import {schema} from '../shared/schema.ts';
-import {notify} from './notify.ts';
+import type {TransactionSql} from 'postgres';
 import {assert} from '../../../packages/shared/src/asserts.ts';
 import {type AuthData} from '../shared/auth.ts';
+import {
+  createMutators,
+  type AddCommentArgs,
+  type AddEmojiArgs,
+  type CreateIssueArgs,
+} from '../shared/mutators.ts';
+import {schema} from '../shared/schema.ts';
+import {notify} from './notify.ts';
 
 export type PostCommitTask = () => Promise<void>;
 
@@ -32,45 +33,37 @@ export function createServerMutators(
           created: Date.now(),
           modified: Date.now(),
         });
-        await notify(
-          tx,
-          authData,
-          {kind: 'create-issue', issueID: id},
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {kind: 'create-issue', issueID: id},
+            postCommitTasks,
+          );
+        }
       },
 
       async update(
         tx,
         args: {id: string} & UpdateValue<typeof schema.tables.issue>,
       ) {
-        const oldIssue = await tx.query.issue.where('id', args.id).one();
-        assert(oldIssue);
-
-        const isAssigneeChange =
-          args.assigneeID !== undefined &&
-          args.assigneeID !== oldIssue.assigneeID;
-        const previousAssigneeID = isAssigneeChange
-          ? oldIssue.assigneeID
-          : undefined;
-
         await mutators.issue.update(tx, {
           ...args,
           modified: Date.now(),
         });
 
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'update-issue',
-            issueID: args.id,
-            update: args,
-          },
-          postCommitTasks,
-          isAssigneeChange,
-          previousAssigneeID,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'update-issue',
+              issueID: args.id,
+              update: args,
+            },
+            postCommitTasks,
+          );
+        }
       },
 
       async addLabel(
@@ -78,16 +71,18 @@ export function createServerMutators(
         {issueID, labelID}: {issueID: string; labelID: string},
       ) {
         await mutators.issue.addLabel(tx, {issueID, labelID});
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'update-issue',
-            issueID,
-            update: {id: issueID},
-          },
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'update-issue',
+              issueID,
+              update: {id: issueID},
+            },
+            postCommitTasks,
+          );
+        }
       },
 
       async removeLabel(
@@ -95,16 +90,18 @@ export function createServerMutators(
         {issueID, labelID}: {issueID: string; labelID: string},
       ) {
         await mutators.issue.removeLabel(tx, {issueID, labelID});
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'update-issue',
-            issueID,
-            update: {id: issueID},
-          },
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'update-issue',
+              issueID,
+              update: {id: issueID},
+            },
+            postCommitTasks,
+          );
+        }
       },
     },
 
@@ -116,16 +113,18 @@ export function createServerMutators(
           ...args,
           created: Date.now(),
         });
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'add-emoji-to-issue',
-            issueID: args.subjectID,
-            emoji: args.unicode,
-          },
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'add-emoji-to-issue',
+              issueID: args.subjectID,
+              emoji: args.unicode,
+            },
+            postCommitTasks,
+          );
+        }
       },
 
       async addToComment(tx, args: AddEmojiArgs) {
@@ -138,17 +137,19 @@ export function createServerMutators(
           .where('id', args.subjectID)
           .one();
         assert(comment);
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'add-emoji-to-comment',
-            issueID: comment.issueID,
-            commentID: args.subjectID,
-            emoji: args.unicode,
-          },
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'add-emoji-to-comment',
+              issueID: comment.issueID,
+              commentID: args.subjectID,
+              emoji: args.unicode,
+            },
+            postCommitTasks,
+          );
+        }
       },
     },
 
@@ -162,17 +163,19 @@ export function createServerMutators(
           body,
           created: Date.now(),
         });
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'add-comment',
-            issueID,
-            commentID: id,
-            comment: body,
-          },
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'add-comment',
+              issueID,
+              commentID: id,
+              comment: body,
+            },
+            postCommitTasks,
+          );
+        }
       },
 
       async edit(tx, {id, body}: {id: string; body: string}) {
@@ -181,18 +184,20 @@ export function createServerMutators(
         const comment = await tx.query.comment.where('id', id).one();
         assert(comment);
 
-        await notify(
-          tx,
-          authData,
-          {
-            kind: 'edit-comment',
-            issueID: comment.issueID,
-            commentID: id,
-            comment: body,
-          },
-          postCommitTasks,
-        );
+        if (tx.location === 'server') {
+          await notify(
+            tx,
+            authData,
+            {
+              kind: 'edit-comment',
+              issueID: comment.issueID,
+              commentID: id,
+              comment: body,
+            },
+            postCommitTasks,
+          );
+        }
       },
     },
-  } as const satisfies CustomMutatorDefs<typeof schema>;
+  } as const satisfies CustomMutatorDefs<typeof schema, TransactionSql>;
 }
