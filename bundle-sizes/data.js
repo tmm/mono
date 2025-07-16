@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752080657202,
+  "lastUpdate": 1752654626041,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52857,6 +52857,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 31638,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "5960eee30cc93238a607a6dae2ff58eb00ccb738",
+          "message": "chore(zero): Improve error message when idb is deleted.\n\nreport: https://discord.com/channels/830183651022471199/1288232858795769917/1379073460633862295",
+          "timestamp": "2025-07-15T22:29:19-10:00",
+          "tree_id": "d02e93a4be2df44f255656623fa68303567a7766",
+          "url": "https://github.com/rocicorp/mono/commit/5960eee30cc93238a607a6dae2ff58eb00ccb738"
+        },
+        "date": 1752654614066,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300641,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54264,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110834,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31692,
             "unit": "bytes"
           }
         ]
