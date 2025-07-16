@@ -27,9 +27,9 @@ import {getShardID} from '../types/shards.ts';
 import {Subscription} from '../types/subscription.ts';
 import {replicaFileModeSchema, replicaFileName} from '../workers/replicator.ts';
 import {Syncer} from '../workers/syncer.ts';
+import {startAnonymousTelemetry} from './anonymous-otel-start.ts';
 import {createLogContext} from './logging.ts';
 import {startOtelAuto} from './otel-start.ts';
-import {startAnonymousTelemetry} from './anonymous-otel-start.ts';
 
 function randomID() {
   return randInt(1, Number.MAX_SAFE_INTEGER).toString(36);
@@ -46,11 +46,8 @@ export default function runWorker(
 
   const lc = createLogContext(config, {worker: 'syncer'});
 
-  // Use process PID as worker identifier since worker index isn't in args
-  const workerId = `syncer-${pid}`;
-
-  // Start telemetry in all workers with worker dimension
-  startAnonymousTelemetry(lc, config, workerId);
+  // Start telemetry in all workers
+  startAnonymousTelemetry(lc, config);
 
   assert(args.length > 0, `replicator mode not specified`);
   const fileMode = v.parse(args[0], replicaFileModeSchema);
@@ -96,7 +93,7 @@ export default function runWorker(
       .withContext('instance', randomID());
     lc.debug?.(`creating view syncer`);
     return new ViewSyncerService(
-      config.pull,
+      config.query,
       logger,
       shard,
       config.taskID,
@@ -113,8 +110,6 @@ export default function runWorker(
       sub,
       drainCoordinator,
       config.log.slowHydrateThreshold,
-      undefined,
-      config.targetClientRowCount,
     );
   };
 
@@ -128,14 +123,18 @@ export default function runWorker(
     );
 
   const pusherFactory =
-    config.push.url === undefined
+    config.push.url === undefined && config.mutate.url === undefined
       ? undefined
       : (id: string) =>
           new PusherService(
             config,
             {
               ...config.push,
-              url: must(config.push.url),
+              ...config.mutate,
+              url: must(
+                config.push.url ?? config.mutate.url,
+                'No push or mutate URL configured',
+              ),
             },
             lc.withContext('clientGroupID', id),
             id,

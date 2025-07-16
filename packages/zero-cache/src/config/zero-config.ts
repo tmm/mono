@@ -154,6 +154,42 @@ const authOptions = {
   },
 };
 
+const makeMutatorQueryOptions = (
+  replacement: string | undefined,
+  suffix: string,
+) => ({
+  url: {
+    type: v.array(v.string()).optional(), // optional until we remove CRUD mutations
+    desc: [
+      replacement ? `DEPRECATED. Use ${replacement} instead.` : ``,
+      `The URL of the API server to which zero-cache will ${suffix}.`,
+      ``,
+      `* is allowed if you would like to allow the client to specify a subdomain to use.`,
+      `e.g., *.example.com/api/mutate`,
+      `You can specify multiple URLs as well which the client can choose from.`,
+      `e.g., ["https://api1.example.com/mutate", "https://api2.example.com/mutate"]`,
+    ],
+  },
+  apiKey: {
+    type: v.string().optional(),
+    desc: [
+      `An optional secret used to authorize zero-cache to call the API server handling writes.`,
+    ],
+  },
+  forwardCookies: {
+    type: v.boolean().default(false),
+    desc: [
+      `If true, zero-cache will forward cookies from the request.`,
+      `This is useful for passing authentication cookies to the API server.`,
+      `If false, cookies are not forwarded.`,
+    ],
+  },
+});
+
+const mutateOptions = makeMutatorQueryOptions(undefined, 'push mutations');
+const pushOptions = makeMutatorQueryOptions('mutate-url', 'push mutations');
+const queryOptions = makeMutatorQueryOptions(undefined, 'send named queries');
+
 export type AuthConfig = Config<typeof authOptions>;
 
 // Note: --help will list flags in the order in which they are defined here,
@@ -199,55 +235,9 @@ export const zeroOptions = {
     },
   },
 
-  push: {
-    url: {
-      type: v.string().optional(), // optional until we remove CRUD mutations
-      desc: [
-        `The URL of the API server to which zero-cache will push mutations.`,
-      ],
-    },
-    apiKey: {
-      type: v.string().optional(),
-      desc: [
-        `An optional secret used to authorize zero-cache to call the API server handling writes.`,
-      ],
-    },
-    forwardCookies: {
-      type: v.boolean().default(false),
-      desc: [
-        `If true, zero-cache will forward cookies from the request to the push URL.`,
-        `This is useful for passing authentication cookies to the API server.`,
-        `If false, cookies are not forwarded.`,
-        ``,
-        `Note that this option is only relevant if the {bold push-url} is set.`,
-      ],
-    },
-  },
-
-  pull: {
-    url: {
-      type: v.string().optional(),
-      desc: [
-        `The URL of the API server to which zero-cache will send named queries.`,
-      ],
-    },
-    apiKey: {
-      type: v.string().optional(),
-      desc: [
-        `An optional secret used to authorize zero-cache to call the API server handling reads.`,
-      ],
-    },
-    forwardCookies: {
-      type: v.boolean().default(false),
-      desc: [
-        `If true, zero-cache will forward cookies from the request to the pull URL.`,
-        `This is useful for passing authentication cookies to the API server.`,
-        `If false, cookies are not forwarded.`,
-        ``,
-        `Note that this option is only relevant if the {bold pull-url} is set.`,
-      ],
-    },
-  },
+  push: pushOptions,
+  mutate: mutateOptions,
+  query: queryOptions,
 
   cvr: {
     db: {
@@ -576,13 +566,12 @@ export const zeroOptions = {
 
   targetClientRowCount: {
     type: v.number().default(20_000),
-    desc: [
-      'The target number of rows to keep per client in the client side cache.',
-      'This limit is a soft limit. When the number of rows in the cache exceeds',
-      'this limit, zero-cache will evict inactive queries in order of ttl-based expiration.',
-      'Active queries, on the other hand, are never evicted and are allowed to use more',
-      'rows than the limit.',
+    deprecated: [
+      'This option is no longer used and will be removed in a future version.',
+      'The client-side cache no longer enforces a row limit. Instead, TTL-based expiration',
+      'automatically manages cache size to prevent unbounded growth.',
     ],
+    hidden: true,
   },
 
   lazyStartup: {

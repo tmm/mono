@@ -2,11 +2,12 @@ import {Zero} from '@rocicorp/zero';
 import {type Schema} from '../shared/schema.ts';
 import {type Mutators} from '../shared/mutators.ts';
 import {CACHE_FOREVER} from './query-cache-policy.ts';
-import {allLabels, allUsers, issuePreload} from '../shared/queries.ts';
+import {queries} from '../shared/queries.ts';
+import type {AuthData} from '../shared/auth.ts';
 
-export function preload(z: Zero<Schema, Mutators>) {
+export function preload(auth: AuthData | undefined, z: Zero<Schema, Mutators>) {
   // Preload all issues and first 10 comments from each.
-  z.preload(issuePreload(z.userID), CACHE_FOREVER);
-  z.preload(allUsers(), CACHE_FOREVER);
-  z.preload(allLabels(), CACHE_FOREVER);
+  z.preload(queries.issuePreload(auth, z.userID), CACHE_FOREVER);
+  z.preload(queries.allUsers(auth), CACHE_FOREVER);
+  z.preload(queries.allLabels(auth), CACHE_FOREVER);
 }

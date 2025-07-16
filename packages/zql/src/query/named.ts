@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
+import {mapEntries} from '../../../shared/src/objects.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {SchemaQuery} from '../mutate/custom.ts';
 import {newQuery} from './query-impl.ts';
@@ -11,6 +12,16 @@ export type NamedQuery<
   TReturnQuery extends Query<any, any, any> = Query<any, any, any>,
 > = (...args: TArg) => TReturnQuery;
 
+export type ContextualizedNamedQuery<
+  TContext,
+  TArg extends
+    ReadonlyArray<ReadonlyJSONValue> = ReadonlyArray<ReadonlyJSONValue>,
+  TReturnQuery extends Query<any, any, any> = Query<any, any, any>,
+> = {
+  (context: TContext, ...args: TArg): TReturnQuery;
+  contextualized?: boolean;
+};
+
 export type CustomQueryID = {
   name: string;
   args: ReadonlyArray<ReadonlyJSONValue>;
@@ -19,7 +30,7 @@ export type CustomQueryID = {
 /**
  * Returns a set of query builders for the given schema.
  */
-export function querify<S extends Schema>(s: S): SchemaQuery<S> {
+export function createBuilder<S extends Schema>(s: S): SchemaQuery<S> {
   return makeQueryBuilders(s) as SchemaQuery<S>;
 }
 
@@ -32,17 +43,76 @@ export function querify<S extends Schema>(s: S): SchemaQuery<S> {
  * The main use case here is to apply permissions to the requested query or
  * to expand the scope of the query to include additional data. E.g., for preloading.
  */
-export function namedQuery<
-  TArg extends ReadonlyArray<ReadonlyJSONValue>,
-  TReturnQuery extends Query<any, any, any>,
->(
+function namedQuery(
   name: string,
-  fn: NamedQuery<TArg, TReturnQuery>,
-): NamedQuery<TArg, TReturnQuery> {
-  return ((...args: TArg) => fn(...args).nameAndArgs(name, args)) as NamedQuery<
-    TArg,
-    TReturnQuery
+  fn: NamedQuery<ReadonlyArray<ReadonlyJSONValue>, Query<any, any, any>>,
+): NamedQuery<ReadonlyArray<ReadonlyJSONValue>, Query<any, any, any>> {
+  return ((...args: ReadonlyArray<ReadonlyJSONValue>) =>
+    fn(...args).nameAndArgs(name, args)) as NamedQuery<
+    ReadonlyArray<ReadonlyJSONValue>,
+    Query<any, any, any>
   >;
+}
+
+function contextualizedNamedQuery<TContext>(
+  name: string,
+  fn: ContextualizedNamedQuery<
+    TContext,
+    ReadonlyArray<ReadonlyJSONValue>,
+    Query<any, any, any>
+  >,
+): ContextualizedNamedQuery<
+  TContext,
+  ReadonlyArray<ReadonlyJSONValue>,
+  Query<any, any, any>
+> {
+  const ret = ((context: TContext, ...args: ReadonlyArray<ReadonlyJSONValue>) =>
+    fn(context, ...args).nameAndArgs(name, args)) as ContextualizedNamedQuery<
+    TContext,
+    ReadonlyArray<ReadonlyJSONValue>,
+    Query<any, any, any>
+  >;
+  ret.contextualized = true;
+
+  return ret;
+}
+
+export function named<
+  TQueries extends {
+    [K in keyof TQueries]: TQueries[K] extends NamedQuery<
+      infer TArgs,
+      Query<any, any, any>
+    >
+      ? TArgs extends ReadonlyArray<ReadonlyJSONValue>
+        ? NamedQuery<TArgs, Query<any, any, any>>
+        : never
+      : never;
+  },
+>(queries: TQueries): TQueries {
+  return mapEntries(queries, (name, query) => [
+    name,
+    namedQuery(name, query as any),
+  ]) as TQueries;
+}
+
+export function namedWithContext<
+  TContext,
+  TQueries extends {
+    [K in keyof TQueries]: TQueries[K] extends ContextualizedNamedQuery<
+      TContext,
+      infer TArgs,
+      Query<any, any, any>
+    >
+      ? TArgs extends ReadonlyArray<ReadonlyJSONValue>
+        ? ContextualizedNamedQuery<TContext, TArgs, Query<any, any, any>>
+        : never
+      : never;
+  },
+>(queries: TQueries): TQueries {
+  return mapEntries(queries, (name, query) => [
+    name,
+    contextualizedNamedQuery(name, query as any),
+  ]) as TQueries;
 }
 
 /**
