@@ -166,6 +166,19 @@ fastify.post<{
 fastify.get<{
   Querystring: {id: string; email: string};
 }>('/api/unsubscribe', async (request, reply) => {
+  if (!request.query.email) {
+    reply.status(400).send('Email is required');
+    return;
+  }
+
+  // Look up the actual issue ID from the shortID
+  const shortID = parseInt(request.query.id);
+
+  if (isNaN(shortID)) {
+    reply.status(400).send('Invalid issue ID');
+    return;
+  }
+
   const existingUserResult =
     await sql`SELECT id, email FROM "user" WHERE "email" = ${request.query.email}`;
 
@@ -176,9 +189,8 @@ fastify.get<{
     return;
   }
 
-  // Look up the actual issue ID from the shortID
   const issueResult =
-    await sql`SELECT id FROM "issue" WHERE "shortID" = ${parseInt(request.query.id)}`;
+    await sql`SELECT id FROM "issue" WHERE "shortID" = ${shortID}`;
 
   const issue = issueResult[0];
 

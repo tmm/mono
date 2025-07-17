@@ -140,6 +140,7 @@ export function createMutators(authData: AuthData | undefined) {
           issueID,
           subscribed,
           created,
+          forceUpdate: true,
         });
       },
     },
@@ -265,16 +266,23 @@ export function createMutators(authData: AuthData | undefined) {
       issueID,
       subscribed,
       created,
+      forceUpdate = false,
     }: {
       userID: string;
       issueID: string;
       subscribed: NotificationType;
       created: number;
+      forceUpdate?: boolean;
     },
   ) {
     await assertUserCanSeeIssue(tx, userID, issueID);
 
-    if (subscribed === 'subscribe') {
+    const existingNotification = await tx.query.issueNotifications
+      .where('userID', userID)
+      .where('issueID', issueID)
+      .one();
+
+    if (subscribed === 'subscribe' && (!existingNotification || forceUpdate)) {
       await tx.mutate.issueNotifications.upsert({
         userID,
         issueID,

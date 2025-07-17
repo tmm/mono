@@ -33,14 +33,14 @@ export function createServerMutators(
           created: Date.now(),
           modified: Date.now(),
         });
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {kind: 'create-issue', issueID: id},
-            postCommitTasks,
-          );
-        }
+
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {kind: 'create-issue', issueID: id},
+          postCommitTasks,
+        );
       },
 
       async update(
@@ -52,18 +52,17 @@ export function createServerMutators(
           modified: Date.now(),
         });
 
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'update-issue',
-              issueID: args.id,
-              update: args,
-            },
-            postCommitTasks,
-          );
-        }
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'update-issue',
+            issueID: args.id,
+            update: args,
+          },
+          postCommitTasks,
+        );
       },
 
       async addLabel(
@@ -71,18 +70,18 @@ export function createServerMutators(
         {issueID, labelID}: {issueID: string; labelID: string},
       ) {
         await mutators.issue.addLabel(tx, {issueID, labelID});
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'update-issue',
-              issueID,
-              update: {id: issueID},
-            },
-            postCommitTasks,
-          );
-        }
+
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'update-issue',
+            issueID,
+            update: {id: issueID},
+          },
+          postCommitTasks,
+        );
       },
 
       async removeLabel(
@@ -90,18 +89,18 @@ export function createServerMutators(
         {issueID, labelID}: {issueID: string; labelID: string},
       ) {
         await mutators.issue.removeLabel(tx, {issueID, labelID});
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'update-issue',
-              issueID,
-              update: {id: issueID},
-            },
-            postCommitTasks,
-          );
-        }
+
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'update-issue',
+            issueID,
+            update: {id: issueID},
+          },
+          postCommitTasks,
+        );
       },
     },
 
@@ -113,18 +112,18 @@ export function createServerMutators(
           ...args,
           created: Date.now(),
         });
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'add-emoji-to-issue',
-              issueID: args.subjectID,
-              emoji: args.unicode,
-            },
-            postCommitTasks,
-          );
-        }
+
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'add-emoji-to-issue',
+            issueID: args.subjectID,
+            emoji: args.unicode,
+          },
+          postCommitTasks,
+        );
       },
 
       async addToComment(tx, args: AddEmojiArgs) {
@@ -137,19 +136,18 @@ export function createServerMutators(
           .where('id', args.subjectID)
           .one();
         assert(comment);
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'add-emoji-to-comment',
-              issueID: comment.issueID,
-              commentID: args.subjectID,
-              emoji: args.unicode,
-            },
-            postCommitTasks,
-          );
-        }
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'add-emoji-to-comment',
+            issueID: comment.issueID,
+            commentID: args.subjectID,
+            emoji: args.unicode,
+          },
+          postCommitTasks,
+        );
       },
     },
 
@@ -163,19 +161,18 @@ export function createServerMutators(
           body,
           created: Date.now(),
         });
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'add-comment',
-              issueID,
-              commentID: id,
-              comment: body,
-            },
-            postCommitTasks,
-          );
-        }
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'add-comment',
+            issueID,
+            commentID: id,
+            comment: body,
+          },
+          postCommitTasks,
+        );
       },
 
       async edit(tx, {id, body}: {id: string; body: string}) {
@@ -184,19 +181,18 @@ export function createServerMutators(
         const comment = await tx.query.comment.where('id', id).one();
         assert(comment);
 
-        if (tx.location === 'server') {
-          await notify(
-            tx,
-            authData,
-            {
-              kind: 'edit-comment',
-              issueID: comment.issueID,
-              commentID: id,
-              comment: body,
-            },
-            postCommitTasks,
-          );
-        }
+        assert(tx.location === 'server');
+        await notify(
+          tx,
+          authData,
+          {
+            kind: 'edit-comment',
+            issueID: comment.issueID,
+            commentID: id,
+            comment: body,
+          },
+          postCommitTasks,
+        );
       },
     },
   } as const satisfies CustomMutatorDefs<typeof schema, TransactionSql>;

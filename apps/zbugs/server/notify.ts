@@ -80,33 +80,57 @@ export async function notify(
   // Only send to Discord for public issues
   const shouldSendToDiscord = issue.visibility === 'public';
 
-  const issueLink = `https://bugs.rocicorp.dev/issue/${issue.shortID}`;
-  const getUnsubscribeLink = (email: string) =>
-    `https://bugs.rocicorp.dev/api/unsubscribe?id=${issue.shortID}&email=${encodeURIComponent(email)}`;
+  const baseIssueLink = `https://bugs.rocicorp.dev/issue/${issue.shortID}`;
+
+  const sendNotifications = ({
+    recipients,
+    title,
+    message,
+    link,
+  }: {
+    recipients: string[];
+    title: string;
+    message: string;
+    link?: string;
+  }) => {
+    const resolvedLink = link ?? baseIssueLink;
+
+    for (const recipient of recipients) {
+      const unsubscribeLink = `https://bugs.rocicorp.dev/api/unsubscribe?id=${issue.shortID}&email=${encodeURIComponent(recipient)}`;
+
+      postCommitTasks.push(async () => {
+        await sendEmail({
+          tx,
+          email: recipient,
+          title,
+          message,
+          link: resolvedLink,
+          issue,
+          unsubscribeLink,
+        });
+      });
+    }
+
+    if (shouldSendToDiscord) {
+      postCommitTasks.push(() =>
+        postToDiscord({
+          title,
+          message,
+          link: resolvedLink,
+        }),
+      );
+    }
+  };
 
   switch (kind) {
     case 'create-issue': {
-      const payload = {
+      await sendNotifications({
+        recipients,
         title: `${modifierUser.login} reported an issue`,
         message: [issue.title, clip((await issue.description) ?? '')]
           .filter(Boolean)
           .join('\n'),
-        link: issueLink,
-      };
-      for (const recipient of recipients) {
-        postCommitTasks.push(async () => {
-          await sendEmail({
-            tx,
-            email: recipient,
-            ...payload,
-            issue,
-            unsubscribeLink: getUnsubscribeLink(recipient),
-          });
-        });
-      }
-      if (shouldSendToDiscord) {
-        postCommitTasks.push(() => postToDiscord(payload));
-      }
+      });
       break;
     }
 
@@ -139,64 +163,29 @@ export async function notify(
         changes.push('Description was updated');
       }
 
-      const title = `${modifierUser.login} updated an issue`;
-      const message = [
-        issue.title,
-        ...changes,
-        clip((await issue.description) ?? ''),
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      const payload = {
+      await sendNotifications({
         recipients,
-        title,
-        message,
-        link: issueLink,
-      };
-
-      for (const recipient of recipients) {
-        postCommitTasks.push(async () => {
-          await sendEmail({
-            tx,
-            email: recipient,
-            ...payload,
-            issue,
-            unsubscribeLink: getUnsubscribeLink(recipient),
-          });
-        });
-      }
-
-      if (shouldSendToDiscord) {
-        postCommitTasks.push(() => postToDiscord(payload));
-      }
+        title: `${modifierUser.login} updated an issue`,
+        message: [
+          issue.title,
+          ...changes,
+          clip((await issue.description) ?? ''),
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      });
       break;
     }
 
     case 'add-emoji-to-issue': {
       const {emoji} = args;
-      const payload = {
+
+      await sendNotifications({
         recipients,
         title: `${modifierUser.login} reacted to an issue`,
         message: [issue.title, emoji].join('\n'),
-        link: issueLink,
-      };
+      });
 
-      for (const recipient of recipients) {
-        postCommitTasks.push(async () => {
-          await sendEmail({
-            tx,
-            email: recipient,
-            ...payload,
-            issue,
-            unsubscribeLink: getUnsubscribeLink(recipient),
-          });
-        });
-      }
-
-      if (shouldSendToDiscord) {
-        postCommitTasks.push(() => postToDiscord(payload));
-      }
       break;
     }
 
@@ -205,83 +194,38 @@ export async function notify(
       const comment = await tx.query.comment.where('id', commentID).one();
       assert(comment);
 
-      const payload = {
+      await sendNotifications({
         recipients,
         title: `${modifierUser.login} reacted to a comment`,
         message: [clip(await comment.body), emoji].filter(Boolean).join('\n'),
-        link: issueLink,
-      };
+      });
 
-      for (const recipient of recipients) {
-        postCommitTasks.push(async () => {
-          await sendEmail({
-            tx,
-            email: recipient,
-            ...payload,
-            issue,
-            unsubscribeLink: getUnsubscribeLink(recipient),
-          });
-        });
-      }
-
-      if (shouldSendToDiscord) {
-        postCommitTasks.push(() => postToDiscord(payload));
-      }
       break;
     }
 
     case 'add-comment': {
       const {commentID, comment} = args;
-      const payload = {
+
+      await sendNotifications({
         recipients,
         title: `${modifierUser.login} commented on an issue`,
         message: [issue.title, clip(await comment)].join('\n'),
-        link: `${issueLink}#comment-${commentID}`,
-      };
+        link: `${baseIssueLink}#comment-${commentID}`,
+      });
 
-      for (const recipient of recipients) {
-        postCommitTasks.push(async () => {
-          await sendEmail({
-            tx,
-            email: recipient,
-            ...payload,
-            issue,
-            unsubscribeLink: getUnsubscribeLink(recipient),
-          });
-        });
-      }
-
-      if (shouldSendToDiscord) {
-        postCommitTasks.push(() => postToDiscord(payload));
-      }
       break;
     }
 
     case 'edit-comment': {
       const {commentID, comment} = args;
 
-      const payload = {
+      await sendNotifications({
         recipients,
         title: `${modifierUser.login} edited a comment`,
         message: [issue.title, clip(await comment)].join('\n'),
-        link: `${issueLink}#comment-${commentID}`,
-      };
+        link: `${baseIssueLink}#comment-${commentID}`,
+      });
 
-      for (const recipient of recipients) {
-        postCommitTasks.push(async () => {
-          await sendEmail({
-            tx,
-            email: recipient,
-            ...payload,
-            issue,
-            unsubscribeLink: getUnsubscribeLink(recipient),
-          });
-        });
-      }
-
-      if (shouldSendToDiscord) {
-        postCommitTasks.push(() => postToDiscord(payload));
-      }
       break;
     }
   }

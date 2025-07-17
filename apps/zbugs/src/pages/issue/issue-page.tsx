@@ -85,9 +85,6 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   const id = idField === 'shortID' ? parseInt(idStr) : idStr;
   const login = useLogin();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const showUnsubscribeToast = searchParams?.get('unsubscribed') === 'true';
-
   const zbugsHistoryState = useHistoryState<ZbugsHistoryState | undefined>();
   const listContext = zbugsHistoryState?.zbugsListContext;
 
@@ -356,28 +353,6 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   useEmojiChangeListener(displayed, handleEmojiChange);
   useEmojiDataSourcePreload();
   useShowToastForNewComment(comments, virtualizer, highlightComment);
-
-  useEffect(() => {
-    if (showUnsubscribeToast) {
-      const toastID = `unsubscribe-${id}`;
-      toast(
-        <ToastContent toastID={toastID}>
-          You have been unsubscribed from this issue.
-        </ToastContent>,
-        {
-          toastId: toastID,
-          containerId: 'bottom',
-          autoClose: 5000,
-          onClose: () => {
-            setSearchParams(prev => {
-              prev.delete('unsubscribed');
-              return prev;
-            });
-          },
-        },
-      );
-    }
-  }, [showUnsubscribeToast, id, setSearchParams]);
 
   if (!displayed && issueResult.type === 'complete') {
     return (
