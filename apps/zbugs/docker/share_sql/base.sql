@@ -106,6 +106,8 @@ CREATE TABLE "userPref" (
 );
 
 -- issueNotifications
+-- this is so that we know when a user intentionally unsubscribed from an issue,
+-- so we don't then automatically subscribe them to the issue again.
 
 CREATE TABLE "issueNotifications" (
     "userID" VARCHAR REFERENCES "user"(id) ON DELETE CASCADE,

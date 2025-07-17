@@ -282,6 +282,8 @@ export function createMutators(authData: AuthData | undefined) {
       .where('issueID', issueID)
       .one();
 
+    // if the user is subscribing to the issue, and they don't already have a preference
+    // or the forceUpdate flag is set, we upsert the notification.
     if (subscribed === 'subscribe' && (!existingNotification || forceUpdate)) {
       await tx.mutate.issueNotifications.upsert({
         userID,
