@@ -17,7 +17,8 @@ import {homedir} from 'os';
 
 class AnonymousTelemetryManager {
   static #instance: AnonymousTelemetryManager;
-  #started = false;
+  #starting = false;
+  #stopped = false;
   #meter!: Meter;
   #meterProvider!: MeterProvider;
   #totalMutations = 0;
@@ -26,7 +27,13 @@ class AnonymousTelemetryManager {
   #totalConnectionsAttempted = 0;
   #lc: LogContext | undefined;
   #config: ZeroConfig | undefined;
+  #processId: string;
   #cachedAttributes: Record<string, string> | undefined;
+  #viewSyncerCount = 1;
+
+  private constructor() {
+    this.#processId = randomUUID();
+  }
 
   static getInstance(): AnonymousTelemetryManager {
     if (!AnonymousTelemetryManager.#instance) {
@@ -55,16 +62,31 @@ class AnonymousTelemetryManager {
       return;
     }
 
-    if (this.#started || !config.enableUsageAnalytics) {
+    if (this.#starting || !config.enableUsageAnalytics) {
       return;
     }
+
+    this.#starting = true;
     this.#lc = lc;
     this.#config = config;
+    this.#viewSyncerCount = config.numSyncWorkers ?? 1;
     this.#cachedAttributes = undefined;
 
+    this.#lc?.info?.(`Anonymous telemetry will start in 1 minute`);
+
+    // Delay telemetry startup by 1 minute to avoid potential boot loop issues
+    setTimeout(() => this.#run(), 60000);
+  }
+
+  #run() {
+    if (this.#stopped) {
+      return;
+    }
+
     const resource = resourceFromAttributes(this.#getAttributes());
+
     const metricReader = new PeriodicExportingMetricReader({
-      exportIntervalMillis: 60000,
+      exportIntervalMillis: 60000 * this.#viewSyncerCount,
       exporter: new OTLPMetricExporter({
         url: 'https://metrics.rocicorp.dev',
       }),
@@ -77,8 +99,9 @@ class AnonymousTelemetryManager {
     this.#meter = this.#meterProvider.getMeter('zero-anonymous-telemetry');
 
     this.#setupMetrics();
-    this.#lc?.info?.('Anonymous telemetry started (exports every 60 seconds)');
-    this.#started = true;
+    this.#lc?.info?.(
+      `Anonymous telemetry started (exports every ${60 * this.#viewSyncerCount} seconds, scaled by ${this.#viewSyncerCount} view-syncers)`,
+    );
   }
 
   #setupMetrics() {
@@ -177,6 +200,7 @@ class AnonymousTelemetryManager {
   }
 
   shutdown() {
+    this.#stopped = true;
     if (this.#meterProvider) {
       this.#lc?.info?.('Shutting down anonymous telemetry');
       void this.#meterProvider.shutdown();
@@ -193,6 +217,7 @@ class AnonymousTelemetryManager {
         'zero.version': this.#config?.serverVersion ?? packageJson.version,
         'zero.task.id': this.#config?.taskID || 'unknown',
         'zero.project.id': this.#getGitProjectId(),
+        'zero.process.id': this.#processId,
         'zero.fs.id': this.#getOrSetFsID(),
       };
       this.#lc?.debug?.(
@@ -259,24 +284,72 @@ class AnonymousTelemetryManager {
 
   #getOrSetFsID(): string {
     try {
+      if (this.#isInContainer()) {
+        return 'container';
+      }
       const fsidPath = join(homedir(), '.rocicorp', 'fsid');
       const fsidDir = dirname(fsidPath);
 
-      if (existsSync(fsidPath)) {
-        const existingId = readFileSync(fsidPath, 'utf8').trim();
-        return existingId;
-      }
+      mkdirSync(fsidDir, {recursive: true});
 
-      if (!existsSync(fsidDir)) {
-        mkdirSync(fsidDir, {recursive: true});
-      }
-
+      // Always try atomic file creation first - this eliminates any race conditions
       const newId = randomUUID();
-      writeFileSync(fsidPath, newId, 'utf8');
-      return newId;
+      try {
+        writeFileSync(fsidPath, newId, {encoding: 'utf8', flag: 'wx'});
+        return newId;
+      } catch (writeError) {
+        if ((writeError as NodeJS.ErrnoException).code === 'EEXIST') {
+          const existingId = readFileSync(fsidPath, 'utf8').trim();
+          return existingId;
+        }
+        throw writeError;
+      }
     } catch (error) {
       this.#lc?.debug?.('Unable to get or set filesystem ID:', error);
       return 'unknown';
+    }
+  }
+
+  #isInContainer(): boolean {
+    try {
+      if (process.env.ZERO_IN_CONTAINER) {
+        return true;
+      }
+
+      if (existsSync('/.dockerenv')) {
+        return true;
+      }
+
+      if (existsSync('/usr/local/bin/docker-entrypoint.sh')) {
+        return true;
+      }
+
+      if (process.env.KUBERNETES_SERVICE_HOST) {
+        return true;
+      }
+
+      if (
+        process.env.DOCKER_CONTAINER_ID ||
+        process.env.HOSTNAME?.match(/^[a-f0-9]{12}$/)
+      ) {
+        return true;
+      }
+
+      if (existsSync('/proc/1/cgroup')) {
+        const cgroup = readFileSync('/proc/1/cgroup', 'utf8');
+        if (
+          cgroup.includes('docker') ||
+          cgroup.includes('kubepods') ||
+          cgroup.includes('containerd')
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      this.#lc?.debug?.('Unable to detect container environment:', error);
+      return false;
     }
   }
 }
