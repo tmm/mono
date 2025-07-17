@@ -64,10 +64,10 @@ export async function notify(
   const modifierUser = await tx.query.user.where('id', modifierUserID).one();
   assert(modifierUser);
 
-  const recipients = await gatherRecipients(tx, issueID, modifierUserID);
+  const recipientEmails = await gatherRecipients(tx, issueID, modifierUserID);
 
   // If no recipients, skip notification
-  if (recipients.length === 0) {
+  if (recipientEmails.length === 0) {
     console.log('No recipients for notification', issueID);
     return;
   }
@@ -83,25 +83,23 @@ export async function notify(
   const baseIssueLink = `https://bugs.rocicorp.dev/issue/${issue.shortID}`;
 
   const sendNotifications = ({
-    recipients,
     title,
     message,
     link,
   }: {
-    recipients: string[];
     title: string;
     message: string;
     link?: string;
   }) => {
     const resolvedLink = link ?? baseIssueLink;
 
-    for (const recipient of recipients) {
-      const unsubscribeLink = `https://bugs.rocicorp.dev/api/unsubscribe?id=${issue.shortID}&email=${encodeURIComponent(recipient)}`;
+    for (const email of recipientEmails) {
+      const unsubscribeLink = `https://bugs.rocicorp.dev/api/unsubscribe?id=${issue.shortID}&email=${encodeURIComponent(email)}`;
 
       postCommitTasks.push(async () => {
         await sendEmail({
           tx,
-          email: recipient,
+          email,
           title,
           message,
           link: resolvedLink,
@@ -125,7 +123,6 @@ export async function notify(
   switch (kind) {
     case 'create-issue': {
       await sendNotifications({
-        recipients,
         title: `${modifierUser.login} reported an issue`,
         message: [issue.title, clip((await issue.description) ?? '')]
           .filter(Boolean)
@@ -164,7 +161,6 @@ export async function notify(
       }
 
       await sendNotifications({
-        recipients,
         title: `${modifierUser.login} updated an issue`,
         message: [
           issue.title,
@@ -181,7 +177,6 @@ export async function notify(
       const {emoji} = args;
 
       await sendNotifications({
-        recipients,
         title: `${modifierUser.login} reacted to an issue`,
         message: [issue.title, emoji].join('\n'),
       });
@@ -195,7 +190,6 @@ export async function notify(
       assert(comment);
 
       await sendNotifications({
-        recipients,
         title: `${modifierUser.login} reacted to a comment`,
         message: [clip(await comment.body), emoji].filter(Boolean).join('\n'),
       });
@@ -207,7 +201,6 @@ export async function notify(
       const {commentID, comment} = args;
 
       await sendNotifications({
-        recipients,
         title: `${modifierUser.login} commented on an issue`,
         message: [issue.title, clip(await comment)].join('\n'),
         link: `${baseIssueLink}#comment-${commentID}`,
@@ -220,7 +213,6 @@ export async function notify(
       const {commentID, comment} = args;
 
       await sendNotifications({
-        recipients,
         title: `${modifierUser.login} edited a comment`,
         message: [issue.title, clip(await comment)].join('\n'),
         link: `${baseIssueLink}#comment-${commentID}`,
