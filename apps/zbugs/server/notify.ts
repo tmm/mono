@@ -1,6 +1,6 @@
 import {type ServerTransaction, type UpdateValue} from '@rocicorp/zero';
 import type {TransactionSql} from 'postgres';
-import {assert} from '../../../packages/shared/src/asserts.ts';
+import {assert, assertNotNull} from '../../../packages/shared/src/asserts.ts';
 import {assertIsLoggedIn, type AuthData} from '../shared/auth.ts';
 import {schema, type Schema} from '../shared/schema.ts';
 import {postToDiscord} from './discord.ts';
@@ -72,10 +72,7 @@ export async function notify(
     return;
   }
 
-  if (issue.shortID === null) {
-    console.log('No short ID for issue', issueID);
-    return;
-  }
+  assertNotNull(issue.shortID);
 
   // Only send to Discord for public issues
   const shouldSendToDiscord = issue.visibility === 'public';

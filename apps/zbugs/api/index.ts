@@ -204,7 +204,7 @@ fastify.get<{
     ON CONFLICT ("userID", "issueID") 
     DO UPDATE SET "subscribed" = false`;
   reply.send(
-    `OK! You are unsubscribed from issue #${request.query.id}: ${issue.title}.`,
+    `OK! You are unsubscribed from ${issue.title}: https://bugs.rocicorp.dev/issue/${issue.shortID}`,
   );
 });
 
