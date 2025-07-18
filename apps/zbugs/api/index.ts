@@ -203,9 +203,11 @@ fastify.get<{
     VALUES (${existingUser.id}, ${issue.id}, false)
     ON CONFLICT ("userID", "issueID") 
     DO UPDATE SET "subscribed" = false`;
-  reply.send(
-    `OK! You are unsubscribed from ${issue.title}: https://bugs.rocicorp.dev/issue/${issue.shortID}`,
-  );
+  reply
+    .type('text/html')
+    .send(
+      `OK! You are unsubscribed from <a href="https://bugs.rocicorp.dev/issue/${shortID}">${issue.title}</a>.`,
+    );
 });
 
 async function maybeVerifyAuth(
