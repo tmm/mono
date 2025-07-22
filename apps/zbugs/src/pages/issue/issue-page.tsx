@@ -580,6 +580,7 @@ export function IssuePage({onReady}: {onReady: () => void}) {
           <div className="sidebar-item">
             <p className="issue-detail-label">Notifications</p>
             <Combobox<NotificationType>
+              disabled={!login.loginState?.decoded?.sub}
               items={[
                 {
                   text: 'Subscribed',
