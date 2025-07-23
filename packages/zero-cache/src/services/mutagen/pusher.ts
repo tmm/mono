@@ -1,4 +1,5 @@
 import type {LogContext} from '@rocicorp/logger';
+import {PUSH_VERSION_ZERO} from '../../../../replicache/src/sync/push.ts';
 import {groupBy} from '../../../../shared/src/arrays.ts';
 import {assert} from '../../../../shared/src/asserts.ts';
 import {must} from '../../../../shared/src/must.ts';
@@ -258,10 +259,7 @@ class PushWorker {
       const [pushes, terminate] = combinePushes([task, ...rest]);
       for (const push of pushes) {
         const response = await this.#processPush(push);
-        if (push.push.pushVersion !== PUSH_VERSION_ZERO) {
-          await this.#fanOutResponses(response);
-        }
-        // else: response will be sent via poke
+        await this.#fanOutResponses(response, push.push.pushVersion);
       }
 
       if (terminate) {
@@ -280,7 +278,7 @@ class PushWorker {
    * Each client is on a different websocket connection though, so we need to fan out the response
    * to all the clients that were part of the push.
    */
-  async #fanOutResponses(response: PushResponse | Fatal) {
+  async #fanOutResponses(response: PushResponse | Fatal, pushVersion: number) {
     const responses: Promise<Result>[] = [];
     const connectionTerminations: (() => void)[] = [];
     if ('error' in response) {
@@ -313,6 +311,7 @@ class PushWorker {
         } else if (response.error === 'forClient') {
           client.downstream.fail(response.cause);
         } else {
+          // responses come over via `poke` in PUSH_VERSION_ZERO and later.
           responses.push(
             client.downstream.push([
               'pushResponse',
@@ -324,7 +323,9 @@ class PushWorker {
           );
         }
       }
-    } else {
+    } else if (pushVersion < PUSH_VERSION_ZERO) {
+      // We only fan out individual mutation responses for old push versions.
+      // Newer push versions use the `poke` mechanism to send responses.
       const groupedMutations = groupBy(response.mutations, m => m.id.clientID);
       for (const [clientID, mutations] of groupedMutations) {
         const client = this.#clients.get(clientID);

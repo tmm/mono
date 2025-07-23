@@ -702,14 +702,14 @@ describe('pusher streaming', () => {
       ok: true,
       json: () => Promise.resolve(successResponse1),
     });
-    pusher.enqueuePush('client1', makePush(1, 'client1'), 'jwt', undefined);
+    pusher.enqueuePush('client1', makePush(1, 'client1', 1), 'jwt', undefined);
     await new Promise(resolve => setTimeout(resolve, 0));
 
     fetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(successResponse2),
     });
-    pusher.enqueuePush('client2', makePush(2, 'client2'), 'jwt', undefined);
+    pusher.enqueuePush('client2', makePush(2, 'client2', 1), 'jwt', undefined);
 
     const s1Messages: unknown[] = [];
     const s2Messages: unknown[] = [];
@@ -783,8 +783,8 @@ describe('pusher streaming', () => {
     const stream1 = pusher.initConnection('client1', 'ws1', undefined);
     const stream2 = pusher.initConnection('client2', 'ws2', undefined);
 
-    pusher.enqueuePush('client1', makePush(1, 'client1'), 'jwt', undefined);
-    pusher.enqueuePush('client2', makePush(1, 'client2'), 'jwt', undefined);
+    pusher.enqueuePush('client1', makePush(1, 'client1', 1), 'jwt', undefined);
+    pusher.enqueuePush('client2', makePush(1, 'client2', 1), 'jwt', undefined);
 
     const messages1: unknown[] = [];
     const messages2: unknown[] = [];
@@ -1057,11 +1057,15 @@ beforeEach(() => {
   id = 0;
 });
 
-function makePush(numMutations: number, clientID?: string): PushBody {
+function makePush(
+  numMutations: number,
+  clientID?: string,
+  pushVersion = 2,
+): PushBody {
   return {
     clientGroupID: 'cgid',
     mutations: Array.from({length: numMutations}, () => makeMutation(clientID)),
-    pushVersion: 2,
+    pushVersion,
     requestID: 'rid',
     schemaVersion: 1,
     timestamp: ++timestamp,
@@ -1078,3 +1082,7 @@ function makeMutation(clientID?: string): Mutation {
     timestamp: ++timestamp,
   } as const;
 }
+
+// TODO:
+// - test that new push versions do not fan out responses for mutation results
+// - test that both push versions do return error if the entire push fails
