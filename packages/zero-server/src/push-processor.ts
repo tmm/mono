@@ -235,15 +235,6 @@ export class PushProcessor<
         // no caught error? Not in error mode.
         if (caughtError === undefined) {
           await this.#dispatchMutation(dbTx, mutators, m);
-          if (req.pushVersion >= PUSH_VERSION_ZERO) {
-            await transactionHooks.writeMutationResult({
-              id: {
-                clientID: m.clientID,
-                id: m.id,
-              },
-              result: {},
-            });
-          }
         } else {
           const appError = makeAppErrorResponse(m, caughtError);
           if (req.pushVersion >= PUSH_VERSION_ZERO) {

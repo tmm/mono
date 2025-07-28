@@ -311,7 +311,6 @@ class PushWorker {
         } else if (response.error === 'forClient') {
           client.downstream.fail(response.cause);
         } else {
-          // responses come over via `poke` in PUSH_VERSION_ZERO and later.
           responses.push(
             client.downstream.push([
               'pushResponse',
@@ -323,9 +322,7 @@ class PushWorker {
           );
         }
       }
-    } else if (pushVersion < PUSH_VERSION_ZERO) {
-      // We only fan out individual mutation responses for old push versions.
-      // Newer push versions use the `poke` mechanism to send responses.
+    } else {
       const groupedMutations = groupBy(response.mutations, m => m.id.clientID);
       for (const [clientID, mutations] of groupedMutations) {
         const client = this.#clients.get(clientID);
@@ -363,10 +360,14 @@ class PushWorker {
         const successes = failure ? mutations.slice(0, i) : mutations;
 
         if (successes.length > 0) {
-          responses.push(
-            client.downstream.push(['pushResponse', {mutations: successes}])
-              .result,
-          );
+          if (pushVersion < PUSH_VERSION_ZERO) {
+            // We only fan out individual mutation responses for old push versions.
+            // Newer push versions use the `poke` mechanism to send responses.
+            responses.push(
+              client.downstream.push(['pushResponse', {mutations: successes}])
+                .result,
+            );
+          }
         }
 
         if (failure) {

@@ -10,8 +10,6 @@ import type {
   MutationID,
   MutationOk,
   PushError,
-  PushOk,
-  PushResponse,
 } from '../../../zero-protocol/src/push.ts';
 import type {ZeroLogContext} from './zero-log-context.ts';
 import type {MutationPatch} from '../../../zero-protocol/src/mutations-patch.ts';
@@ -21,13 +19,6 @@ type ErrorType =
   | Omit<PushError, 'mutationIDs'>
   | Error
   | unknown;
-
-const completeFailureTypes: PushError['error'][] = [
-  // These should never actually be received as they cause the websocket
-  // connection to be closed.
-  'unsupportedPushVersion',
-  'unsupportedSchemaVersion',
-];
 
 let currentEphemeralID = 0;
 function nextEphemeralID(): EphemeralID {
@@ -115,7 +106,11 @@ export class MutationTracker {
           continue; // Mutation for a different client. We will not have its promise.
         }
 
-        // TODO: we should technically resolve lower promises first since mutations are processed in order.
+        // Since we only write responses for failed mutations,
+        // we could have mutations that need to be resolved as `ok` that come before
+        // the current mutation in the response.
+        // Each turn through the loop, resolve these earlier mutations as `ok`.
+        this.#resolveMutationsAsOk(patch.mutation.id.id - 1);
 
         if ('error' in patch.mutation.result) {
           this.#processMutationError(patch.mutation.id, patch.mutation.result);
@@ -132,78 +127,12 @@ export class MutationTracker {
     }
   }
 
-  processPushResponse(response: PushResponse): void {
-    if ('error' in response) {
-      this.#lc.error?.(
-        'Received an error response when pushing mutations',
-        response,
-      );
-      this.#processPushError(response);
-    } else {
-      this.#processPushOk(response);
-    }
-  }
-
-  /**
-   * When we reconnect to zero-cache, we resolve all outstanding mutations
-   * whose ID is less than or equal to the lastMutationID.
-   *
-   * The reason is that any responses the API server sent
-   * to those mutations have been lost.
-   *
-   * An example case: the API server responds while the connection
-   * is down. Those responses are lost.
-   *
-   * Mutations whose LMID is > the lastMutationID are not resolved
-   * since they will be retried by the client, giving us another chance
-   * at getting a response.
-   *
-   * The only way to ensure that all API server responses are
-   * received would be to have the API server write them
-   * to the DB while writing the LMID.
-   */
-  onConnected(lastMutationID: number) {
-    for (const [id, entry] of this.#outstandingMutations) {
-      if (!entry.mutationID) {
-        continue;
-      }
-
-      if (entry.mutationID <= lastMutationID) {
-        this.#settleMutation(id, entry, 'resolve', emptyObject);
-      } else {
-        // the map is in insertion order which is in mutation ID order
-        // so it is safe to break.
-        break;
-      }
-    }
-
-    this.lmidAdvanced(lastMutationID);
-  }
-
   /**
    * lmid advance will:
    * 1. notify "allMutationsApplied" listeners if the lastMutationID
    *    is greater than or equal to the largest outstanding mutation ID.
    * 2. resolve all limbo mutations whose mutation ID is less than or equal to
    *    the lastMutationID.
-   *
-   * We only resolve "limbo mutations" since we want to give the mutation
-   * responses a chance to be received. `poke` and `pushResponse` are non transactional
-   * so they race.
-   *
-   * E.g., a `push` may call the api server which:
-   * writes to PG, replicates to zero-cache, then pokes the lmid down before the
-   * push response is sent.
-   *
-   * The only fix for this would be to have mutation responses be written to the database
-   * and sent down through the poke protocol.
-   *
-   * The artifact the user sees is that promise resolutions for mutations is not transactional
-   * with the update to synced data.
-   *
-   * It was a mistake to not just write the mutation responses to the database
-   * in the first place as this route ends up being more complicated
-   * and less reliable.
    */
   lmidAdvanced(lastMutationID: number): void {
     assert(
@@ -226,75 +155,20 @@ export class MutationTracker {
   }
 
   #resolveMutationsAsOk(lastMutationID: number): void {
-    // If the last mutation ID is greater than or equal to the largest
-    // outstanding mutation ID, then we can resolve all outstanding mutations.
     for (const [id, entry] of this.#outstandingMutations) {
       if (entry.mutationID && entry.mutationID <= lastMutationID) {
         this.#settleMutation(id, entry, 'resolve', emptyObject);
+      } else {
+        // #outstandingMutations is added to in-order so we can break
+        // once we reach a mutation ID that is greater than the lastMutationID.
+        // or does not have a mutation ID assigned.
+        break;
       }
     }
   }
 
   get size() {
     return this.#outstandingMutations.size;
-  }
-
-  /**
-   * Push errors fall into two categories:
-   * - Those where we know the mutations were not applied
-   * - Those where we do not know the state of the mutations.
-   *
-   * The first category includes errors like "unsupportedPushVersion"
-   * and "unsupportedSchemaVersion". The mutations were never applied in those cases.
-   *
-   * The second category includes errors like "http" errors. E.g., a 500 on the user's
-   * API server or a network error.
-   *
-   * The mutations may have been applied by the API server but we never
-   * received the response.
-   *
-   * In this latter case, we must mark the mutations as being in limbo.
-   * This allows us to resolve them when we receive the next
-   * lmid bump if their lmids are lesser.
-   */
-  #processPushError(error: PushError): void {
-    if (completeFailureTypes.includes(error.error)) {
-      return;
-    }
-
-    const mids = error.mutationIDs;
-    // TODO: remove this check once the server always sends mutationIDs
-    if (!mids) {
-      return;
-    }
-
-    // If the push request failed then we do not know the state of the mutations that were
-    // included in that request.
-    // Maybe they were applied. Whatever happened, we've lost the response.
-    // Given that, we mark them as "in limbo."
-    for (const mid of mids) {
-      const ephemeralID = this.#ephemeralIDsByMutationID.get(mid.id);
-      if (ephemeralID) {
-        // if the lmid has already moved past the mutations we can settle them.
-        if (mid.id <= this.#currentMutationID) {
-          const entry = this.#outstandingMutations.get(ephemeralID);
-          if (entry) {
-            this.#settleMutation(ephemeralID, entry, 'resolve', emptyObject);
-          }
-          continue;
-        }
-      }
-    }
-  }
-
-  #processPushOk(ok: PushOk): void {
-    for (const mutation of ok.mutations) {
-      if ('error' in mutation.result) {
-        this.#processMutationError(mutation.id, mutation.result);
-      } else {
-        this.#processMutationOk(mutation.id, mutation.result);
-      }
-    }
   }
 
   #processMutationError(
