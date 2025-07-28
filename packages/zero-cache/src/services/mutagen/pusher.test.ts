@@ -919,10 +919,6 @@ describe('pusher streaming', () => {
     const oooResponse: PushResponse = {
       mutations: [
         {
-          id: {clientID, id: 3},
-          result: {},
-        },
-        {
           id: {clientID, id: 1},
           result: {error: 'oooMutation'},
         },
@@ -947,39 +943,20 @@ describe('pusher streaming', () => {
     );
     void pusher.run();
 
-    const stream = pusher.initConnection(clientID, 'ws1', undefined);
-    pusher.enqueuePush(clientID, makePush(2, clientID), 'jwt', undefined);
+    // protocol v1
+    let stream = pusher.initConnection(clientID, 'ws1', undefined);
+    pusher.enqueuePush(clientID, makePush(2, clientID, 1), 'jwt', undefined);
 
-    const messages: unknown[] = [];
-    for await (const msg of stream) {
-      messages.push(msg);
-      break;
-    }
+    await expect(stream[Symbol.asyncIterator]().next()).rejects.toThrow(
+      `{"kind":"InvalidPush","message":"mutation was out of order"}`,
+    );
 
-    expect(messages).toMatchInlineSnapshot(`
-        [
-          [
-            "pushResponse",
-            {
-              "mutations": [
-                {
-                  "id": {
-                    "clientID": "test-cid",
-                    "id": 3,
-                  },
-                  "result": {},
-                },
-              ],
-            },
-          ],
-        ]
-      `);
-
-    // The stream should be completed after the OOO mutation
-    expect(await stream[Symbol.asyncIterator]().next()).toEqual({
-      done: true,
-      value: undefined,
-    });
+    // protocol v2
+    stream = pusher.initConnection(clientID, 'ws1', undefined);
+    pusher.enqueuePush(clientID, makePush(2, clientID, 2), 'jwt', undefined);
+    await expect(stream[Symbol.asyncIterator]().next()).rejects.toThrow(
+      `{"kind":"InvalidPush","message":"mutation was out of order"}`,
+    );
   });
 
   test('fails the stream on unsupported schema version or push version', async () => {

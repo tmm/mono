@@ -10,6 +10,7 @@ import type {
   MutationID,
   MutationOk,
   PushError,
+  PushResponse,
 } from '../../../zero-protocol/src/push.ts';
 import type {ZeroLogContext} from './zero-log-context.ts';
 import type {MutationPatch} from '../../../zero-protocol/src/mutations-patch.ts';
@@ -103,7 +104,7 @@ export class MutationTracker {
     try {
       for (const patch of patches) {
         if (patch.mutation.id.clientID !== this.#clientID) {
-          continue; // Mutation for a different client. We will not have its promise.
+          throw new Error('received mutation for the wrong client');
         }
 
         // Since we only write responses for failed mutations,
@@ -125,6 +126,24 @@ export class MutationTracker {
         this.#ackMutations(last.mutation.id);
       }
     }
+  }
+
+  processPushResponse(response: PushResponse) {
+    if ('error' in response) {
+      // do nothing
+      return;
+    }
+
+    this.processMutationResponses(
+      response.mutations.map(mutation => ({
+        mutation,
+        op: 'put',
+      })),
+    );
+  }
+
+  onConnected(lmid: number) {
+    this.lmidAdvanced(lmid);
   }
 
   /**

@@ -560,7 +560,7 @@ describe('MutationTracker', () => {
     ]);
   });
 
-  test('advancing lmid does not resolve mutations that are not in limbo', () => {
+  test('advancing lmid resolves all outstanding mutations less than the lmid', async () => {
     const tracker = new MutationTracker(lc, ackMutations);
     tracker.clientID = CLIENT_ID;
 
@@ -571,12 +571,14 @@ describe('MutationTracker', () => {
     const mutation3 = tracker.trackMutation();
     tracker.mutationIDAssigned(mutation3.ephemeralID, 3);
 
-    tracker.lmidAdvanced(5);
+    tracker.lmidAdvanced(3);
 
-    expect(tracker.size).toBe(3);
+    expect(tracker.size).toBe(0);
 
-    tracker.lmidAdvanced(8);
-
-    expect(tracker.size).toBe(3);
+    await Promise.all([
+      mutation1.serverPromise,
+      mutation2.serverPromise,
+      mutation3.serverPromise,
+    ]);
   });
 });
