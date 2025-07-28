@@ -104,7 +104,9 @@ export class MutationTracker {
     try {
       for (const patch of patches) {
         if (patch.mutation.id.clientID !== this.#clientID) {
-          throw new Error('received mutation for the wrong client');
+          // will it be poked to us tho?
+          // maybe not ever if it was poked via another client?
+          continue; // This mutation is not for this client.
         }
 
         // Since we only write responses for failed mutations,

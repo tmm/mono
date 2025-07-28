@@ -89,7 +89,9 @@ export class ZQLDatabase<S extends Schema, WrappedTransaction>
                 )}::text::json)`,
           );
 
+          console.log('Writing mutation result:', formatted);
           await dbTx.query(formatted.text, formatted.values);
+          console.log('done writing mutation result');
         },
       });
     });

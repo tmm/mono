@@ -81,7 +81,7 @@ describe('MutationTracker', () => {
     expect(called).toBe(false);
   });
 
-  test('rejects mutations from other clients', () => {
+  test('skips mutations from other clients', async () => {
     const tracker = new MutationTracker(lc, ackMutations);
     tracker.clientID = CLIENT_ID;
     const mutation = tracker.trackMutation();
@@ -91,21 +91,29 @@ describe('MutationTracker', () => {
       mutations: [
         {
           id: {clientID: 'other-client', id: 1},
-          result: {
-            error: 'app',
-            details: '',
-          },
-        },
-        {
-          id: {clientID: CLIENT_ID, id: 1},
           result: {},
         },
       ],
     };
 
-    expect(() => tracker.processPushResponse(response)).toThrow(
-      'received mutation for the wrong client',
-    );
+    let mutationResolved = false;
+    void mutation.serverPromise.then(() => {
+      mutationResolved = true;
+    });
+    tracker.processPushResponse(response);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(mutationResolved).toBe(false);
+
+    tracker.processPushResponse({
+      mutations: [
+        {
+          id: {clientID: CLIENT_ID, id: 1},
+          result: {},
+        },
+      ],
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(mutationResolved).toBe(true);
   });
 
   test('handles multiple concurrent mutations', async () => {

@@ -552,6 +552,7 @@ export class CVRStore {
       write: tx =>
         tx`DELETE FROM ${this.#cvr('clients')} WHERE "clientID" = ${clientID}`,
     });
+    // TODO: delete mutations queries as they are per client.
   }
 
   deleteClientGroup(clientGroupID: string) {

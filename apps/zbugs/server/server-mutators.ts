@@ -26,6 +26,7 @@ export function createServerMutators(
       ...mutators.issue,
 
       async create(tx, {id, title, description}: CreateIssueArgs) {
+        throw new Error('foo'); // This line is a placeholder for debugging purposes.
         await mutators.issue.create(tx, {
           id,
           title,
