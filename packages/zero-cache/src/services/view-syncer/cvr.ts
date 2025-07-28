@@ -77,7 +77,7 @@ export type CVRSnapshot = {
 };
 
 const CLIENT_LMID_QUERY_ID = 'lmids';
-const CLIENT_MUTATION_RESULTS_QUERY_ID_PREFIX = 'mutationResults_';
+export const CLIENT_MUTATION_RESULTS_QUERY_ID = 'mutationResults';
 
 function assertNotInternal(
   query: QueryRecord,
@@ -163,10 +163,9 @@ export class CVRUpdater {
 export function getMutationResultsQuery(
   upstreamSchema: string,
   clientGroupID: string,
-  clientID: string,
 ): InternalQueryRecord {
   return {
-    id: CLIENT_MUTATION_RESULTS_QUERY_ID_PREFIX + clientID,
+    id: CLIENT_MUTATION_RESULTS_QUERY_ID,
     type: 'internal',
     ast: {
       schema: '',
@@ -184,18 +183,6 @@ export function getMutationResultsQuery(
             right: {
               type: 'literal',
               value: clientGroupID,
-            },
-          },
-          {
-            type: 'simple',
-            left: {
-              type: 'column',
-              name: 'clientID',
-            },
-            op: '=',
-            right: {
-              type: 'literal',
-              value: clientID,
             },
           },
         ],
@@ -262,13 +249,10 @@ export class CVRConfigDrivenUpdater extends CVRUpdater {
       this._cvr.queries[CLIENT_LMID_QUERY_ID] = lmidsQuery;
       this._cvrStore.putQuery(lmidsQuery);
     }
-    if (
-      !this._cvr.queries[CLIENT_MUTATION_RESULTS_QUERY_ID_PREFIX + client.id]
-    ) {
+    if (!this._cvr.queries[CLIENT_MUTATION_RESULTS_QUERY_ID]) {
       const mutationResultsQuery = getMutationResultsQuery(
         upstreamSchema(this.#shard),
         this._cvr.id,
-        client.id,
       );
       this._cvr.queries[mutationResultsQuery.id] = mutationResultsQuery;
       this._cvrStore.putQuery(mutationResultsQuery);

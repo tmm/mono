@@ -25,7 +25,7 @@ import type {PostgresDB, PostgresTransaction} from '../../types/pg.ts';
 import {rowIDString} from '../../types/row-key.ts';
 import {cvrSchema, type ShardID} from '../../types/shards.ts';
 import type {Patch, PatchToVersion} from './client-handler.ts';
-import type {CVR, CVRSnapshot} from './cvr.ts';
+import {type CVR, type CVRSnapshot} from './cvr.ts';
 import {RowRecordCache} from './row-record-cache.ts';
 import {
   type ClientsRow,
@@ -552,7 +552,6 @@ export class CVRStore {
       write: tx =>
         tx`DELETE FROM ${this.#cvr('clients')} WHERE "clientID" = ${clientID}`,
     });
-    // TODO: delete mutations queries as they are per client.
   }
 
   deleteClientGroup(clientGroupID: string) {
