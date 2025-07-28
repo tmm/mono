@@ -48,7 +48,6 @@ export class MutationTracker {
   readonly #ephemeralIDsByMutationID: Map<number, EphemeralID>;
   readonly #allMutationsAppliedListeners: Set<() => void>;
   readonly #lc: ZeroLogContext;
-  readonly #limboMutations: Set<EphemeralID>;
 
   // This is only used in the new code path that processes
   // mutation responses that arrive via the `poke` protocol.
@@ -64,7 +63,6 @@ export class MutationTracker {
     this.#outstandingMutations = new Map();
     this.#ephemeralIDsByMutationID = new Map();
     this.#allMutationsAppliedListeners = new Set();
-    this.#limboMutations = new Set();
     this.#largestOutstandingMutationID = 0;
     this.#currentMutationID = 0;
     this.#ackMutations = ackMutations;
@@ -116,6 +114,8 @@ export class MutationTracker {
         if (patch.mutation.id.clientID !== this.#clientID) {
           continue; // Mutation for a different client. We will not have its promise.
         }
+
+        // TODO: we should technically resolve lower promises first since mutations are processed in order.
 
         if ('error' in patch.mutation.result) {
           this.#processMutationError(patch.mutation.id, patch.mutation.result);
@@ -177,16 +177,6 @@ export class MutationTracker {
       }
     }
 
-    for (const [id, entry] of this.#outstandingMutations) {
-      if (entry.mutationID && entry.mutationID > lastMutationID) {
-        // We don't know the state of these mutations.
-        // They could have been applied by the server
-        // or not since we sent them before the connection was lost.
-        // Adding to `limbo` will cause them to be resolved
-        // when the next lmid bump is received.
-        this.#limboMutations.add(id);
-      }
-    }
     this.lmidAdvanced(lastMutationID);
   }
 
@@ -226,11 +216,21 @@ export class MutationTracker {
 
     try {
       this.#currentMutationID = lastMutationID;
-      this.#resolveLimboMutations(lastMutationID);
+      this.#resolveMutationsAsOk(lastMutationID);
     } finally {
       if (lastMutationID >= this.#largestOutstandingMutationID) {
         // this is very important otherwise we hang query de-registration
         this.#notifyAllMutationsAppliedListeners();
+      }
+    }
+  }
+
+  #resolveMutationsAsOk(lastMutationID: number): void {
+    // If the last mutation ID is greater than or equal to the largest
+    // outstanding mutation ID, then we can resolve all outstanding mutations.
+    for (const [id, entry] of this.#outstandingMutations) {
+      if (entry.mutationID && entry.mutationID <= lastMutationID) {
+        this.#settleMutation(id, entry, 'resolve', emptyObject);
       }
     }
   }
@@ -283,22 +283,6 @@ export class MutationTracker {
           }
           continue;
         }
-        // otherwise put in limbo and wait for next lmid bump
-        this.#limboMutations.add(ephemeralID);
-      }
-    }
-  }
-
-  #resolveLimboMutations(lastMutationID: number): void {
-    for (const id of this.#limboMutations) {
-      const entry = this.#outstandingMutations.get(id);
-      if (!entry || !entry.mutationID) {
-        this.#limboMutations.delete(id);
-        continue;
-      }
-      if (entry.mutationID <= lastMutationID) {
-        this.#limboMutations.delete(id);
-        this.#settleMutation(id, entry, 'resolve', emptyObject);
       }
     }
   }
@@ -387,7 +371,6 @@ export class MutationTracker {
     if (entry.mutationID) {
       this.#ephemeralIDsByMutationID.delete(entry.mutationID);
     }
-    this.#limboMutations.delete(ephemeralID);
   }
 
   /**

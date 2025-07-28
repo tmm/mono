@@ -183,10 +183,12 @@ export class PokeHandler {
         this.#mutationTracker.processMutationResponses(
           merged.mutationResults ?? [],
         );
-        // Newer versions of zero-cache will send down `mutationResults`
-        // Old versions will not.
-        // The line below is for old versions.
-        // It is also a fail-safe if a mutation response is somehow lost.
+
+        // Whenever the `lmid` is moved forward, we also call the `mutationTracker`
+        // to resolve outstanding mutations.
+        // This is because we only write `error` results to the `mutations` table
+        // and not `ok` results. `ok` results are resolved by seeing the `lmid`
+        // advance.
         if (!('error' in merged.pullResponse)) {
           const lmid =
             merged.pullResponse.lastMutationIDChanges[this.#clientID];
