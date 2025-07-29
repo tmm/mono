@@ -14,9 +14,9 @@ mono/
 ├── packages/
 │   ├── replicache/         # Client-side sync library
 │   ├── zero-client/        # Zero client library (uses Replicache)
-│   ├── zero-cache/         # Zero server-side cache/coordination
-│   ├── zero-protocol/      # Communication protocol between client/server
-│   ├── zero-schema/        # Schema definition and validation
+│   ├── zero-cache/         # Zero server-side cache/replica (replica of user's upstream database)
+│   ├── zero-protocol/      # Communication protocol between client/replica
+│   ├── zero-schema/        # Schema definition
 │   ├── zql/               # Incremental View Maintenance (IVM) engine
 │   ├── zqlite/            # SQLite integration for ZQL
 │   ├── shared/            # Common utilities and types
@@ -45,7 +45,7 @@ Zero is a **distributed database** that spans client and server with **increment
 **Key Components:**
 
 - **zero-client**: Browser/client library built on Replicache
-- **zero-cache**: Server-side coordination and caching layer
+- **zero-cache**: Server-side coordination and caching layer. Is a replica of the user's upstream database.
 - **zql**: Incremental View Maintenance (IVM) engine
 - **zero-protocol**: WebSocket-based communication protocol
 
