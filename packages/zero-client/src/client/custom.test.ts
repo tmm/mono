@@ -10,7 +10,11 @@ import {
 import {zeroData} from '../../../replicache/src/transactions.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
 import {must} from '../../../shared/src/must.ts';
-import type {InsertValue, Transaction} from '../../../zql/src/mutate/custom.ts';
+import {
+  mutators,
+  type InsertValue,
+  type Transaction,
+} from '../../../zql/src/mutate/custom.ts';
 import {schema} from '../../../zql/src/query/test/test-schemas.ts';
 import * as ConnectionState from './connection-state-enum.ts';
 import {
@@ -776,4 +780,66 @@ test('warns when awaiting the promise directly', async () => {
   ]);
 
   await z.close();
+});
+
+test('can define and call mutators the new way', async () => {
+  const m = mutators({
+    createIssue(
+      tx: Transaction<Schema>,
+      args: InsertValue<typeof schema.tables.issue>,
+    ): Promise<void> {
+      return tx.mutate.issue.insert(args);
+    },
+  });
+  const z = zeroForTest({
+    schema,
+    logLevel: 'warn',
+    mutators: m,
+  });
+
+  await z.triggerConnected();
+  await z.waitForConnectionState(ConnectionState.Connected);
+
+  await m.createIssue(z, {
+    closed: false,
+    id: '1',
+    title: 'new way',
+    description: '',
+    createdAt: Date.now(),
+  });
+
+  const issue = await z.query.issue.where('id', '1').one();
+  expect(issue?.title).toEqual('new way');
+
+  await z.close();
+});
+
+test('name collisions throw with new mutator defs', () => {
+  const issueMutators = mutators({
+    create(
+      tx: Transaction<Schema>,
+      args: InsertValue<typeof schema.tables.issue>,
+    ): Promise<void> {
+      return tx.mutate.issue.insert(args);
+    },
+  });
+  const commentMutators = mutators({
+    create(
+      tx: Transaction<Schema>,
+      args: InsertValue<typeof schema.tables.comment>,
+    ): Promise<void> {
+      return tx.mutate.comment.insert(args);
+    },
+  });
+
+  expect(() =>
+    zeroForTest({
+      schema,
+      logLevel: 'warn',
+      mutators: {
+        ...issueMutators,
+        ...commentMutators,
+      },
+    }),
+  ).toThrow();
 });

@@ -1,5 +1,5 @@
 import {expectTypeOf, test} from 'vitest';
-import {mutators, type Transaction} from './custom.ts';
+import {mutators, type MutatorProvider, type Transaction} from './custom.ts';
 import type {Schema} from '../query/test/test-schemas.ts';
 
 // Check the type gymnastics of the mutators function
@@ -31,12 +31,12 @@ test('mutators function', async () => {
   // for each mutator.
   expectTypeOf(m).toEqualTypeOf<{
     exampleMutator: (
-      _tx: Transaction<Schema>,
+      _tx: Transaction<Schema> | MutatorProvider,
       _id: string,
       _name: string,
     ) => Promise<void>;
     otherMutator: (
-      _tx: Transaction<Schema>,
+      _tx: Transaction<Schema> | MutatorProvider,
       _id: string,
       _value: number,
     ) => Promise<void>;

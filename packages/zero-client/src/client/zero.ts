@@ -77,7 +77,11 @@ import {
   type NameMapper,
   clientToServer,
 } from '../../../zero-schema/src/name-mapper.ts';
-import {customMutatorKey} from '../../../zql/src/mutate/custom.ts';
+import {
+  customMutatorKey,
+  mutatorsSymbol,
+  type MutatorMap,
+} from '../../../zql/src/mutate/custom.ts';
 import type {QueryDelegate} from '../../../zql/src/query/query-delegate.ts';
 import {newQuery} from '../../../zql/src/query/query-impl.ts';
 import {
@@ -680,6 +684,7 @@ export class Zero<
     }
 
     this.mutate = mutate;
+    this[mutatorsSymbol] = mutate;
     this.mutateBatch = mutateBatch;
 
     this.#queryManager = new QueryManager(
@@ -868,6 +873,7 @@ export class Zero<
         MakeCustomMutatorInterfaces<S, MD, TWrappedTransaction>
       >
     : DBMutator<S>;
+  readonly [mutatorsSymbol]: MutatorMap;
 
   /**
    * Provides a way to batch multiple CRUD mutations together:

@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {assert} from '../../../shared/src/asserts.ts';
 import type {Expand} from '../../../shared/src/expand.ts';
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
+import {must} from '../../../shared/src/must.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {
   SchemaValueToTSType,
@@ -150,6 +152,11 @@ export function splitMutatorKey(key: string) {
   return key.split('|') as [string, string];
 }
 
+export const mutatorsSymbol = Symbol('mutators');
+export type MutatorProvider = {
+  [mutatorsSymbol]: MutatorMap;
+};
+
 export type MutatorImpl<
   TSchema extends Schema,
   TWrappedTransaction = unknown,
@@ -185,6 +192,32 @@ export function mutators<
       ? MutatorImpl<TSchema, TWrappedTransaction, TArgs>
       : never;
   },
->(mutators: TMutators): TMutators {
-  return mutators;
+>(
+  mutators: TMutators,
+): {
+  [K in keyof TMutators]: TMutators[K] extends MutatorImpl<
+    infer TSchema,
+    infer TWrappedTransaction,
+    infer TArgs
+  >
+    ? (
+        tx: Transaction<TSchema, TWrappedTransaction> | MutatorProvider,
+        ...args: TArgs
+      ) => Promise<void>
+    : never;
+} {
+  const ret = {} as any;
+  for (const key in mutators) {
+    const mutator = mutators[key];
+    ret[key] = (tx: any, ...args: any[]) => {
+      if (typeof tx === 'object' && mutatorsSymbol in tx) {
+        // If we have a mutator provider, we get the mutator from it.
+        const mutator = must(tx[mutatorsSymbol][key], 'unable to find mutator');
+        return mutator(...args);
+      }
+
+      return mutator(tx, ...args);
+    };
+  }
+  return ret;
 }
