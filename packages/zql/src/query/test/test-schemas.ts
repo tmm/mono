@@ -164,6 +164,7 @@ export const schemaOptions = {
 };
 
 export const schema = createSchema(schemaOptions);
+export type Schema = typeof schema;
 
 export const issueSchema = schema.tables.issue;
 export const commentSchema = schema.tables.comment;

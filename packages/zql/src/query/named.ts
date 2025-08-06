@@ -77,6 +77,31 @@ function contextualizedNamedQuery<TContext>(
   return ret;
 }
 
+/**
+ * Define queries. You can place as many or as few queries
+ * in a call to this function as desired. E.g.,
+ *
+ * ```ts
+ * const allQueries = queries({
+ *   q1: ...,
+ *   q2: ...,
+ *   q3: ...,
+ *   ...,
+ * });
+ *
+ * // or
+ *
+ * const q1 = queries({
+ *   q1: ...
+ * });
+ * const q2 = queries({
+ *  q2: ...
+ * });
+ * ```
+ *
+ * The idea being that you can split queries across files
+ * if desired.
+ */
 export function queries<
   TQueries extends {
     [K in keyof TQueries]: TQueries[K] extends NamedQuery<

@@ -1,5 +1,6 @@
 import {assert} from '../../../shared/src/asserts.ts';
 import type {Expand} from '../../../shared/src/expand.ts';
+import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {
   SchemaValueToTSType,
@@ -147,4 +148,43 @@ export function customMutatorKey(namespace: string, name: string) {
 
 export function splitMutatorKey(key: string) {
   return key.split('|') as [string, string];
+}
+
+export type MutatorImpl<
+  TSchema extends Schema,
+  TWrappedTransaction = unknown,
+  TArgs extends
+    ReadonlyArray<ReadonlyJSONValue> = ReadonlyArray<ReadonlyJSONValue>,
+> = (
+  tx: Transaction<TSchema, TWrappedTransaction>,
+  ...args: TArgs
+) => Promise<void>;
+
+export type MutatorMap = Record<
+  string,
+  (...args: ReadonlyArray<ReadonlyJSONValue>) => Promise<void>
+>;
+
+/**
+ * Define mutators. Unlike queries, you must currently
+ * define _all_ mutators at once.
+ *
+ * The reason is that all mutators are currently
+ * passed to zero-client on construction.
+ *
+ * This will be updated in a future release to match
+ * `queries`.
+ */
+export function mutators<
+  TMutators extends {
+    [K in keyof TMutators]: TMutators[K] extends MutatorImpl<
+      infer TSchema,
+      infer TWrappedTransaction,
+      infer TArgs
+    >
+      ? MutatorImpl<TSchema, TWrappedTransaction, TArgs>
+      : never;
+  },
+>(mutators: TMutators): TMutators {
+  return mutators;
 }
