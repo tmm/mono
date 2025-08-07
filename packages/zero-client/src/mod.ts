@@ -103,14 +103,18 @@ export {
   type ViewChange,
 } from '../../zql/src/ivm/view-apply-change.ts';
 export type {Entry, Format, View, ViewFactory} from '../../zql/src/ivm/view.ts';
-export type {
-  DeleteID,
-  InsertValue,
-  SchemaQuery,
-  ServerTransaction,
-  Transaction,
-  UpdateValue,
-  UpsertValue,
+export {
+  type DeleteID,
+  type InsertValue,
+  type SchemaQuery,
+  type ServerTransaction,
+  type Transaction,
+  type UpdateValue,
+  type UpsertValue,
+  mutators,
+  type MutatorProvider,
+  type MutatorMap,
+  type MutatorImpl,
 } from '../../zql/src/mutate/custom.ts';
 export {escapeLike} from '../../zql/src/query/escape-like.ts';
 export type {

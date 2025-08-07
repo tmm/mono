@@ -196,12 +196,16 @@ export function mutators<
   mutators: TMutators,
 ): {
   [K in keyof TMutators]: TMutators[K] extends MutatorImpl<
-    infer TSchema,
-    infer TWrappedTransaction,
+    any,
+    any,
     infer TArgs
   >
     ? (
-        tx: Transaction<TSchema, TWrappedTransaction> | MutatorProvider,
+        // Intentionally dropping `TSchema` and `TWrappedTransaction` types
+        // as they will be typed in the user's code and typing them at the return
+        // causes issues with excessive type depth.
+        // https://github.com/rocicorp/mono/pull/4449
+        tx: Transaction<Schema, unknown> | MutatorProvider,
         ...args: TArgs
       ) => Promise<void>
     : never;

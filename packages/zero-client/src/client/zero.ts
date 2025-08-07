@@ -24,7 +24,6 @@ import {
   getBrowserGlobal,
   mustGetBrowserGlobal,
 } from '../../../shared/src/browser-env.ts';
-import type {DeepMerge} from '../../../shared/src/deep-merge.ts';
 import {getDocumentVisibilityWatcher} from '../../../shared/src/document-visible.ts';
 import type {Enum} from '../../../shared/src/enum.ts';
 import {must} from '../../../shared/src/must.ts';
@@ -102,11 +101,7 @@ import {
   makeCRUDMutate,
   makeCRUDMutator,
 } from './crud.ts';
-import type {
-  CustomMutatorDefs,
-  CustomMutatorImpl,
-  MakeCustomMutatorInterfaces,
-} from './custom.ts';
+import type {CustomMutatorImpl} from './custom.ts';
 import {makeReplicacheMutator} from './custom.ts';
 import {DeleteClientsManager} from './delete-clients-manager.ts';
 import {shouldEnableAnalytics} from './enable-analytics.ts';
@@ -185,11 +180,7 @@ interface TestZero {
   }) => LogOptions;
 }
 
-function asTestZero<
-  S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined,
-  TWrappedTransaction = unknown,
->(z: Zero<S, MD, TWrappedTransaction>): TestZero {
+function asTestZero<S extends Schema>(z: Zero<S>): TestZero {
   return z as TestZero;
 }
 
@@ -284,11 +275,7 @@ const CLOSE_CODE_NORMAL = 1000;
 const CLOSE_CODE_GOING_AWAY = 1001;
 type CloseCode = typeof CLOSE_CODE_NORMAL | typeof CLOSE_CODE_GOING_AWAY;
 
-export class Zero<
-  const S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
-  TWrappedTransaction = unknown,
-> {
+export class Zero<const S extends Schema> {
   readonly version = version;
 
   readonly #rep: ReplicacheImpl<WithCRUD<MutatorDefs>>;
@@ -405,7 +392,7 @@ export class Zero<
   // 2. client successfully connects
   #totalToConnectStart: number | undefined = undefined;
 
-  readonly #options: ZeroOptions<S, MD, TWrappedTransaction>;
+  readonly #options: ZeroOptions<S>;
 
   readonly query: MakeEntityQueriesFromSchema<S>;
 
@@ -420,7 +407,7 @@ export class Zero<
   /**
    * Constructs a new Zero client.
    */
-  constructor(options: ZeroOptions<S, MD, TWrappedTransaction>) {
+  constructor(options: ZeroOptions<S>) {
     const {
       userID,
       storageKey,
@@ -432,7 +419,7 @@ export class Zero<
       batchViewUpdates = applyViewUpdates => applyViewUpdates(),
       maxRecentQueries = 0,
       slowMaterializeThreshold = 5_000,
-    } = options as ZeroOptions<S, MD, TWrappedTransaction>;
+    } = options as ZeroOptions<S>;
     if (!userID) {
       throw new Error('ZeroOptions.userID must not be empty.');
     }
@@ -442,7 +429,7 @@ export class Zero<
       false /*options.enableAnalytics,*/, // Reenable analytics
     );
 
-    let {kvStore = 'idb'} = options as ZeroOptions<S, MD, TWrappedTransaction>;
+    let {kvStore = 'idb'} = options as ZeroOptions<S>;
     if (kvStore === 'idb') {
       if (!getBrowserGlobal('indexedDB')) {
         // eslint-disable-next-line no-console
@@ -867,12 +854,7 @@ export class Zero<
    * await zero.mutate.issue.update({id: '1', title: 'Updated title'});
    * ```
    */
-  readonly mutate: MD extends CustomMutatorDefs<S, TWrappedTransaction>
-    ? DeepMerge<
-        DBMutator<S>,
-        MakeCustomMutatorInterfaces<S, MD, TWrappedTransaction>
-      >
-    : DBMutator<S>;
+  readonly mutate: DBMutator<S> & MutatorMap;
   readonly [mutatorsSymbol]: MutatorMap;
 
   /**

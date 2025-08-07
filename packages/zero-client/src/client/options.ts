@@ -7,18 +7,14 @@ import type {
   UserQueryParams,
 } from '../../../zero-protocol/src/connect.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
-import type {CustomMutatorDefs} from './custom.ts';
 import type {OnError} from './on-error.ts';
 import {UpdateNeededReasonType} from './update-needed-reason-type.ts';
+import type {MutatorImpl} from '../../../zql/src/mutate/custom.ts';
 
 /**
  * Configuration for {@linkcode Zero}.
  */
-export interface ZeroOptions<
-  S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
-  TWrappedTransaction = unknown,
-> {
+export interface ZeroOptions<S extends Schema> {
   /**
    * URL to the zero-cache. This can be a simple hostname, e.g.
    * - "https://myapp-myteam.zero.ms"
@@ -100,7 +96,8 @@ export interface ZeroOptions<
    * mutation can be rebased multiple times when folding in authoritative
    * changes from the server to the client.
    */
-  mutators?: MD | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mutators?: Record<string, MutatorImpl<any>> | undefined;
 
   /**
    * Custom mutations are pushed to zero-cache and then to
@@ -256,11 +253,7 @@ export interface ZeroOptions<
 /**
  * @deprecated Use {@link ZeroOptions} instead.
  */
-export interface ZeroAdvancedOptions<
-  S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
-  TWrappedTransaction = unknown,
-> extends ZeroOptions<S, MD, TWrappedTransaction> {}
+export interface ZeroAdvancedOptions<S extends Schema> extends ZeroOptions<S> {}
 
 export type UpdateNeededReason =
   | {type: UpdateNeededReasonType.NewClientGroup}
