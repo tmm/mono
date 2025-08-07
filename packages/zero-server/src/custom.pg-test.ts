@@ -86,7 +86,12 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.insert(typesWithParamsRow),
         crud.uuidAndEnum.insert(uuidAndEnumRow),
         crud.alternate_basic.insert(basicRow),
-        crud.defaults.insert({id: '1'}),
+        crud.defaults.insert({
+          id: '1',
+          insert_db_generated: 'client-insert-default-1',
+          update_db_generated: null,
+          insert_update_db_generated: 'client-insert-update-default-1',
+        }),
       ]);
 
       await Promise.all([

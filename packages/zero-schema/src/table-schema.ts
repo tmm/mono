@@ -4,7 +4,7 @@ import type {PrimaryKey} from '../../zero-protocol/src/primary-key.ts';
 
 export type {ValueType} from '../../zero-protocol/src/client-schema.ts';
 
-export type DefaultValueFunction<T> = () => T;
+
 
 export type BaseSchemaValue = {
   type: ValueType;
@@ -18,14 +18,12 @@ export type SchemaValueWithCustomType<
   customType: T;
 };
 
-export type DefaultConfig<T> = {
-  insert?: {
-    client: DefaultValueFunction<T>;
-    server: DefaultValueFunction<T> | 'db';
+export type DefaultConfig = {
+  insert?: { 
+    server:   'db';
   };
-  update?: {
-    client: DefaultValueFunction<T>;
-    server: DefaultValueFunction<T> | 'db';
+  update?: { 
+    server:   'db';
   };
 };
 
@@ -38,10 +36,10 @@ export type SchemaValue<T extends ReadonlyJSONValue = ReadonlyJSONValue> = (
   | EnumSchemaValue<T>
   | SchemaValueWithCustomType<T>
 ) &
-  (Record<string, never> | SchemaValueWithDefaults<T>);
+  (Record<string, never> | SchemaValueWithDefaults);
 
-export type SchemaValueWithDefaults<T> = {
-  defaultConfig?: DefaultConfig<T> | undefined;
+export type SchemaValueWithDefaults = {
+  defaultConfig?: DefaultConfig | undefined;
 };
 
 export type EnumSchemaValue<T extends ReadonlyJSONValue> = Omit<

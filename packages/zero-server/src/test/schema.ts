@@ -90,35 +90,9 @@ export const schema = createSchema({
     table('defaults')
       .columns({
         id: string(),
-        insert: string().default({
-          insert: {
-            client: () => 'client-insert-default-1' as const,
-            server: () => 'server-insert-default-1' as const,
-          },
-        }),
-        update: string()
-          .default({
-            update: {
-              client: () => 'client-update-default-2' as const,
-              server: () => 'server-update-default-2' as const,
-            },
-          })
-          .nullable(),
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        insert_update: string().default({
-          insert: {
-            client: () => 'client-insert-default-3' as const,
-            server: () => 'server-insert-default-3' as const,
-          },
-          update: {
-            client: () => 'client-update-default-3' as const,
-            server: () => 'server-update-default-3' as const,
-          },
-        }),
         // eslint-disable-next-line @typescript-eslint/naming-convention
         insert_db_generated: string().default({
           insert: {
-            client: () => 'client-insert-default-4' as const,
             server: 'db',
           },
         }),
@@ -126,7 +100,6 @@ export const schema = createSchema({
         update_db_generated: string()
           .default({
             update: {
-              client: () => 'client-update-default-5' as const,
               server: 'db',
             },
           })
@@ -134,11 +107,9 @@ export const schema = createSchema({
         // eslint-disable-next-line @typescript-eslint/naming-convention
         insert_update_db_generated: string().default({
           insert: {
-            client: () => 'client-insert-default-6' as const,
             server: 'db',
           },
           update: {
-            client: () => 'client-update-default-6' as const,
             server: 'db',
           },
         }),

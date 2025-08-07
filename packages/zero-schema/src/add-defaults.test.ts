@@ -1,6 +1,6 @@
-import {expect, test, describe, vi} from 'vitest';
+import {expect, test, describe} from 'vitest';
 import {createSchema} from './builder/schema-builder.ts';
-import {boolean, string, number, table} from './builder/table-builder.ts';
+import {string, table} from './builder/table-builder.ts';
 import {addDefaultToOptionalFields} from './add-defaults.ts';
 import type {Location} from '../../zql/src/mutate/custom.ts';
 
@@ -12,88 +12,27 @@ const schema = createSchema({
         name: string(),
         // Column with no defaults
         email: string().nullable(),
-        // Column with client defaults and server db
+        // Column with server db
         status: string().default({
           insert: {
-            client: () => 'active',
             server: 'db',
           },
           update: {
-            client: () => 'updated',
             server: 'db',
           },
         }),
-        // Column with both client and server defaults
-        version: number().default({
-          insert: {
-            client: () => 1,
-            server: () => 0,
-          },
-          update: {
-            client: () => 2,
-            server: () => 10,
-          },
-        }),
-        // Column with only update defaults
+        // Column with only update db defaults
         updatedAt: string().default({
           update: {
-            client: () => 'update-time',
             server: 'db',
           },
         }),
-        // Nullable column with defaults
-        isActive: boolean()
-          .nullable()
-          .default({
-            insert: {
-              client: () => true,
-              server: () => false,
-            },
-          }),
       })
       .primaryKey('id'),
   ],
 });
 
 const userSchema = schema.tables.user;
-
-// Schema with mock functions for testing execution
-const mockInsertFn = vi.fn(() => 'mock-insert-value');
-const mockUpdateFn = vi.fn(() => 'mock-update-value');
-const mockInsertFn2 = vi.fn(() => 42);
-const mockUpdateFn2 = vi.fn(() => 99);
-
-const mockSchema = createSchema({
-  tables: [
-    table('mock')
-      .columns({
-        id: string(),
-        testCol: string().default({
-          insert: {
-            client: mockInsertFn,
-            server: () => 'server-insert',
-          },
-          update: {
-            client: mockUpdateFn,
-            server: () => 'server-update',
-          },
-        }),
-        anotherCol: number().default({
-          insert: {
-            client: mockInsertFn2,
-            server: () => 0,
-          },
-          update: {
-            client: mockUpdateFn2,
-            server: () => 10,
-          },
-        }),
-      })
-      .primaryKey('id'),
-  ],
-});
-
-const mockTableSchema = mockSchema.tables.mock;
 
 describe('addDefaultToOptionalFields', () => {
   describe('client location', () => {
@@ -498,8 +437,6 @@ describe('addDefaultToOptionalFields', () => {
         location: 'client',
       });
       expect(clientInsert.status).toBe('active');
-      expect(clientInsert.version).toBe(1);
-      expect(clientInsert.isActive).toBe(true);
       expect(clientInsert.updatedAt).toBe(null);
 
       // Client + Update
@@ -510,9 +447,7 @@ describe('addDefaultToOptionalFields', () => {
         location: 'client',
       });
       expect(clientUpdate.status).toBe('updated');
-      expect(clientUpdate.version).toBe(2);
       expect(clientUpdate.updatedAt).toBe('update-time');
-      expect(clientUpdate.isActive).toBe(null);
 
       // Server + Insert
       const serverInsert = addDefaultToOptionalFields({
@@ -521,8 +456,6 @@ describe('addDefaultToOptionalFields', () => {
         operation: 'insert',
         location: 'server',
       });
-      expect(serverInsert.version).toBe(0);
-      expect(serverInsert.isActive).toBe(false);
       expect(serverInsert).not.toHaveProperty('status'); // db default, omitted
       expect(serverInsert).not.toHaveProperty('updatedAt'); // no insert default
 
@@ -533,10 +466,8 @@ describe('addDefaultToOptionalFields', () => {
         operation: 'update',
         location: 'server',
       });
-      expect(serverUpdate.version).toBe(10);
       expect(serverUpdate).not.toHaveProperty('status'); // db default, omitted
       expect(serverUpdate).not.toHaveProperty('updatedAt'); // db default, omitted
-      expect(serverUpdate).not.toHaveProperty('isActive'); // no update default
     });
   });
 
@@ -592,69 +523,6 @@ describe('addDefaultToOptionalFields', () => {
           'isActive',
         ]),
       );
-    });
-
-    test('default functions only run when needed', () => {
-      // Reset mock function call counts
-      mockInsertFn.mockClear();
-      mockUpdateFn.mockClear();
-      mockInsertFn2.mockClear();
-      mockUpdateFn2.mockClear();
-
-      const input = {id: 'mock1'};
-
-      // Test insert operation - only insert functions should be called
-      addDefaultToOptionalFields({
-        schema: mockTableSchema,
-        value: input,
-        operation: 'insert',
-        location: 'client',
-      });
-
-      expect(mockInsertFn).toHaveBeenCalledTimes(1);
-      expect(mockInsertFn2).toHaveBeenCalledTimes(1);
-      expect(mockUpdateFn).not.toHaveBeenCalled();
-      expect(mockUpdateFn2).not.toHaveBeenCalled();
-
-      // Reset and test update operation - only update functions should be called
-      mockInsertFn.mockClear();
-      mockUpdateFn.mockClear();
-      mockInsertFn2.mockClear();
-      mockUpdateFn2.mockClear();
-
-      addDefaultToOptionalFields({
-        schema: mockTableSchema,
-        value: input,
-        operation: 'update',
-        location: 'client',
-      });
-
-      expect(mockUpdateFn).toHaveBeenCalledTimes(1);
-      expect(mockUpdateFn2).toHaveBeenCalledTimes(1);
-      expect(mockInsertFn).not.toHaveBeenCalled();
-      expect(mockInsertFn2).not.toHaveBeenCalled();
-    });
-
-    test('default functions not called when values are explicitly provided', () => {
-      mockInsertFn.mockClear();
-      mockInsertFn2.mockClear();
-
-      const input = {
-        id: 'mock1',
-        testCol: 'explicit-value',
-        anotherCol: 999,
-      };
-
-      addDefaultToOptionalFields({
-        schema: mockTableSchema,
-        value: input,
-        operation: 'insert',
-        location: 'client',
-      });
-
-      // No default functions should be called since values were provided
-      expect(mockInsertFn).not.toHaveBeenCalled();
-      expect(mockInsertFn2).not.toHaveBeenCalled();
     });
   });
 });

@@ -3060,24 +3060,12 @@ describe('CRUD', () => {
           table('defaults')
             .columns({
               id: string(),
-              count: number().default({
-                insert: {
-                  client: () => 1,
-                  server: () => 2,
-                },
-                update: {
-                  client: () => 3,
-                  server: () => 4,
-                },
-              }),
               updatedAt: number()
                 .default({
                   insert: {
-                    client: () => 1743018158555,
                     server: 'db',
                   },
                   update: {
-                    client: () => 1743018158557,
                     server: 'db',
                   },
                 })
@@ -3329,19 +3317,19 @@ describe('CRUD', () => {
   test('defaults', async () => {
     const z = makeZero();
     const view = z.query.defaults.materialize();
-    await z.mutate.defaults.insert({id: 'a'});
+    await z.mutate.defaults.insert({id: 'a', updatedAt: 1743018158555});
     expect(view.data).toEqual([
-      {id: 'a', count: 1, updatedAt: 1743018158555, [refCountSymbol]: 1},
+      {id: 'a', updatedAt: 1743018158555, [refCountSymbol]: 1},
     ]);
 
-    await z.mutate.defaults.upsert({id: 'a', count: 2});
+    await z.mutate.defaults.upsert({id: 'a', updatedAt: 1743018158557});
     expect(view.data).toEqual([
-      {id: 'a', count: 2, updatedAt: 1743018158557, [refCountSymbol]: 1},
+      {id: 'a', updatedAt: 1743018158557, [refCountSymbol]: 1},
     ]);
 
-    await z.mutate.defaults.update({id: 'a', count: 3});
+    await z.mutate.defaults.update({id: 'a', updatedAt: 1743018158557});
     expect(view.data).toEqual([
-      {id: 'a', count: 3, updatedAt: 1743018158557, [refCountSymbol]: 1},
+      {id: 'a', updatedAt: 1743018158557, [refCountSymbol]: 1},
     ]);
 
     await z.mutate.defaults.delete({id: 'a'});

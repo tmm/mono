@@ -17,22 +17,7 @@ const issue = table('issue')
     description: string(),
     closed: boolean(),
     ownerId: string().from('owner_id').nullable(),
-    createdAt: number().default({
-      insert: {
-        client: () => 1743018158555,
-        server: () => 1743018158555,
-      },
-    }),
-    updatedAt: number().default({
-      insert: {
-        client: () => 1743018158555,
-        server: () => 1743018158555,
-      },
-      update: {
-        client: () => 1743018158666,
-        server: () => 1743018158666,
-      },
-    }),
+    createdAt: number(),
   })
   .primaryKey('id');
 
@@ -92,7 +77,6 @@ const auditLog = table('auditLog')
     createdAt: number()
       .default({
         insert: {
-          client: () => 1743018158777,
           server: 'db',
         },
       })
@@ -100,11 +84,9 @@ const auditLog = table('auditLog')
     updatedAt: number()
       .default({
         insert: {
-          client: () => 1743018158777,
           server: 'db',
         },
         update: {
-          client: () => 1743018158888,
           server: 'db',
         },
       })

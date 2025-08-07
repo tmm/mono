@@ -109,36 +109,28 @@ const schemaWithUpdateDefaults = table('schemaWithUpdateDefaults')
     s: string(),
     n: number<Timestamp>().default({
       update: {
-        client: () => timestamp(42),
         server: 'db',
       },
     }),
     b: boolean()
       .default({
         update: {
-          client: () => true,
           server: 'db',
         },
       })
       .nullable(),
     j: json<{foo: string; bar: boolean}>().default({
       update: {
-        client: () => ({
-          foo: 'bar',
-          bar: true,
-        }),
         server: 'db',
       },
     }),
     e: enumeration<'open' | 'closed'>().default({
       update: {
-        client: () => 'open',
         server: 'db',
       },
     }),
     otherId: string<`custom_${string}`>().default({
       update: {
-        client: () => 'custom_1',
         server: 'db',
       },
     }),
@@ -150,34 +142,26 @@ const schemaWithInsertDefaults = table('schemaWithInsertDefaults')
     s: string(),
     n: number<Timestamp>().default({
       insert: {
-        client: () => timestamp(42),
         server: 'db',
       },
     }),
     b: boolean().default({
       insert: {
-        client: () => true,
         server: 'db',
       },
     }),
     j: json<{foo: string; bar: boolean}>().default({
       insert: {
-        client: () => ({
-          foo: 'bar',
-          bar: true,
-        }),
         server: 'db',
       },
     }),
     e: enumeration<'open' | 'closed'>().default({
       insert: {
-        client: () => 'open',
         server: 'db',
       },
     }),
     otherId: string<`custom_${string}`>().default({
       insert: {
-        client: () => 'custom_1',
         server: 'db',
       },
     }),

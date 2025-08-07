@@ -39,35 +39,16 @@ test('building a schema', async () => {
   const user = table('user')
     .columns({
       id: string(),
-      createdAt: number().default({
-        insert: {
-          client: () => new Date().getTime(),
-          server: () => new Date().getTime(),
-        },
-      }),
-      updatedAt: number().default({
-        insert: {
-          client: () => new Date().getTime(),
-          server: () => new Date().getTime(),
-        },
-        update: {
-          client: () => new Date().getTime(),
-          server: () => new Date().getTime(),
-        },
-      }),
       dbCreatedAt: number().default({
         insert: {
-          client: () => new Date().getTime(),
           server: 'db',
         },
       }),
       dbUpdatedAt: number().default({
         insert: {
-          client: () => new Date().getTime(),
           server: 'db',
         },
         update: {
-          client: () => new Date().getTime(),
           server: 'db',
         },
       }),
@@ -161,8 +142,6 @@ test('building a schema', async () => {
   expectTypeOf<typeof r>().toEqualTypeOf<
     | {
         readonly id: string;
-        readonly createdAt: number;
-        readonly updatedAt: number;
         readonly dbCreatedAt: number;
         readonly dbUpdatedAt: number;
         readonly name: string;
@@ -170,8 +149,6 @@ test('building a schema', async () => {
         readonly recruiter:
           | {
               readonly id: string;
-              readonly createdAt: number;
-              readonly updatedAt: number;
               readonly dbCreatedAt: number;
               readonly dbUpdatedAt: number;
               readonly name: string;
@@ -179,8 +156,6 @@ test('building a schema', async () => {
               readonly recruiter:
                 | {
                     readonly id: string;
-                    readonly createdAt: number;
-                    readonly updatedAt: number;
                     readonly dbCreatedAt: number;
                     readonly dbUpdatedAt: number;
                     readonly name: string;
@@ -198,8 +173,6 @@ test('building a schema', async () => {
   expectTypeOf(await q.related('recruiter')).toEqualTypeOf<
     {
       readonly id: string;
-      readonly createdAt: number;
-      readonly updatedAt: number;
       readonly dbCreatedAt: number;
       readonly dbUpdatedAt: number;
       readonly name: string;
@@ -207,8 +180,6 @@ test('building a schema', async () => {
       readonly recruiter:
         | {
             readonly id: string;
-            readonly createdAt: number;
-            readonly updatedAt: number;
             readonly dbCreatedAt: number;
             readonly dbUpdatedAt: number;
             readonly name: string;
@@ -222,8 +193,6 @@ test('building a schema', async () => {
   expectTypeOf(await q.related('recruiter', q => q)).toEqualTypeOf<
     {
       readonly id: string;
-      readonly createdAt: number;
-      readonly updatedAt: number;
       readonly dbCreatedAt: number;
       readonly dbUpdatedAt: number;
       readonly name: string;
@@ -231,8 +200,6 @@ test('building a schema', async () => {
       readonly recruiter:
         | {
             readonly id: string;
-            readonly createdAt: number;
-            readonly updatedAt: number;
             readonly dbCreatedAt: number;
             readonly dbUpdatedAt: number;
             readonly name: string;
@@ -255,8 +222,6 @@ test('building a schema', async () => {
       readonly owner:
         | {
             readonly id: string;
-            readonly createdAt: number;
-            readonly updatedAt: number;
             readonly dbCreatedAt: number;
             readonly dbUpdatedAt: number;
             readonly name: string;
@@ -803,31 +768,14 @@ test('defaults', () => {
         .from('issues')
         .columns({
           id: string(),
-          createdAt: number().default({
-            insert: {
-              client: () => new Date().getTime(),
-              server: () => new Date().getTime(),
-            },
-          }),
-          updatedAt: number().default({
-            insert: {
-              client: () => new Date().getTime(),
-              server: () => new Date().getTime(),
-            },
-            update: {
-              client: () => new Date().getTime(),
-              server: () => new Date().getTime(),
-            },
-          }),
+
           dbCreatedAt: number().default({
             insert: {
-              client: () => new Date().getTime(),
               server: 'db',
             },
           }),
           dbUpdatedAt: number().default({
             update: {
-              client: () => new Date().getTime(),
               server: 'db',
             },
           }),
@@ -836,34 +784,7 @@ test('defaults', () => {
     ],
   });
 
-  expect(stringify(clientSchemaFrom(schema))).toMatchInlineSnapshot(`
-    "{
-      "clientSchema": {
-        "tables": {
-          "issues": {
-            "columns": {
-              "createdAt": {
-                "type": "number"
-              },
-              "dbCreatedAt": {
-                "type": "number"
-              },
-              "dbUpdatedAt": {
-                "type": "number"
-              },
-              "id": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "number"
-              }
-            }
-          }
-        }
-      },
-      "hash": "insv3f5if348"
-    }"
-  `);
+  expect(stringify(clientSchemaFrom(schema))).toMatchInlineSnapshot();
 
   const hashWithoutOn = clientSchemaFrom(schemaWithoutOn).hash;
   const hashWithOn = clientSchemaFrom(schema).hash;
