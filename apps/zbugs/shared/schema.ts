@@ -35,7 +35,7 @@ const user = table('user')
   .columns({
     id: string(),
     login: string(),
-    name: string().nullable(),
+    name: string().optional(),
     avatar: string(),
     role: enumeration<Role>(),
   })
@@ -44,13 +44,13 @@ const user = table('user')
 const issue = table('issue')
   .columns({
     id: string(),
-    shortID: number().nullable(),
+    shortID: number().optional(),
     title: string(),
     open: boolean(),
     modified,
     created,
     creatorID: string(),
-    assigneeID: string().nullable(),
+    assigneeID: string().optional(),
     description: string(),
     visibility: enumeration<'internal' | 'public'>(),
   })

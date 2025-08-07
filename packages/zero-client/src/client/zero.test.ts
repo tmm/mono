@@ -1532,7 +1532,7 @@ test('pusher maps CRUD mutation names', async () => {
             .from('issues')
             .columns({
               id: string(),
-              title: string().nullable(),
+              title: string().optional(),
             })
             .primaryKey('id'),
           table('comment')
@@ -1540,7 +1540,7 @@ test('pusher maps CRUD mutation names', async () => {
             .columns({
               id: string(),
               issueId: string().from('issue_id'),
-              text: string().nullable(),
+              text: string().optional(),
             })
             .primaryKey('id'),
           table('compoundPKTest')
@@ -3039,7 +3039,7 @@ describe('CRUD', () => {
             .from('issues')
             .columns({
               id: string(),
-              title: string().nullable(),
+              title: string().optional(),
             })
             .primaryKey('id'),
           table('comment')
@@ -3047,7 +3047,7 @@ describe('CRUD', () => {
             .columns({
               id: string(),
               issueID: string().from('issue_id'),
-              text: string().nullable(),
+              text: string().optional(),
             })
             .primaryKey('id'),
           table('compoundPKTest')
@@ -3284,7 +3284,7 @@ describe('CRUD', () => {
       },
     ]);
 
-    // 'nullable' fields can be explicitly set to null to overwrite previous
+    // 'optional' fields can be explicitly set to null to overwrite previous
     // value.
     await updateComment({id: 'a', issueID: '11', text: null});
     expect(view.data).toEqual([

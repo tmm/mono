@@ -173,26 +173,11 @@ class ColumnBuilder<TShape extends SchemaValue> {
 
   /**
    * Allows the column to be `null` or undefined on insert.
-   *
-   * @deprecated Use `nullable` instead.
    */
-  optional(): ColumnBuilder<Omit<TShape, 'nullable'> & {nullable: true}> {
+  optional(): ColumnBuilder<Omit<TShape, 'optional'> & {optional: true}> {
     return new ColumnBuilder({
       ...this.#schema,
-      nullable: true,
-    });
-  }
-
-  /**
-   * Allows the column to be `null` or undefined on insert.
-   *
-   * This affects the select model of the table - columns with `nullable` will be
-   * nullable on select.
-   */
-  nullable(): ColumnBuilder<Omit<TShape, 'nullable'> & {nullable: true}> {
-    return new ColumnBuilder({
-      ...this.#schema,
-      nullable: true,
+      optional: true,
     });
   }
 

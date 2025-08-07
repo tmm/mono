@@ -11,7 +11,7 @@ const schema = createSchema({
         id: string(),
         name: string(),
         // Column with no defaults
-        email: string().nullable(),
+        email: string().optional(),
         // Column with server db
         status: string().default({
           insert: {

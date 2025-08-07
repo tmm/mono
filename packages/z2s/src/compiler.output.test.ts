@@ -46,7 +46,7 @@ const issue = table('issue')
     title: string(),
     description: string(),
     closed: boolean(),
-    ownerId: string().nullable(),
+    ownerId: string().optional(),
     created: number(),
   })
   .primaryKey('id');

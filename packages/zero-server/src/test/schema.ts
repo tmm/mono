@@ -24,7 +24,7 @@ export const schema = createSchema({
         id: string(),
         a: number(),
         b: string(),
-        c: boolean().nullable(),
+        c: boolean().optional(),
       })
       .primaryKey('id'),
     table('names')
@@ -33,14 +33,14 @@ export const schema = createSchema({
         id: string().from('divergent_id'),
         a: number().from('divergent_a'),
         b: string().from('divergent_b'),
-        c: boolean().from('divergent_c').nullable(),
+        c: boolean().from('divergent_c').optional(),
       })
       .primaryKey('id'),
     table('compoundPk')
       .columns({
         a: string(),
         b: number(),
-        c: string().nullable(),
+        c: string().optional(),
       })
       .primaryKey('a', 'b'),
     table('dateTypes')
@@ -84,7 +84,7 @@ export const schema = createSchema({
         id: string(),
         a: number(),
         b: string(),
-        c: boolean().nullable(),
+        c: boolean().optional(),
       })
       .primaryKey('id'),
     table('defaults')
@@ -103,7 +103,7 @@ export const schema = createSchema({
               server: 'db',
             },
           })
-          .nullable(),
+          .optional(),
         // eslint-disable-next-line @typescript-eslint/naming-convention
         insert_update_db_generated: string().default({
           insert: {
@@ -199,9 +199,6 @@ CREATE TABLE alternate_schema.basic (
 
 CREATE TABLE "defaults" (
   id TEXT PRIMARY KEY,
-  "insert" TEXT,
-  "update" TEXT,
-  "insert_update" TEXT,
   "insert_db_generated" TEXT DEFAULT 'db-insert-default-1',
   "update_db_generated" TEXT,
   "insert_update_db_generated" TEXT DEFAULT 'db-insert-update-default-2'

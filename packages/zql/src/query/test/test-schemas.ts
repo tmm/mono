@@ -16,7 +16,7 @@ const issue = table('issue')
     title: string(),
     description: string(),
     closed: boolean(),
-    ownerId: string().from('owner_id').nullable(),
+    ownerId: string().from('owner_id').optional(),
     createdAt: number(),
   })
   .primaryKey('id');
@@ -30,7 +30,7 @@ const user = table('user')
       registrar: 'github' | 'google';
       email: string;
       altContacts?: string[];
-    }>().nullable(),
+    }>().optional(),
   })
   .primaryKey('id');
 

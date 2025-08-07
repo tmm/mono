@@ -71,7 +71,7 @@ const testSchema = table('test')
 const testSchemaWithNulls = table('testWithNulls')
   .columns({
     n: number(),
-    s: string().nullable(),
+    s: string().optional(),
   })
   .primaryKey('n');
 
@@ -118,7 +118,7 @@ const schemaWithUpdateDefaults = table('schemaWithUpdateDefaults')
           server: 'db',
         },
       })
-      .nullable(),
+      .optional(),
     j: json<{foo: string; bar: boolean}>().default({
       update: {
         server: 'db',
@@ -183,7 +183,7 @@ const schemaWithJson = table('testWithJson')
   .columns({
     a: string(),
     j: json(),
-    maybeJ: json().nullable(),
+    maybeJ: json().optional(),
   })
   .primaryKey('a');
 
@@ -195,9 +195,9 @@ const schemaWithArray = table('testWithArray')
     arrayOfString: json<string[]>(),
     arrayOfBoolean: json<boolean[]>(),
 
-    nullableArrayOfNumber: json<number[]>().nullable(),
-    nullableArrayOfString: json<string[]>().nullable(),
-    nullableArrayOfBoolean: json<boolean[]>().nullable(),
+    optionalArrayOfNumber: json<number[]>().optional(),
+    optionalArrayOfString: json<string[]>().optional(),
+    optionalArrayOfBoolean: json<boolean[]>().optional(),
   })
   .primaryKey('id');
 
@@ -994,9 +994,9 @@ test('array type', () => {
         readonly arrayOfString: string[];
         readonly arrayOfBoolean: boolean[];
 
-        readonly nullableArrayOfNumber: number[] | null;
-        readonly nullableArrayOfString: string[] | null;
-        readonly nullableArrayOfBoolean: boolean[] | null;
+        readonly optionalArrayOfNumber: number[] | null;
+        readonly optionalArrayOfString: string[] | null;
+        readonly optionalArrayOfBoolean: boolean[] | null;
       }
     | undefined
   >();
@@ -1009,9 +1009,9 @@ test('array type', () => {
       readonly arrayOfString: string[];
       readonly arrayOfBoolean: boolean[];
 
-      readonly nullableArrayOfNumber: number[] | null;
-      readonly nullableArrayOfString: string[] | null;
-      readonly nullableArrayOfBoolean: boolean[] | null;
+      readonly optionalArrayOfNumber: number[] | null;
+      readonly optionalArrayOfString: string[] | null;
+      readonly optionalArrayOfBoolean: boolean[] | null;
     }[]
   >();
 

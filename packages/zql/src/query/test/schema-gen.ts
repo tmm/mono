@@ -93,7 +93,7 @@ function generateRelationshipsForTable(
 
     const destField = selectRandom(rng, destTargets);
     const cardinality =
-      destField[1].nullable || destField[1].type === 'boolean'
+      destField[1].optional || destField[1].type === 'boolean'
         ? 'many'
         : selectRandom(rng, ['one', 'many'] as const);
 

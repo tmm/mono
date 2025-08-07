@@ -63,7 +63,6 @@ test('building a schema', async () => {
       title: string(),
       ownerId: number(),
       optional: string().optional(),
-      nullable: string().nullable(),
     })
     .primaryKey('id');
 
@@ -217,8 +216,7 @@ test('building a schema', async () => {
       readonly id: string;
       readonly title: string;
       readonly ownerId: number;
-      readonly optional: string | null;
-      readonly nullable: string | null;
+      readonly optional: string | null; 
       readonly owner:
         | {
             readonly id: string;
@@ -230,8 +228,7 @@ test('building a schema', async () => {
               readonly id: string;
               readonly title: string;
               readonly ownerId: number;
-              readonly optional: string | null;
-              readonly nullable: string | null;
+              readonly optional: string | null; 
             }[];
           }
         | undefined;
@@ -244,8 +241,7 @@ test('building a schema', async () => {
       readonly id: string;
       readonly title: string;
       readonly ownerId: number;
-      readonly optional: string | null;
-      readonly nullable: string | null;
+      readonly optional: string | null; 
       readonly labels: readonly {
         readonly id: number;
         readonly name: string;
@@ -263,8 +259,7 @@ test('building a schema', async () => {
         readonly id: string;
         readonly title: string;
         readonly ownerId: number;
-        readonly optional: string | null;
-        readonly nullable: string | null;
+        readonly optional: string | null; 
       }[];
     }[]
   >();
@@ -623,7 +618,7 @@ test('clientSchemaFrom', () => {
           title: string(),
           description: string(),
           closed: boolean(),
-          ownerId: string().from('owner_id').nullable(),
+          ownerId: string().from('owner_id').optional(),
         })
         .primaryKey('id'),
       table('comment')

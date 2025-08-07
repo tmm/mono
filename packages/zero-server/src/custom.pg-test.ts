@@ -114,8 +114,6 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'defaults', [
           {
             id: '1',
-            insert: 'server-insert-default-1',
-            update: null,
             insert_update: 'server-insert-default-3',
             insert_db_generated: 'db-insert-default-1',
             update_db_generated: null,
@@ -194,18 +192,9 @@ describe('makeSchemaCRUD', () => {
         crud.alternate_basic.upsert(basicRow),
         crud.defaults.upsert({
           id: '1',
-          update: undefined,
-          update_db_generated: undefined,
-        }),
-        crud.defaults.upsert({
-          id: '2',
-          update: undefined,
-          update_db_generated: undefined,
-        }),
-        crud.defaults.upsert({
-          id: '3',
-          update: undefined,
-          update_db_generated: undefined,
+          insert_db_generated: 'db-insert-default',
+          update_db_generated: null,
+          insert_update_db_generated: 'db-insert-update-default',
         }),
       ]);
 
@@ -229,24 +218,6 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'defaults', [
           {
             id: '1',
-            insert: 'server-insert-default-1',
-            update: null,
-            insert_update: 'server-insert-default-3',
-            insert_db_generated: 'db-insert-default-1',
-            update_db_generated: null,
-            insert_update_db_generated: 'db-insert-update-default-2',
-          },
-          {
-            id: '2',
-            insert: 'server-insert-default-1',
-            update: null,
-            insert_update: 'server-insert-default-3',
-            insert_db_generated: 'db-insert-default-1',
-            update_db_generated: null,
-            insert_update_db_generated: 'db-insert-update-default-2',
-          },
-          {
-            id: '3',
             insert: 'server-insert-default-1',
             update: null,
             insert_update: 'server-insert-default-3',
@@ -301,16 +272,15 @@ describe('makeSchemaCRUD', () => {
         }),
         crud.defaults.upsert({
           id: '1',
-          insert: 'new-value-1',
-          update: undefined,
-          update_db_generated: undefined,
+          insert_db_generated: 'db-insert-default-1',
+          update_db_generated: null,
+          insert_update_db_generated: 'db-insert-update-default-2',
         }),
         crud.defaults.upsert({
           id: '3',
           insert_db_generated: 'new-value-4',
           update_db_generated: 'new-value-5',
-          update: 'new-value-2',
-          insert_update_db_generated: 'new-value-6',
+          insert_update_db_generated: 'db-insert-update-default-4',
         }),
       ]);
 
@@ -372,8 +342,6 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'defaults', [
           {
             id: '2',
-            insert: 'server-insert-default-1',
-            update: null,
             insert_update: 'server-insert-default-3',
             insert_db_generated: 'db-insert-default-1',
             update_db_generated: null,
@@ -381,10 +349,6 @@ describe('makeSchemaCRUD', () => {
           },
           {
             id: '1',
-            insert: 'new-value-1',
-            // this value was updated because the row was upserted (updated)
-            // and undefined was passed for it
-            update: 'server-update-default-2',
             insert_update: 'server-update-default-3',
             insert_db_generated: 'db-insert-default-1',
             update_db_generated: 'db-update-default-3',
@@ -392,8 +356,6 @@ describe('makeSchemaCRUD', () => {
           },
           {
             id: '3',
-            insert: 'server-insert-default-1',
-            update: 'new-value-2',
             insert_update: 'server-update-default-3',
             insert_db_generated: 'new-value-4',
             // these take the value from the trigger
@@ -422,7 +384,12 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.insert(typesWithParamsRow),
         crud.uuidAndEnum.insert(uuidAndEnumRow),
         crud.alternate_basic.insert(basicRow),
-        crud.defaults.insert({id: '1'}),
+        crud.defaults.insert({
+          id: '1',
+          insert_db_generated: 'db-insert-default-1',
+          update_db_generated: null,
+          insert_update_db_generated: 'db-insert-update-default-2',
+        }),
       ]);
 
       await Promise.all([
@@ -529,8 +496,6 @@ describe('makeSchemaCRUD', () => {
         checkDb(tx, 'defaults', [
           {
             id: '1',
-            insert: 'server-insert-default-1',
-            update: 'server-update-default-2',
             insert_update: 'server-update-default-3',
             insert_db_generated: 'update-value-from-inline-test-44',
             update_db_generated: 'db-update-default-3',
@@ -559,7 +524,12 @@ describe('makeSchemaCRUD', () => {
         crud.typesWithParams.insert(typesWithParamsRow),
         crud.uuidAndEnum.insert(uuidAndEnumRow),
         crud.alternate_basic.insert(basicRow),
-        crud.defaults.insert({id: '1'}),
+        crud.defaults.insert({
+          id: '1',
+          insert_db_generated: 'db-insert-default-1',
+          update_db_generated: null,
+          insert_update_db_generated: 'db-insert-update-default-2',
+        }),
       ]);
 
       await Promise.all([
@@ -601,12 +571,12 @@ describe('makeSchemaCRUD', () => {
       // Test insert with minimal columns - defaults should be applied
       await crud.defaults.insert({
         id: '1',
+        insert_db_generated: 'db-insert-default-1',
+        insert_update_db_generated: 'db-insert-update-default-2',
       });
       await checkDb(tx, 'defaults', [
         {
           id: '1',
-          insert: 'server-insert-default-1',
-          update: null,
           insert_update: 'server-insert-default-3',
           insert_db_generated: 'db-insert-default-1',
           update_db_generated: null,
@@ -617,14 +587,12 @@ describe('makeSchemaCRUD', () => {
       // Test insert with some overrides
       await crud.defaults.insert({
         id: '2',
-        insert: 'explicit_server_update',
         insert_db_generated: 'explicit_no_server_update',
+        insert_update_db_generated: 'db-insert-update-default-2',
       });
       await checkDb(tx, 'defaults', [
         {
           id: '1',
-          insert: 'server-insert-default-1',
-          update: null,
           insert_update: 'server-insert-default-3',
           insert_db_generated: 'db-insert-default-1',
           update_db_generated: null,
@@ -632,8 +600,6 @@ describe('makeSchemaCRUD', () => {
         },
         {
           id: '2',
-          insert: 'explicit_server_update',
-          update: null,
           insert_update: 'server-insert-default-3',
           insert_db_generated: 'explicit_no_server_update',
           update_db_generated: null,
@@ -646,8 +612,6 @@ describe('makeSchemaCRUD', () => {
       await checkDb(tx, 'defaults', [
         {
           id: '2',
-          insert: 'explicit_server_update',
-          update: null,
           insert_update: 'server-insert-default-3',
           insert_db_generated: 'explicit_no_server_update',
           update_db_generated: null,
@@ -655,8 +619,6 @@ describe('makeSchemaCRUD', () => {
         },
         {
           id: '1',
-          insert: 'server-insert-default-1',
-          update: 'server-update-default-2',
           insert_update: 'server-update-default-3',
           insert_db_generated: 'db-insert-default-1',
           update_db_generated: 'db-update-default-3',
@@ -669,14 +631,10 @@ describe('makeSchemaCRUD', () => {
         id: '2',
         insert_update_db_generated: 'overridden_update',
         update_db_generated: 'overridden_db_default',
-        update: 'overridden_update-2',
-        insert_update: 'overridden_update-3',
       });
       await checkDb(tx, 'defaults', [
         {
           id: '1',
-          insert: 'server-insert-default-1',
-          update: 'server-update-default-2',
           insert_update: 'server-update-default-3',
           insert_db_generated: 'db-insert-default-1',
           update_db_generated: 'db-update-default-3',
@@ -684,8 +642,6 @@ describe('makeSchemaCRUD', () => {
         },
         {
           id: '2',
-          insert: 'explicit_server_update',
-          update: 'overridden_update-2',
           insert_update: 'overridden_update-3',
           insert_db_generated: 'explicit_no_server_update',
           update_db_generated: 'db-update-default-3',
@@ -696,22 +652,22 @@ describe('makeSchemaCRUD', () => {
       // Test upsert on non-existing row (insert behavior)
       await crud.defaults.upsert({
         id: '3',
-        update: undefined,
-        update_db_generated: undefined,
+        insert_db_generated: 'db-insert-default-3',
+        update_db_generated: null,
+        insert_update_db_generated: 'db-insert-update-default-3',
       });
 
       // Test upsert on existing row (update behavior)
       await crud.defaults.upsert({
         id: '1',
-        update: undefined,
-        update_db_generated: undefined,
+        insert_db_generated: 'db-insert-default-4',
+        update_db_generated: 'db-update-default-4',
+        insert_update_db_generated: 'db-insert-update-default-4',
       });
 
       await checkDb(tx, 'defaults', [
         {
           id: '2',
-          insert: 'explicit_server_update',
-          update: 'overridden_update-2',
           insert_update: 'overridden_update-3',
           insert_db_generated: 'explicit_no_server_update',
           update_db_generated: 'db-update-default-3',
@@ -719,8 +675,6 @@ describe('makeSchemaCRUD', () => {
         },
         {
           id: '3',
-          insert: 'server-insert-default-1',
-          update: null,
           insert_update: 'server-insert-default-3',
           insert_db_generated: 'db-insert-default-1',
           update_db_generated: null,
@@ -728,55 +682,10 @@ describe('makeSchemaCRUD', () => {
         },
         {
           id: '1',
-          insert: 'server-insert-default-1',
-          update: 'server-update-default-2',
           insert_update: 'server-update-default-3',
           insert_db_generated: 'db-insert-default-1',
           update_db_generated: 'db-update-default-3',
           insert_update_db_generated: 'db-insert-update-default-4',
-        },
-      ]);
-
-      // Test with only required fields - should use defaults for the rest
-      await crud.defaults.insert({
-        id: '4',
-      });
-      await checkDb(tx, 'defaults', [
-        {
-          id: '2',
-          insert: 'explicit_server_update',
-          update: 'overridden_update-2',
-          insert_update: 'overridden_update-3',
-          insert_db_generated: 'explicit_no_server_update',
-          update_db_generated: 'db-update-default-3',
-          insert_update_db_generated: 'db-insert-update-default-4',
-        },
-        {
-          id: '3',
-          insert: 'server-insert-default-1',
-          update: null,
-          insert_update: 'server-insert-default-3',
-          insert_db_generated: 'db-insert-default-1',
-          update_db_generated: null,
-          insert_update_db_generated: 'db-insert-update-default-2',
-        },
-        {
-          id: '1',
-          insert: 'server-insert-default-1',
-          update: 'server-update-default-2',
-          insert_update: 'server-update-default-3',
-          insert_db_generated: 'db-insert-default-1',
-          update_db_generated: 'db-update-default-3',
-          insert_update_db_generated: 'db-insert-update-default-4',
-        },
-        {
-          id: '4',
-          insert: 'server-insert-default-1',
-          update: null,
-          insert_update: 'server-insert-default-3',
-          insert_db_generated: 'db-insert-default-1',
-          update_db_generated: null,
-          insert_update_db_generated: 'db-insert-update-default-2',
         },
       ]);
     });

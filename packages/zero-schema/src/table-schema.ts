@@ -4,12 +4,10 @@ import type {PrimaryKey} from '../../zero-protocol/src/primary-key.ts';
 
 export type {ValueType} from '../../zero-protocol/src/client-schema.ts';
 
-
-
 export type BaseSchemaValue = {
   type: ValueType;
   serverName?: string | undefined;
-  nullable?: boolean | undefined;
+  optional?: boolean | undefined;
 };
 
 export type SchemaValueWithCustomType<
@@ -19,11 +17,11 @@ export type SchemaValueWithCustomType<
 };
 
 export type DefaultConfig = {
-  insert?: { 
-    server:   'db';
+  insert?: {
+    server: 'db';
   };
-  update?: { 
-    server:   'db';
+  update?: {
+    server: 'db';
   };
 };
 
@@ -95,7 +93,7 @@ export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
   T extends ValueType
     ? TypeNameToTypeMap[T]
     : T extends {
-          nullable: true;
+          optional: true;
         }
       ? SchemaValueWithTypeOverride<T> | null
       : SchemaValueWithTypeOverride<T>;

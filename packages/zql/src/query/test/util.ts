@@ -39,9 +39,9 @@ export function randomValueForType(
   rng: Rng,
   faker: Faker,
   type: ValueType,
-  nullable: boolean | undefined,
+  optional: boolean | undefined,
 ): string | boolean | number | null | Record<string, unknown> {
-  if (nullable && rng() < 0.1) {
+  if (optional && rng() < 0.1) {
     return null;
   }
   switch (type) {
