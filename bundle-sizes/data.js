@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752654626041,
+  "lastUpdate": 1754598300136,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52881,6 +52881,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/5960eee30cc93238a607a6dae2ff58eb00ccb738"
         },
         "date": 1752654614066,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300641,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54264,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110834,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31692,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "c@cadams.io",
+            "name": "Chase Adams",
+            "username": "0xcadams"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f90fee6acb8f93908461481376b1eab8435bf7f9",
+          "message": "feat(zero-client): expo-sqlite storage (#4669)\n\n* @austinm911's changes to add first-class expo integrations\n\n* fix: only have zero-expo\n\n* feat: added expo sqlite\n\n* fix: remove unused prepared statements\n\n* fix: entrypoint\n\n* fix: cleanup\n\n* fix: add back WITHOUT ROWID\n\n* chore: fix global types\n\n* chore: update peer dep version\n\n* fix: move to use tx/savepoint for reads\n\n* test: simplify bench\n\n* fix: moved defaults to be config and fixed test config\n\n* fix: test config\n\n* fix: move to use read pool and single write conn\n\n* fix: remove readonly flag\n\n* fix: update based on @arv feedback\n\n* fix: rename\n\n---------\n\nCo-authored-by: Austin Mudd <31991302+austinm911@users.noreply.github.com>",
+          "timestamp": "2025-08-07T20:23:38Z",
+          "tree_id": "a472f17070d7fe5d4c460d234f5bbf4ef34b7e51",
+          "url": "https://github.com/rocicorp/mono/commit/f90fee6acb8f93908461481376b1eab8435bf7f9"
+        },
+        "date": 1754598282351,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
