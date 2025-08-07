@@ -853,8 +853,10 @@ export class Zero<const S extends Schema> {
    * // Priority left unchanged.
    * await zero.mutate.issue.update({id: '1', title: 'Updated title'});
    * ```
+   *
+   * @DEPRECATED: Use custom mutators, not CRUD mutations, for new code.
    */
-  readonly mutate: DBMutator<S> & MutatorMap;
+  readonly mutate: DBMutator<S>;
   readonly [mutatorsSymbol]: MutatorMap;
 
   /**

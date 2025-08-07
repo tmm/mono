@@ -172,6 +172,11 @@ export type MutatorMap = Record<
   (...args: ReadonlyArray<ReadonlyJSONValue>) => Promise<void>
 >;
 
+export type MutatorResult = {
+  client: Promise<void>;
+  server: Promise<void>;
+};
+
 /**
  * Define mutators. Unlike queries, you must currently
  * define _all_ mutators at once.
@@ -207,7 +212,7 @@ export function mutators<
         // https://github.com/rocicorp/mono/pull/4449
         tx: Transaction<Schema, unknown> | MutatorProvider,
         ...args: TArgs
-      ) => Promise<void>
+      ) => MutatorResult
     : never;
 } {
   const ret = {} as any;

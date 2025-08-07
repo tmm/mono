@@ -1,12 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  test,
-  vi,
-} from 'vitest';
+import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
 import {zeroData} from '../../../replicache/src/transactions.ts';
 import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
 import {must} from '../../../shared/src/must.ts';
@@ -17,12 +9,7 @@ import {
 } from '../../../zql/src/mutate/custom.ts';
 import {schema} from '../../../zql/src/query/test/test-schemas.ts';
 import * as ConnectionState from './connection-state-enum.ts';
-import {
-  TransactionImpl,
-  type CustomMutatorDefs,
-  type MakeCustomMutatorInterfaces,
-  type MutatorResult,
-} from './custom.ts';
+import {TransactionImpl} from './custom.ts';
 import {IVMSourceBranch} from './ivm-branch.ts';
 import type {WriteTransaction} from './replicache-types.ts';
 import {MockSocket, zeroForTest} from './test-utils.ts';
@@ -33,72 +20,23 @@ import {refCountSymbol} from '../../../zql/src/ivm/view-apply-change.ts';
 
 type Schema = typeof schema;
 
-test('argument types are preserved on the generated mutator interface', () => {
-  const mutators = {
-    issue: {
-      setTitle: (tx, {id, title}: {id: string; title: string}) =>
-        tx.mutate.issue.update({id, title}),
-      setProps: (
-        tx,
-        {
-          id,
-          title,
-          status,
-          assignee,
-        }: {
-          id: string;
-          title: string;
-          status: 'open' | 'closed';
-          assignee: string;
-        },
-      ) =>
-        tx.mutate.issue.update({
-          id,
-          title,
-          closed: status === 'closed',
-          ownerId: assignee,
-        }),
-    },
-    nonTableNamespace: {
-      doThing: (_tx, _a: {arg1: string; arg2: number}) => {
-        throw new Error('not implemented');
-      },
-    },
-  } satisfies CustomMutatorDefs<Schema>;
-
-  type MutatorsInterface = MakeCustomMutatorInterfaces<Schema, typeof mutators>;
-
-  expectTypeOf<MutatorsInterface>().toEqualTypeOf<{
-    readonly issue: {
-      readonly setTitle: (args: {id: string; title: string}) => MutatorResult;
-      readonly setProps: (args: {
-        id: string;
-        title: string;
-        status: 'closed' | 'open';
-        assignee: string;
-      }) => MutatorResult;
-    };
-    readonly nonTableNamespace: {
-      readonly doThing: (_a: {arg1: string; arg2: number}) => MutatorResult;
-    };
-  }>();
-});
-
 test('supports mutators without a namespace', async () => {
+  const m = mutators({
+    createIssue: async (
+      tx: Transaction<Schema>,
+      args: InsertValue<typeof schema.tables.issue>,
+    ) => {
+      await tx.mutate.issue.insert(args);
+    },
+  });
   const z = zeroForTest({
     logLevel: 'debug',
     schema,
-    mutators: {
-      createIssue: async (
-        tx: Transaction<Schema>,
-        args: InsertValue<typeof schema.tables.issue>,
-      ) => {
-        await tx.mutate.issue.insert(args);
-      },
-    },
+    mutators: m,
   });
+  z.mutate;
 
-  await z.mutate.createIssue({
+  await m.createIssue(z, {
     id: '1',
     title: 'no-namespace',
     closed: false,
@@ -112,26 +50,17 @@ test('supports mutators without a namespace', async () => {
 });
 
 test('detects collisions in mutator names', () => {
+  const m1 = mutators({
+    async create() {},
+  });
+  const m2 = mutators({
+    async create() {},
+  });
   expect(() =>
     zeroForTest({
       logLevel: 'debug',
       schema,
-      mutators: {
-        'issue': {
-          create: async (
-            tx: Transaction<Schema>,
-            args: InsertValue<typeof schema.tables.issue>,
-          ) => {
-            await tx.mutate.issue.insert(args);
-          },
-        },
-        'issue|create': async (
-          tx: Transaction<Schema>,
-          args: InsertValue<typeof schema.tables.issue>,
-        ) => {
-          await tx.mutate.issue.insert(args);
-        },
-      },
+      mutators: {...m1, ...m2},
     }),
   ).toThrowErrorMatchingInlineSnapshot(
     `[Error: A mutator, or mutator namespace, has already been defined for issue|create]`,
@@ -139,33 +68,30 @@ test('detects collisions in mutator names', () => {
 });
 
 test('custom mutators write to the local store', async () => {
+  const m = mutators({
+    setTitle: async (tx, {id, title}: {id: string; title: string}) => {
+      await tx.mutate.issue.update({id, title});
+    },
+    deleteTwoIssues: async (tx, {id1, id2}: {id1: string; id2: string}) => {
+      await Promise.all([
+        tx.mutate.issue.delete({id: id1}),
+        tx.mutate.issue.delete({id: id2}),
+      ]);
+    },
+    create: async (tx, args: InsertValue<typeof schema.tables.issue>) => {
+      await tx.mutate.issue.insert(args);
+    },
+    clown: async (tx, id: string) => {
+      await tx.mutate.issue.update({id, title: '🤡'});
+    },
+  });
   const z = zeroForTest({
     logLevel: 'debug',
     schema,
-    mutators: {
-      issue: {
-        setTitle: async (tx, {id, title}: {id: string; title: string}) => {
-          await tx.mutate.issue.update({id, title});
-        },
-        deleteTwoIssues: async (tx, {id1, id2}: {id1: string; id2: string}) => {
-          await Promise.all([
-            tx.mutate.issue.delete({id: id1}),
-            tx.mutate.issue.delete({id: id2}),
-          ]);
-        },
-        create: async (tx, args: InsertValue<typeof schema.tables.issue>) => {
-          await tx.mutate.issue.insert(args);
-        },
-      },
-      customNamespace: {
-        clown: async (tx, id: string) => {
-          await tx.mutate.issue.update({id, title: '🤡'});
-        },
-      },
-    } satisfies CustomMutatorDefs<Schema>,
+    mutators: m,
   });
 
-  await z.mutate.issue.create({
+  await m.create(z, {
     id: '1',
     title: 'foo',
     closed: false,
@@ -178,15 +104,15 @@ test('custom mutators write to the local store', async () => {
   let issues = await z.query.issue;
   expect(issues[0].title).toEqual('foo');
 
-  await z.mutate.issue.setTitle({id: '1', title: 'bar'}).client;
+  await m.setTitle(z, {id: '1', title: 'bar'}).client;
   issues = await z.query.issue;
   expect(issues[0].title).toEqual('bar');
 
-  await z.mutate.customNamespace.clown('1').client;
+  await m.clown(z, '1').client;
   issues = await z.query.issue;
   expect(issues[0].title).toEqual('🤡');
 
-  await z.mutate.issue.create({
+  await m.create(z, {
     id: '2',
     title: 'foo',
     closed: false,
@@ -197,8 +123,7 @@ test('custom mutators write to the local store', async () => {
   issues = await z.query.issue;
   expect(issues.length).toEqual(2);
 
-  await z.mutate.issue.deleteTwoIssues({id1: issues[0].id, id2: issues[1].id})
-    .client;
+  await m.deleteTwoIssues(z, {id1: issues[0].id, id2: issues[1].id}).client;
   issues = await z.query.issue;
   expect(issues.length).toEqual(0);
 });

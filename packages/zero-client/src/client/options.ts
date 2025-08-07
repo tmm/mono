@@ -9,7 +9,6 @@ import type {
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {OnError} from './on-error.ts';
 import {UpdateNeededReasonType} from './update-needed-reason-type.ts';
-import type {MutatorImpl} from '../../../zql/src/mutate/custom.ts';
 
 /**
  * Configuration for {@linkcode Zero}.
@@ -97,7 +96,7 @@ export interface ZeroOptions<S extends Schema> {
    * changes from the server to the client.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mutators?: Record<string, MutatorImpl<any>> | undefined;
+  mutators?: Record<string, (tx: any, args: any) => any> | undefined;
 
   /**
    * Custom mutations are pushed to zero-cache and then to

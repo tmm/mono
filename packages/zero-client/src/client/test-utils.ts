@@ -30,7 +30,6 @@ import {upstreamSchema} from '../../../zero-protocol/src/up.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {PullRow, Query} from '../../../zql/src/query/query.ts';
 import * as ConnectionState from './connection-state-enum.ts';
-import type {CustomMutatorDefs} from './custom.ts';
 import type {LogOptions} from './log-options.ts';
 import type {ZeroOptions} from './options.ts';
 import {
@@ -80,11 +79,7 @@ export class MockSocket extends EventTarget {
   }
 }
 
-export class TestZero<
-  const S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
-  TWrappedTransaction = unknown,
-> extends Zero<S, MD, TWrappedTransaction> {
+export class TestZero<const S extends Schema> extends Zero<S> {
   pokeIDCounter = 0;
 
   #connectionStateResolvers: Set<{
@@ -92,7 +87,7 @@ export class TestZero<
     resolve: (state: ConnectionState) => void;
   }> = new Set();
 
-  constructor(options: ZeroOptions<S, MD, TWrappedTransaction>) {
+  constructor(options: ZeroOptions<S>) {
     super(options);
   }
 
@@ -277,14 +272,10 @@ declare const TESTING: boolean;
 
 let testZeroCounter = 0;
 
-export function zeroForTest<
-  const S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
-  TWrappedTransaction = unknown,
->(
-  options: Partial<ZeroOptions<S, MD, TWrappedTransaction>> = {},
+export function zeroForTest<const S extends Schema>(
+  options: Partial<ZeroOptions<S>> = {},
   errorOnUpdateNeeded = true,
-): TestZero<S, MD, TWrappedTransaction> {
+): TestZero<S> {
   // Special case kvStore. If not present we default to 'mem'. This allows
   // passing `undefined` to get the default behavior.
   const newOptions = {...options};
@@ -306,7 +297,7 @@ export function zeroForTest<
         }
       : undefined,
     ...newOptions,
-  } satisfies ZeroOptions<S, MD, TWrappedTransaction>);
+  } satisfies ZeroOptions<S>);
 }
 
 export async function waitForUpstreamMessage(
