@@ -4,23 +4,27 @@ import {assert} from '../../../../shared/src/asserts.ts';
 import {must} from '../../../../shared/src/must.ts';
 import {Queue} from '../../../../shared/src/queue.ts';
 import * as v from '../../../../shared/src/valita.ts';
-import type {UserPushParams} from '../../../../zero-protocol/src/connect.ts';
+import type {UserMutateParams} from '../../../../zero-protocol/src/connect.ts';
 import type {Downstream} from '../../../../zero-protocol/src/down.ts';
 import {ErrorKind} from '../../../../zero-protocol/src/error-kind.ts';
 import {
   pushResponseSchema,
+  type MutationID,
   type PushBody,
   type PushError,
   type PushResponse,
 } from '../../../../zero-protocol/src/push.ts';
 import {type ZeroConfig} from '../../config/zero-config.ts';
-import * as counters from '../../observability/counters.ts';
+import {fetchFromAPIServer} from '../../custom/fetch.ts';
+import {getOrCreateCounter} from '../../observability/metrics.ts';
+import {recordMutation} from '../../server/anonymous-otel-start.ts';
 import {ErrorForClient} from '../../types/error-for-client.ts';
+import type {PostgresDB} from '../../types/pg.ts';
+import {upstreamSchema} from '../../types/shards.ts';
 import type {Source} from '../../types/streams.ts';
 import {Subscription, type Result} from '../../types/subscription.ts';
 import type {HandlerResult, StreamResult} from '../../workers/connection.ts';
 import type {RefCountedService, Service} from '../service.ts';
-import {fetchFromAPIServer} from '../../custom/fetch.ts';
 
 type Fatal = {
   error: 'forClient';
@@ -31,17 +35,18 @@ type Fatal = {
 export interface Pusher extends RefCountedService {
   readonly pushURL: string | undefined;
 
+  initConnection(
+    clientID: string,
+    wsID: string,
+    userPushParams: UserMutateParams | undefined,
+  ): Source<Downstream>;
   enqueuePush(
     clientID: string,
     push: PushBody,
     jwt: string | undefined,
     httpCookie: string | undefined,
   ): HandlerResult;
-  initConnection(
-    clientID: string,
-    wsID: string,
-    userPushParams: UserPushParams | undefined,
-  ): Source<Downstream>;
+  ackMutationResponses(upToID: MutationID): Promise<void>;
 }
 
 type Config = Pick<ZeroConfig, 'app' | 'shard'>;
@@ -63,17 +68,22 @@ export class PusherService implements Service, Pusher {
   readonly id: string;
   readonly #pusher: PushWorker;
   readonly #queue: Queue<PusherEntryOrStop>;
-  readonly #pushConfig: ZeroConfig['push'] & {url: string};
+  readonly #pushConfig: ZeroConfig['push'] & {url: string[]};
+  readonly #upstream: PostgresDB;
+  readonly #config: Config;
   #stopped: Promise<void> | undefined;
   #refCount = 0;
   #isStopped = false;
 
   constructor(
+    upstream: PostgresDB,
     appConfig: Config,
-    pushConfig: ZeroConfig['push'] & {url: string},
+    pushConfig: ZeroConfig['push'] & {url: string[]},
     lc: LogContext,
     clientGroupID: string,
   ) {
+    this.#config = appConfig;
+    this.#upstream = upstream;
     this.#queue = new Queue();
     this.#pusher = new PushWorker(
       appConfig,
@@ -87,13 +97,13 @@ export class PusherService implements Service, Pusher {
   }
 
   get pushURL(): string | undefined {
-    return this.#pusher.pushURL;
+    return this.#pusher.pushURL[0];
   }
 
   initConnection(
     clientID: string,
     wsID: string,
-    userPushParams: UserPushParams | undefined,
+    userPushParams: UserMutateParams | undefined,
   ) {
     return this.#pusher.initConnection(clientID, wsID, userPushParams);
   }
@@ -112,6 +122,17 @@ export class PusherService implements Service, Pusher {
     return {
       type: 'ok',
     };
+  }
+
+  async ackMutationResponses(upToID: MutationID) {
+    // delete the relevant rows from the `mutations` table
+    const sql = this.#upstream;
+    await sql`DELETE FROM ${sql(
+      upstreamSchema({
+        appID: this.#config.app.id,
+        shardNum: this.#config.shard.num,
+      }),
+    )}.mutations WHERE "clientGroupID" = ${this.id} AND "clientID" = ${upToID.clientID} AND "mutationID" <= ${upToID.id}`;
   }
 
   ref() {
@@ -159,7 +180,7 @@ type PusherEntryOrStop = PusherEntry | 'stop';
  * to the user's API server.
  */
 class PushWorker {
-  readonly #pushURL: string;
+  readonly #pushURLs: string[];
   readonly #apiKey: string | undefined;
   readonly #queue: Queue<PusherEntryOrStop>;
   readonly #lc: LogContext;
@@ -168,19 +189,30 @@ class PushWorker {
     string,
     {
       wsID: string;
-      userParams?: UserPushParams | undefined;
+      userParams?: UserMutateParams | undefined;
       downstream: Subscription<Downstream>;
     }
   >;
 
+  readonly #customMutations = getOrCreateCounter(
+    'mutation',
+    'custom',
+    'Number of custom mutations processed',
+  );
+  readonly #pushes = getOrCreateCounter(
+    'mutation',
+    'pushes',
+    'Number of pushes processed by the pusher',
+  );
+
   constructor(
     config: Config,
     lc: LogContext,
-    pushURL: string,
+    pushURL: string[],
     apiKey: string | undefined,
     queue: Queue<PusherEntryOrStop>,
   ) {
-    this.#pushURL = pushURL;
+    this.#pushURLs = pushURL;
     this.#apiKey = apiKey;
     this.#queue = queue;
     this.#lc = lc.withContext('component', 'pusher');
@@ -189,7 +221,7 @@ class PushWorker {
   }
 
   get pushURL() {
-    return this.#pushURL;
+    return this.#pushURLs;
   }
 
   /**
@@ -199,7 +231,7 @@ class PushWorker {
   initConnection(
     clientID: string,
     wsID: string,
-    userParams: UserPushParams | undefined,
+    userParams: UserMutateParams | undefined,
   ) {
     const existing = this.#clients.get(clientID);
     if (existing && existing.wsID === wsID) {
@@ -238,18 +270,15 @@ class PushWorker {
   }
 
   /**
-   * The pusher can end up combining many push requests, from the client group, into a single request
-   * to the API server.
-   *
-   * In that case, many different clients will have their mutations present in the
-   * PushResponse.
-   *
-   * Each client is on a different websocket connection though, so we need to fan out the response
-   * to all the clients that were part of the push.
+   * 1. If the entire `push` fails, we send the error to relevant clients.
+   * 2. If the push succeeds, we look for any mutation failure that should cause the connection to terminate
+   *  and terminate the connection for those clients.
    */
-  async #fanOutResponses(response: PushResponse | Fatal) {
+  #fanOutResponses(response: PushResponse | Fatal) {
     const responses: Promise<Result>[] = [];
     const connectionTerminations: (() => void)[] = [];
+
+    // if the entire push failed, send that to the client.
     if ('error' in response) {
       this.#lc.warn?.(
         'The server behind ZERO_PUSH_URL returned a push error.',
@@ -292,6 +321,7 @@ class PushWorker {
         }
       }
     } else {
+      // Look for mutations results that should cause us to terminate the connection
       const groupedMutations = groupBy(response.mutations, m => m.id.clientID);
       for (const [clientID, mutations] of groupedMutations) {
         const client = this.#clients.get(clientID);
@@ -324,41 +354,30 @@ class PushWorker {
           );
         }
 
-        // We do not resolve the mutation on the client if it
-        // fails for a reason that will cause it to be retried.
-        const successes = failure ? mutations.slice(0, i) : mutations;
-
-        if (successes.length > 0) {
-          responses.push(
-            client.downstream.push(['pushResponse', {mutations: successes}])
-              .result,
-          );
-        }
-
         if (failure) {
           connectionTerminations.push(() => client.downstream.fail(failure));
         }
       }
     }
 
-    try {
-      await Promise.allSettled(responses);
-    } finally {
-      connectionTerminations.forEach(cb => cb());
-    }
+    connectionTerminations.forEach(cb => cb());
   }
 
   async #processPush(entry: PusherEntry): Promise<PushResponse | Fatal> {
-    counters.customMutations().add(entry.push.mutations.length, {
+    this.#customMutations.add(entry.push.mutations.length, {
       clientGroupID: entry.push.clientGroupID,
     });
-    counters.pushes().add(1, {
+    this.#pushes.add(1, {
       clientGroupID: entry.push.clientGroupID,
     });
 
+    // Record custom mutations for telemetry
+    recordMutation(entry.push.mutations.length);
+
     try {
       const response = await fetchFromAPIServer(
-        this.#pushURL,
+        must(this.#pushURLs[0], 'ZERO_MUTATE_URL is not set'),
+        this.#pushURLs,
         {
           appID: this.#config.app.id,
           shardNum: this.#config.shard.num,

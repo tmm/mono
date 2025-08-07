@@ -1,5 +1,4 @@
 import {resolver} from '@rocicorp/resolver';
-import {availableParallelism} from 'node:os';
 import path from 'node:path';
 import {must} from '../../../shared/src/must.ts';
 import {assertNormalized} from '../config/normalize.ts';
@@ -30,7 +29,9 @@ import {
   subscribeTo,
 } from '../workers/replicator.ts';
 import {createLogContext} from './logging.ts';
+import {startOtelAuto} from './otel-start.ts';
 import {WorkerDispatcher} from './worker-dispatcher.ts';
+
 const clientConnectionBifurcated = false;
 
 export default async function runWorker(
@@ -40,16 +41,13 @@ export default async function runWorker(
   const startMs = Date.now();
   const config = getZeroConfig({env});
   assertNormalized(config);
-  const lc = createLogContext(config, {worker: 'dispatcher'});
+
+  startOtelAuto(createLogContext(config, {worker: 'dispatcher'}, false));
+  const lc = createLogContext(config, {worker: 'dispatcher'}, true);
 
   const processes = new ProcessManager(lc, parent);
 
-  const numSyncers =
-    config.numSyncWorkers !== undefined
-      ? config.numSyncWorkers
-      : // Reserve 1 core for the replicator. The change-streamer is not CPU heavy.
-        Math.max(1, availableParallelism() - 1);
-
+  const {numSyncWorkers: numSyncers} = config;
   if (config.upstream.maxConns < numSyncers) {
     throw new Error(
       `Insufficient upstream connections (${config.upstream.maxConns}) for ${numSyncers} syncers.` +

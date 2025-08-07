@@ -27,6 +27,7 @@ import {getShardID} from '../types/shards.ts';
 import {Subscription} from '../types/subscription.ts';
 import {replicaFileModeSchema, replicaFileName} from '../workers/replicator.ts';
 import {Syncer} from '../workers/syncer.ts';
+import {startAnonymousTelemetry} from './anonymous-otel-start.ts';
 import {createLogContext} from './logging.ts';
 import {startOtelAuto} from './otel-start.ts';
 
@@ -41,15 +42,16 @@ export default function runWorker(
 ): Promise<void> {
   const config = getZeroConfig({env, argv: args.slice(1)});
   assertNormalized(config);
-  startOtelAuto();
 
-  const lc = createLogContext(config, {worker: 'syncer'});
+  startOtelAuto(createLogContext(config, {worker: 'syncer'}, false));
+  const lc = createLogContext(config, {worker: 'syncer'}, true);
+
   assert(args.length > 0, `replicator mode not specified`);
   const fileMode = v.parse(args[0], replicaFileModeSchema);
 
   const {cvr, upstream} = config;
-  assert(cvr.maxConnsPerWorker);
-  assert(upstream.maxConnsPerWorker);
+  assert(cvr.maxConnsPerWorker, 'cvr.maxConnsPerWorker must be set');
+  assert(upstream.maxConnsPerWorker, 'upstream.maxConnsPerWorker must be set');
 
   const replicaFile = replicaFileName(config.replica.file, fileMode);
   lc.debug?.(`running view-syncer on ${replicaFile}`);
@@ -88,12 +90,13 @@ export default function runWorker(
       .withContext('instance', randomID());
     lc.debug?.(`creating view syncer`);
     return new ViewSyncerService(
-      config.pull,
+      config.query,
       logger,
       shard,
       config.taskID,
       id,
       cvrDB,
+      config.upstream.type === 'pg' ? upstreamDB : undefined,
       new PipelineDriver(
         logger,
         config.log,
@@ -105,8 +108,6 @@ export default function runWorker(
       sub,
       drainCoordinator,
       config.log.slowHydrateThreshold,
-      undefined,
-      config.targetClientRowCount,
     );
   };
 
@@ -120,14 +121,19 @@ export default function runWorker(
     );
 
   const pusherFactory =
-    config.push.url === undefined
+    config.push.url === undefined && config.mutate.url === undefined
       ? undefined
       : (id: string) =>
           new PusherService(
+            upstreamDB,
             config,
             {
               ...config.push,
-              url: must(config.push.url),
+              ...config.mutate,
+              url: must(
+                config.push.url ?? config.mutate.url,
+                'No push or mutate URL configured',
+              ),
             },
             lc.withContext('clientGroupID', id),
             id,
@@ -141,6 +147,8 @@ export default function runWorker(
     pusherFactory,
     parent,
   );
+
+  startAnonymousTelemetry(lc, config);
 
   void dbWarmup.then(() => parent.send(['ready', {ready: true}]));
 

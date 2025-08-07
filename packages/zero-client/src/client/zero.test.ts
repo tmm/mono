@@ -43,6 +43,7 @@ import {
   table,
 } from '../../../zero-schema/src/builder/table-builder.ts';
 import {refCountSymbol} from '../../../zql/src/ivm/view-apply-change.ts';
+import type {Transaction} from '../../../zql/src/mutate/custom.ts';
 import {nanoid} from '../util/nanoid.ts';
 import * as ConnectionState from './connection-state-enum.ts';
 import type {CustomMutatorDefs} from './custom.ts';
@@ -73,6 +74,7 @@ import {
 
 const startTime = 1678829450000;
 
+let rejectionHandler: (event: PromiseRejectionEvent) => void;
 beforeEach(() => {
   vi.useFakeTimers({now: startTime});
   vi.stubGlobal('WebSocket', MockSocket as unknown as typeof WebSocket);
@@ -80,6 +82,13 @@ beforeEach(() => {
     'fetch',
     vi.fn().mockReturnValue(Promise.resolve(new Response())),
   );
+
+  rejectionHandler = event => {
+    // eslint-disable-next-line no-console
+    console.error('Test rejection:', event.reason);
+  };
+
+  window.addEventListener('unhandledrejection', rejectionHandler);
 });
 
 afterEach(() => {
@@ -322,6 +331,71 @@ test('onOnlineChange callback', async () => {
   }
 });
 
+test('onOnline listener', async () => {
+  let online1 = 0;
+  let offline1 = 0;
+  let online2 = 0;
+  let offline2 = 0;
+
+  const z = zeroForTest({
+    logLevel: 'debug',
+  });
+
+  const unsubscribe1 = z.onOnline(online => {
+    if (online) {
+      online1++;
+    } else {
+      offline1++;
+    }
+  });
+
+  const unsubscribe2 = z.onOnline(online => {
+    if (online) {
+      online2++;
+    } else {
+      offline2++;
+    }
+  });
+
+  // Offline by default.
+  await vi.advanceTimersByTimeAsync(1);
+  expect(z.online).false;
+
+  // Connect: both listeners should be notified.
+  await z.waitForConnectionState(ConnectionState.Connecting);
+  await z.triggerConnected();
+  await z.waitForConnectionState(ConnectionState.Connected);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(z.online).true;
+  expect(online1).toBe(1);
+  expect(offline1).toBe(0);
+  expect(online2).toBe(1);
+  expect(offline2).toBe(0);
+
+  // Unsubscribe the first listener and trigger an error to go offline.
+  unsubscribe1();
+  await z.triggerError(ErrorKind.InvalidMessage, 'oops');
+  await z.waitForConnectionState(ConnectionState.Disconnected);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(z.online).false;
+  expect(online1).toBe(1);
+  expect(offline1).toBe(0);
+  expect(online2).toBe(1);
+  expect(offline2).toBe(1);
+
+  // Reconnect: only the second listener should be notified.
+  await tickAFewTimes(vi, RUN_LOOP_INTERVAL_MS);
+  await z.triggerConnected();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(z.online).true;
+  expect(online1).toBe(1);
+  expect(offline1).toBe(0);
+  expect(online2).toBe(2);
+  expect(offline2).toBe(1);
+
+  unsubscribe2();
+});
+
 test('disconnects if ping fails', async () => {
   const watchdogInterval = RUN_LOOP_INTERVAL_MS;
   const pingTimeout = 5000;
@@ -416,6 +490,7 @@ describe('createSocket', () => {
         debugPerf,
         new ZeroLogContext('error', undefined, new TestLogSink()),
         undefined,
+        undefined,
         1048 * 8,
         additionalConnectParams,
         {activeClients},
@@ -453,6 +528,7 @@ describe('createSocket', () => {
         'wsidx',
         debugPerf,
         new ZeroLogContext('error', undefined, new TestLogSink()),
+        undefined,
         undefined,
         0, // do not put any extra information into headers
         additionalConnectParams,
@@ -832,7 +908,7 @@ describe('initConnection', () => {
             },
             hash: '29j3x0l4bxthp',
             op: 'put',
-            ttl: 1000,
+            ttl: 300000,
           },
         ],
       },
@@ -845,7 +921,7 @@ describe('initConnection', () => {
 
   async function zeroForTestWithDeletedClients<
     const S extends Schema,
-    MD extends CustomMutatorDefs<S> = CustomMutatorDefs<S>,
+    MD extends CustomMutatorDefs = CustomMutatorDefs,
   >(
     options: Partial<ZeroOptions<S, MD>> & {
       deletedClients?: ClientID[] | undefined;
@@ -926,7 +1002,7 @@ describe('initConnection', () => {
             },
             hash: '29j3x0l4bxthp',
             op: 'put',
-            ttl: 1000,
+            ttl: 300000,
           },
         ],
       },
@@ -987,7 +1063,7 @@ describe('initConnection', () => {
                   },
                   "hash": "29j3x0l4bxthp",
                   "op": "put",
-                  "ttl": 1000,
+                  "ttl": 300000,
                 },
               ],
             },
@@ -1061,7 +1137,7 @@ describe('initConnection', () => {
                   },
                   "hash": "29j3x0l4bxthp",
                   "op": "put",
-                  "ttl": 1000,
+                  "ttl": 300000,
                 },
               ],
             },
@@ -1107,7 +1183,7 @@ describe('initConnection', () => {
               } satisfies AST,
               hash: '29j3x0l4bxthp',
               op: 'put',
-              ttl: 1000,
+              ttl: 300000,
             },
           ],
         },
@@ -2651,13 +2727,126 @@ describe('Invalid Downstream message', () => {
     expect(r.online).eq(true);
     expect(r.connectionState).eq(ConnectionState.Connected);
 
-    const found = r.testLogSink.messages.some(m =>
-      m[2].some(
-        v =>
-          v instanceof Error && v.message.includes('Missing property pokeID'),
+    expect(
+      r.testLogSink.messages.some(m =>
+        m[2].some(
+          v =>
+            v instanceof Error && v.message.includes('Missing property pokeID'),
+        ),
       ),
-    );
-    expect(found).true;
+    ).true;
+    expect(
+      r.testLogSink.messages.some(m =>
+        m[2].some(
+          v =>
+            v instanceof Error &&
+            v.message.includes('Invalid message received from server'),
+        ),
+      ),
+    ).true;
+  });
+});
+
+describe('Downstream message with unknown fields', () => {
+  afterEach(() => vi.resetAllMocks());
+
+  test('unknown fields do not result in a parse error', async () => {
+    const r = zeroForTest({
+      logLevel: 'debug',
+    });
+    await r.triggerConnected();
+    expect(r.connectionState).toBe(ConnectionState.Connected);
+
+    await r.triggerPokeStart({
+      pokeID: '1',
+      // @ts-expect-error - invalid field
+      pokeIDXX: '1',
+      baseCookie: null,
+      cookie: '1',
+      timestamp: 123456,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(r.online).eq(true);
+    expect(r.connectionState).eq(ConnectionState.Connected);
+
+    expect(
+      r.testLogSink.messages.some(m =>
+        m[2].some(
+          v =>
+            v instanceof Error &&
+            v.message.includes('Invalid message received from server'),
+        ),
+      ),
+    ).false;
+  });
+});
+
+describe('Mutation responses poked down', () => {
+  afterEach(() => vi.resetAllMocks());
+
+  test('poke down partial responses, rest resolved by lmid advance', async () => {
+    const schema = createSchema({
+      tables: [
+        table('issues')
+          .columns({id: string(), value: number()})
+          .primaryKey('id'),
+      ],
+    });
+    const r = zeroForTest({
+      logLevel: 'debug',
+      schema,
+      mutators: {
+        issues: {
+          foo: (tx: Transaction<typeof schema>, {foo}: {foo: number}) =>
+            tx.mutate.issues.insert({id: foo.toString(), value: foo}),
+        },
+      } as const,
+    });
+    await r.triggerConnected();
+    expect(r.connectionState).toBe(ConnectionState.Connected);
+
+    const mutation = r.mutate.issues.foo({foo: 1});
+    const mutation2 = r.mutate.issues.foo({foo: 2});
+    await mutation.client;
+    await mutation2.client;
+
+    await r.triggerPoke(null, '1', {
+      lastMutationIDChanges: {
+        [r.clientID]: 5,
+      },
+      mutationsPatch: [
+        {
+          mutation: {
+            id: {
+              clientID: r.clientID,
+              id: 1,
+            },
+            result: {
+              error: 'app',
+              details: '...test ',
+            },
+          },
+          op: 'put',
+        },
+      ],
+    });
+
+    await vi.advanceTimersByTimeAsync(100);
+    let caught: unknown = undefined;
+    try {
+      await mutation.server;
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(caught).toMatchInlineSnapshot(`
+      {
+        "details": "...test ",
+        "error": "app",
+      }
+    `);
+    await r.close();
   });
 });
 
@@ -3451,10 +3640,10 @@ test('custom mutations get pushed', async () => {
     schema,
     mutators: {
       issues: {
-        foo: (tx, {foo}: {foo: number}) =>
+        foo: (tx: Transaction<typeof schema>, {foo}: {foo: number}) =>
           tx.mutate.issues.insert({id: foo.toString(), value: foo}),
       },
-    } as const satisfies CustomMutatorDefs<typeof schema>,
+    } as const,
   });
   await z.triggerConnected();
   const mockSocket = await z.socket;

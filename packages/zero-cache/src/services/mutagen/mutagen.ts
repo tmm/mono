@@ -26,7 +26,8 @@ import {
 } from '../../auth/write-authorizer.ts';
 import {type ZeroConfig} from '../../config/zero-config.ts';
 import * as Mode from '../../db/mode-enum.ts';
-import * as counters from '../../observability/counters.ts';
+import {getOrCreateCounter} from '../../observability/metrics.ts';
+import {recordMutation} from '../../server/anonymous-otel-start.ts';
 import {ErrorForClient} from '../../types/error-for-client.ts';
 import type {PostgresDB, PostgresTransaction} from '../../types/pg.ts';
 import {throwErrorForClientIfSchemaVersionNotSupported} from '../../types/schema-versions.ts';
@@ -61,6 +62,12 @@ export class MutagenService implements Mutagen, Service {
   readonly #limiter: SlidingWindowLimiter | undefined;
   #refCount = 0;
   #isStopped = false;
+
+  readonly #crudMutations = getOrCreateCounter(
+    'mutation',
+    'crud',
+    'Number of CRUD mutations processed',
+  );
 
   constructor(
     lc: LogContext,
@@ -121,7 +128,7 @@ export class MutagenService implements Mutagen, Service {
         'Rate limit exceeded',
       ]);
     }
-    counters.crudMutations().add(1, {
+    this.#crudMutations.add(1, {
       clientGroupID: this.id,
     });
     return processMutation(
@@ -173,6 +180,9 @@ export async function processMutation(
   lc = lc.withContext('mutationID', mutation.id);
   lc = lc.withContext('processMutation');
   lc.debug?.('Process mutation start', mutation);
+
+  // Record mutation processing attempt for telemetry (regardless of success/failure)
+  recordMutation();
 
   let result: MutationError | undefined;
 
@@ -245,6 +255,7 @@ export async function processMutation(
       } catch (e) {
         if (e instanceof MutationAlreadyProcessedError) {
           lc.debug?.(e.message);
+          // Don't double-count already processed mutations, but they were counted above
           return undefined;
         }
         if (

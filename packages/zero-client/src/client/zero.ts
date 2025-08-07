@@ -35,7 +35,8 @@ import type {Writable} from '../../../shared/src/writable.ts';
 import {type ClientSchema} from '../../../zero-protocol/src/client-schema.ts';
 import type {
   ConnectedMessage,
-  UserPushParams,
+  UserMutateParams,
+  UserQueryParams,
 } from '../../../zero-protocol/src/connect.ts';
 import {encodeSecProtocols} from '../../../zero-protocol/src/connect.ts';
 import type {DeleteClientsBody} from '../../../zero-protocol/src/delete-clients.ts';
@@ -60,6 +61,7 @@ import type {
   CRUDMutation,
   CRUDMutationArg,
   CustomMutation,
+  MutationID,
   PushMessage,
 } from '../../../zero-protocol/src/push.ts';
 import {CRUD_MUTATION_NAME, mapCRUD} from '../../../zero-protocol/src/push.ts';
@@ -143,6 +145,7 @@ import {version} from './version.ts';
 import {ZeroLogContext} from './zero-log-context.ts';
 import {PokeHandler} from './zero-poke-handler.ts';
 import {ZeroRep} from './zero-rep.ts';
+import {Subscribable} from '../../../shared/src/subscribable.ts';
 
 type ConnectionState = Enum<typeof ConnectionState>;
 type PingResult = Enum<typeof PingResult>;
@@ -178,11 +181,9 @@ interface TestZero {
   }) => LogOptions;
 }
 
-function asTestZero<
-  S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined,
-  TWrappedTransaction = unknown,
->(z: Zero<S, MD, TWrappedTransaction>): TestZero {
+function asTestZero<S extends Schema, MD extends CustomMutatorDefs | undefined>(
+  z: Zero<S, MD>,
+): TestZero {
   return z as TestZero;
 }
 
@@ -279,8 +280,7 @@ type CloseCode = typeof CLOSE_CODE_NORMAL | typeof CLOSE_CODE_GOING_AWAY;
 
 export class Zero<
   const S extends Schema,
-  MD extends CustomMutatorDefs<S, TWrappedTransaction> | undefined = undefined,
-  TWrappedTransaction = unknown,
+  MD extends CustomMutatorDefs | undefined = undefined,
 > {
   readonly version = version;
 
@@ -326,9 +326,8 @@ export class Zero<
 
   #onPong: () => void = () => undefined;
 
-  #online = false;
+  readonly #onlineManager: OnlineManager;
 
-  readonly #onOnlineChange: ((online: boolean) => void) | undefined;
   readonly #onUpdateNeeded: (
     reason: UpdateNeededReason,
     serverErrorMsg?: string,
@@ -399,7 +398,7 @@ export class Zero<
   // 2. client successfully connects
   #totalToConnectStart: number | undefined = undefined;
 
-  readonly #options: ZeroOptions<S, MD, TWrappedTransaction>;
+  readonly #options: ZeroOptions<S, MD>;
 
   readonly query: MakeEntityQueriesFromSchema<S>;
 
@@ -414,7 +413,7 @@ export class Zero<
   /**
    * Constructs a new Zero client.
    */
-  constructor(options: ZeroOptions<S, MD, TWrappedTransaction>) {
+  constructor(options: ZeroOptions<S, MD>) {
     const {
       userID,
       storageKey,
@@ -426,7 +425,7 @@ export class Zero<
       batchViewUpdates = applyViewUpdates => applyViewUpdates(),
       maxRecentQueries = 0,
       slowMaterializeThreshold = 5_000,
-    } = options as ZeroOptions<S, MD, TWrappedTransaction>;
+    } = options as ZeroOptions<S, MD>;
     if (!userID) {
       throw new Error('ZeroOptions.userID must not be empty.');
     }
@@ -436,7 +435,7 @@ export class Zero<
       false /*options.enableAnalytics,*/, // Reenable analytics
     );
 
-    let {kvStore = 'idb'} = options as ZeroOptions<S, MD, TWrappedTransaction>;
+    let {kvStore = 'idb'} = options as ZeroOptions<S, MD>;
     if (kvStore === 'idb') {
       if (!getBrowserGlobal('indexedDB')) {
         // eslint-disable-next-line no-console
@@ -453,11 +452,16 @@ export class Zero<
       );
     }
 
-    this.#onOnlineChange = onOnlineChange;
+    this.#onlineManager = new OnlineManager();
+
+    if (onOnlineChange) {
+      this.#onlineManager.subscribe(onOnlineChange);
+    }
+
     this.#options = options;
 
     this.#logOptions = this.#createLogOptions({
-      consoleLogLevel: options.logLevel ?? 'error',
+      consoleLogLevel: options.logLevel ?? 'warn',
       server: null, //server, // Reenable remote logging
       enableAnalytics: this.#enableAnalytics,
     });
@@ -496,7 +500,9 @@ export class Zero<
 
     const lc = new ZeroLogContext(logOptions.logLevel, {}, logSink);
 
-    this.#mutationTracker = new MutationTracker(lc);
+    this.#mutationTracker = new MutationTracker(lc, (upTo: MutationID) =>
+      this.#send(['ackMutationResponses', upTo]),
+    );
     if (options.mutators) {
       for (const [namespaceOrKey, mutatorOrMutators] of Object.entries(
         options.mutators,
@@ -598,7 +604,10 @@ export class Zero<
     this.#server = server;
     this.userID = userID;
     this.#lc = lc.withContext('clientID', rep.clientID);
-    this.#mutationTracker.clientID = rep.clientID;
+    this.#mutationTracker.setClientIDAndWatch(
+      rep.clientID,
+      rep.experimentalWatch.bind(rep),
+    );
 
     this.#activeClientsManager = makeActiveClientsManager(
       rep.clientGroupID,
@@ -709,6 +718,7 @@ export class Zero<
       rep.clientID,
       schema,
       this.#lc,
+      this.#mutationTracker,
     );
 
     this.#visibilityWatcher = getDocumentVisibilityWatcher(
@@ -791,7 +801,7 @@ export class Zero<
   preload(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     query: Query<S, keyof S['tables'] & string, any>,
-    options: PreloadOptions,
+    options?: PreloadOptions | undefined,
   ) {
     return query.delegate(this.#zeroContext).preload(options);
   }
@@ -849,11 +859,8 @@ export class Zero<
    * await zero.mutate.issue.update({id: '1', title: 'Updated title'});
    * ```
    */
-  readonly mutate: MD extends CustomMutatorDefs<S, TWrappedTransaction>
-    ? DeepMerge<
-        DBMutator<S>,
-        MakeCustomMutatorInterfaces<S, MD, TWrappedTransaction>
-      >
+  readonly mutate: MD extends CustomMutatorDefs
+    ? DeepMerge<DBMutator<S>, MakeCustomMutatorInterfaces<S, MD>>
     : DBMutator<S>;
 
   /**
@@ -896,6 +903,8 @@ export class Zero<
 
     lc.debug?.('Closing Zero instance. Stack:', new Error().stack);
 
+    this.#onlineManager.cleanup();
+
     if (this.#connectionState !== ConnectionState.Disconnected) {
       this.#disconnect(
         lc,
@@ -933,7 +942,11 @@ export class Zero<
     let downMessage: Downstream;
     const {data} = e;
     try {
-      downMessage = valita.parse(JSON.parse(data), downstreamSchema);
+      downMessage = valita.parse(
+        JSON.parse(data),
+        downstreamSchema,
+        'passthrough',
+      );
     } catch (e) {
       rejectInvalidMessage(e);
       return;
@@ -1153,7 +1166,8 @@ export class Zero<
           // The clientSchema only needs to be sent for the very first request.
           // Henceforth it is stored with the CVR and verified automatically.
           ...(this.#connectCookie === null ? {clientSchema} : {}),
-          userPushParams: this.#options.push,
+          userPushParams: this.#options.mutate ?? this.#options.push,
+          userQueryParams: this.#options.query,
         },
       ]);
       this.#deletedClients = undefined;
@@ -1213,6 +1227,7 @@ export class Zero<
     this.#connectCookie = valita.parse(
       await this.#rep.cookie,
       nullableVersionSchema,
+      'passthrough',
     );
     if (this.closed) {
       return;
@@ -1247,7 +1262,8 @@ export class Zero<
       wsid,
       this.#options.logLevel === 'debug',
       lc,
-      this.#options.push,
+      this.#options.mutate ?? this.#options.push,
+      this.#options.query,
       this.#options.maxHeaderLength,
       additionalConnectParams,
       await this.#activeClientsManager,
@@ -1734,7 +1750,11 @@ export class Zero<
     assert(socket);
     // Mutation recovery pull.
     lc.debug?.('Pull is for mutation recovery');
-    const cookie = valita.parse(req.cookie, nullableVersionSchema);
+    const cookie = valita.parse(
+      req.cookie,
+      nullableVersionSchema,
+      'passthrough',
+    );
     const pullRequestMessage: PullRequestMessage = [
       'pull',
       {
@@ -1783,12 +1803,7 @@ export class Zero<
   }
 
   #setOnline(online: boolean): void {
-    if (this.#online === online) {
-      return;
-    }
-
-    this.#online = online;
-    this.#onOnlineChange?.(online);
+    this.#onlineManager.setOnline(online);
   }
 
   /**
@@ -1796,8 +1811,19 @@ export class Zero<
    * authenticated.
    */
   get online(): boolean {
-    return this.#online;
+    return this.#onlineManager.online;
   }
+
+  /**
+   * Subscribe to online status changes.
+   *
+   * This is useful when you want to update state based on the online status.
+   *
+   * @param listener - The listener to subscribe to.
+   * @returns A function to unsubscribe the listener.
+   */
+  onOnline = (listener: (online: boolean) => void): (() => void) =>
+    this.#onlineManager.subscribe(listener);
 
   /**
    * Starts a ping and waits for a pong.
@@ -1920,6 +1946,22 @@ export class Zero<
   }
 }
 
+export class OnlineManager extends Subscribable<boolean> {
+  #online = false;
+
+  setOnline(online: boolean): void {
+    if (this.#online === online) {
+      return;
+    }
+    this.#online = online;
+    this.notify(online);
+  }
+
+  get online(): boolean {
+    return this.#online;
+  }
+}
+
 export async function createSocket(
   rep: ReplicacheImpl,
   queryManager: QueryManager,
@@ -1935,7 +1977,8 @@ export async function createSocket(
   wsid: string,
   debugPerf: boolean,
   lc: ZeroLogContext,
-  userPushParams: UserPushParams | undefined,
+  userPushParams: UserMutateParams | undefined,
+  userQueryParams: UserQueryParams | undefined,
   maxHeaderLength = 1024 * 8,
   additionalConnectParams: Record<string, string> | undefined,
   activeClientsManager: Pick<ActiveClientsManager, 'activeClients'>,
@@ -1995,6 +2038,7 @@ export async function createSocket(
         // Henceforth it is stored with the CVR and verified automatically.
         ...(baseCookie === null ? {clientSchema} : {}),
         userPushParams,
+        userQueryParams,
         activeClients: [...activeClients],
       },
     ],

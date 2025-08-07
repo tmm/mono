@@ -1,37 +1,57 @@
-import {escapeLike, namedQuery, type Row} from '@rocicorp/zero';
+import {
+  escapeLike,
+  type Query,
+  type Row,
+  queriesWithContext,
+} from '@rocicorp/zero';
 import {builder, type Schema} from './schema.ts';
 import {INITIAL_COMMENT_LIMIT} from './consts.ts';
+import type {AuthData, Role} from './auth.ts';
 
-export const allLabels = namedQuery('allLabels', () => builder.label);
-export const allUsers = namedQuery('allUsers', () => builder.user);
+function applyIssuePermissions<TQuery extends Query<Schema, 'issue', any>>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  q: TQuery,
+  role: Role | undefined,
+): TQuery {
+  return q.where(({or, cmp, cmpLit}) =>
+    or(cmp('visibility', '=', 'public'), cmpLit(role ?? null, '=', 'crew')),
+  ) as TQuery;
+}
 
-export const issuePreload = namedQuery('issuePreload', (userID: string) =>
-  builder.issue
-    .related('labels')
-    .related('viewState', q => q.where('userID', userID))
-    .related('creator')
-    .related('assignee')
-    .related('emoji', emoji => emoji.related('creator'))
-    .related('comments', comments =>
-      comments
+export const queries = queriesWithContext({
+  allLabels: (_auth: AuthData | undefined) => builder.label,
+
+  allUsers: (_auth: AuthData | undefined) => builder.user,
+
+  issuePreload: (auth: AuthData | undefined, userID: string) =>
+    applyIssuePermissions(
+      builder.issue
+        .related('labels')
+        .related('viewState', q => q.where('userID', userID))
         .related('creator')
+        .related('assignee')
         .related('emoji', emoji => emoji.related('creator'))
-        .limit(10)
-        .orderBy('created', 'desc'),
+        .related('comments', comments =>
+          comments
+            .related('creator')
+            .related('emoji', emoji => emoji.related('creator'))
+            .limit(10)
+            .orderBy('created', 'desc'),
+        ),
+      auth?.role,
     ),
-);
 
-export const user = namedQuery('user', (userID: string) =>
-  builder.user.where('id', userID).one(),
-);
+  user: (_auth: AuthData | undefined, userID: string) =>
+    builder.user.where('id', userID).one(),
 
-export const userPref = namedQuery('userPref', (key: string, userID: string) =>
-  builder.userPref.where('key', key).where('userID', userID).one(),
-);
+  userPref: (auth: AuthData | undefined, key: string) =>
+    builder.userPref
+      .where('key', key)
+      .where('userID', auth?.sub ?? '')
+      .one(),
 
-export const userPicker = namedQuery(
-  'userPicker',
-  (
+  userPicker: (
+    _auth: AuthData | undefined,
     disabled: boolean,
     login: string | null,
     filter: 'crew' | 'creators' | null,
@@ -52,31 +72,70 @@ export const userPicker = namedQuery(
     }
     return q;
   },
-);
 
-export const issueDetail = namedQuery(
-  'issueDetail',
-  (idField: 'shortID' | 'id', id: string | number, userID: string) =>
-    builder.issue
-      .where(idField, id)
-      .related('emoji', emoji => emoji.related('creator'))
-      .related('creator')
-      .related('assignee')
-      .related('labels')
-      .related('viewState', viewState =>
-        viewState.where('userID', userID).one(),
-      )
-      .related('comments', comments =>
-        comments
-          .related('creator')
-          .related('emoji', emoji => emoji.related('creator'))
-          // One more than we display so we can detect if there are more to load.
-          .limit(INITIAL_COMMENT_LIMIT + 1)
-          .orderBy('created', 'desc')
-          .orderBy('id', 'desc'),
-      )
-      .one(),
-);
+  issueDetail: (
+    auth: AuthData | undefined,
+    idField: 'shortID' | 'id',
+    id: string | number,
+    userID: string,
+  ) =>
+    applyIssuePermissions(
+      builder.issue
+        .where(idField, id)
+        .related('emoji', emoji => emoji.related('creator'))
+        .related('creator')
+        .related('assignee')
+        .related('labels')
+        .related('notificationState', q => q.where('userID', userID))
+        .related('viewState', viewState =>
+          viewState.where('userID', userID).one(),
+        )
+        .related('comments', comments =>
+          comments
+            .related('creator')
+            .related('emoji', emoji => emoji.related('creator'))
+            // One more than we display so we can detect if there are more to load.
+            .limit(INITIAL_COMMENT_LIMIT + 1)
+            .orderBy('created', 'desc')
+            .orderBy('id', 'desc'),
+        )
+        .one(),
+      auth?.role,
+    ),
+
+  prevNext: (
+    auth: AuthData | undefined,
+    listContext: ListContext['params'] | null,
+    issue: Pick<
+      Row<Schema['tables']['issue']>,
+      'id' | 'created' | 'modified'
+    > | null,
+    dir: 'next' | 'prev',
+  ) =>
+    applyIssuePermissions(
+      buildListQuery(listContext, issue, dir).one(),
+      auth?.role,
+    ),
+
+  issueList: (
+    auth: AuthData | undefined,
+    listContext: ListContext['params'],
+    userID: string,
+    limit: number,
+  ) =>
+    applyIssuePermissions(
+      buildListQuery(listContext, null, 'next')
+        .limit(limit)
+        .related('viewState', q => q.where('userID', userID).one())
+        .related('labels'),
+      auth?.role,
+    ),
+
+  emojiChange: (_auth: AuthData | undefined, subjectID: string) =>
+    builder.emoji
+      .where('subjectID', subjectID ?? '')
+      .related('creator', creator => creator.one()),
+});
 
 export type ListContext = {
   readonly href: string;
@@ -92,27 +151,12 @@ export type ListContext = {
   };
 };
 
-export const prevNext = namedQuery(
-  'prevNext',
-  (
-    listContext: ListContext['params'] | null,
-    issue: Row<Schema['tables']['issue']> | null,
-    dir: 'next' | 'prev',
-  ) => buildListQuery(listContext, issue, dir).one(),
-);
-
-export const issueList = namedQuery(
-  'issueList',
-  (listContext: ListContext['params'], userID: string, limit: number) =>
-    buildListQuery(listContext, null, 'next')
-      .limit(limit)
-      .related('viewState', q => q.where('userID', userID).one())
-      .related('labels'),
-);
-
 function buildListQuery(
   listContext: ListContext['params'] | null,
-  start: Row<Schema['tables']['issue']> | null,
+  start: Pick<
+    Row<Schema['tables']['issue']>,
+    'id' | 'created' | 'modified'
+  > | null,
   dir: 'next' | 'prev',
 ) {
   if (!listContext) {
@@ -159,9 +203,3 @@ function buildListQuery(
     ),
   );
 }
-
-export const emojiChange = namedQuery('emojiChange', (subjectID: string) =>
-  builder.emoji
-    .where('subjectID', subjectID ?? '')
-    .related('creator', creator => creator.one()),
-);

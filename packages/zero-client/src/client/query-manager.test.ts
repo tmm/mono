@@ -38,12 +38,14 @@ function createExperimentalWatchMock() {
   return vi.fn();
 }
 
+const ackMutations = () => {};
+
 const queryChangeThrottleMs = 10;
 const lc = createSilentLogContext();
 test('add', () => {
   const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -87,7 +89,7 @@ test('add', () => {
 test('add and remove a custom query', () => {
   const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -165,7 +167,7 @@ test('add and remove a custom query', () => {
 test('add renamed fields', () => {
   const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -341,7 +343,7 @@ test('add renamed fields', () => {
 test('remove, recent queries max size 0', () => {
   const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -408,7 +410,7 @@ test('remove, recent queries max size 0', () => {
 test('remove, max recent queries size 2', () => {
   const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 2;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -572,7 +574,7 @@ test('remove, max recent queries size 2', () => {
 test('test add/remove/add/remove changes lru order max recent queries size 2', () => {
   const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 2;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -789,7 +791,7 @@ describe('getQueriesPatch', () => {
   test('basics', async () => {
     const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
     const maxRecentQueriesSize = 0;
-    const mutationTracker = new MutationTracker(lc);
+    const mutationTracker = new MutationTracker(lc, ackMutations);
     const queryManager = new QueryManager(
       lc,
       mutationTracker,
@@ -851,7 +853,7 @@ describe('getQueriesPatch', () => {
     beforeEach(() => {
       send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
       const maxRecentQueriesSize = 0;
-      const mutationTracker = new MutationTracker(lc);
+      const mutationTracker = new MutationTracker(lc, ackMutations);
       queryManager = new QueryManager(
         lc,
         mutationTracker,
@@ -1052,7 +1054,7 @@ describe('getQueriesPatch', () => {
   test('getQueriesPatch includes recent queries in desired', async () => {
     const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
     const maxRecentQueriesSize = 2;
-    const mutationTracker = new MutationTracker(lc);
+    const mutationTracker = new MutationTracker(lc, ackMutations);
     const queryManager = new QueryManager(
       lc,
       mutationTracker,
@@ -1171,7 +1173,7 @@ test('gotCallback, query already got', () => {
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
 
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1241,7 +1243,7 @@ test('gotCallback, query got after add', () => {
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1306,7 +1308,7 @@ test('gotCallback, query got after add then removed', () => {
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1381,7 +1383,7 @@ test('gotCallback, query got after subscription removed', () => {
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(q: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1460,7 +1462,7 @@ describe('queriesPatch with lastPatch', () => {
       () => false,
     );
     const maxRecentQueriesSize = 0;
-    const mutationTracker = new MutationTracker(lc);
+    const mutationTracker = new MutationTracker(lc, ackMutations);
     const queryManager = new QueryManager(
       lc,
       mutationTracker,
@@ -1499,7 +1501,7 @@ describe('queriesPatch with lastPatch', () => {
     const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => boolean>(
       () => false,
     );
-    const mutationTracker = new MutationTracker(lc);
+    const mutationTracker = new MutationTracker(lc, ackMutations);
     const queryManager = new QueryManager(
       lc,
       mutationTracker,
@@ -1572,7 +1574,7 @@ test('gotCallback, add same got callback twice', () => {
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1642,7 +1644,7 @@ test('gotCallback, add same got callback twice', () => {
 test('batching multiple operations in same microtask', () => {
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1691,7 +1693,8 @@ describe('query manager & mutator interaction', () => {
 
   beforeEach(() => {
     send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
-    mutationTracker = new MutationTracker(lc);
+    mutationTracker = new MutationTracker(lc, ackMutations);
+    mutationTracker.setClientIDAndWatch('cid', () => () => {});
     queryManager = new QueryManager(
       lc,
       mutationTracker,
@@ -1768,7 +1771,7 @@ describe('Adding a query with TTL too large should warn', () => {
   };
   const lc = new LogContext('debug', {}, logSink);
   const maxRecentQueriesSize = 0;
-  const mutationTracker = new MutationTracker(lc);
+  const mutationTracker = new MutationTracker(lc, ackMutations);
   const queryManager = new QueryManager(
     lc,
     mutationTracker,
@@ -1850,5 +1853,147 @@ describe('Adding a query with TTL too large should warn', () => {
     queryManager.flushBatch();
 
     expect(logSink.log).not.toHaveBeenCalled();
+  });
+});
+
+describe('update clamps TTL correctly', () => {
+  const send = vi.fn<(arg: ChangeDesiredQueriesMessage) => void>();
+  const maxRecentQueriesSize = 0;
+  const mutationTracker = new MutationTracker(lc, ackMutations);
+  const queryManager = new QueryManager(
+    lc,
+    mutationTracker,
+    'client1',
+    schema.tables,
+    send,
+    () => () => {},
+    maxRecentQueriesSize,
+    queryChangeThrottleMs,
+  );
+
+  afterEach(() => {
+    send.mockClear();
+  });
+
+  test('updateLegacy', () => {
+    const ast: AST = {
+      table: 'issue',
+      orderBy: [['id', 'asc']],
+    };
+
+    // Add a query with a specific TTL
+    queryManager.addLegacy(ast, '1m');
+    queryManager.flushBatch();
+
+    // Update the query with a larger TTL
+    queryManager.updateLegacy(ast, '2m');
+    queryManager.flushBatch();
+
+    expect(send).toBeCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith([
+      'changeDesiredQueries',
+      {
+        desiredQueriesPatch: [
+          {
+            op: 'put',
+            hash: '12hwg3ihkijhm',
+            ast: {
+              table: 'issues',
+              where: undefined,
+              orderBy: [['id', 'asc']],
+            } satisfies AST,
+            ttl: 120000, // Clamped TTL value
+          },
+        ],
+      },
+    ]);
+  });
+
+  test('updateCustom', () => {
+    // Add a custom query with a specific TTL
+    queryManager.addCustom('customQuery', [1], '1m');
+    queryManager.flushBatch();
+
+    // Update the query with a larger TTL
+    queryManager.updateCustom('customQuery', [1], '2m');
+    queryManager.flushBatch();
+
+    expect(send).toBeCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith([
+      'changeDesiredQueries',
+      {
+        desiredQueriesPatch: [
+          {
+            op: 'put',
+            hash: '2l1ig6e3tnu0a',
+            name: 'customQuery',
+            args: [1],
+            ttl: 120000, // Clamped TTL value
+          },
+        ],
+      },
+    ]);
+  });
+
+  test('updateLegacy does not send when TTL is already at max', () => {
+    const ast: AST = {
+      table: 'issue',
+      orderBy: [['id', 'asc']],
+    };
+
+    // Add a query with max TTL
+    queryManager.addLegacy(ast, 'forever');
+    queryManager.flushBatch();
+
+    // Update the query with a larger TTL (should be no-op since already at max)
+    queryManager.updateLegacy(ast, MAX_TTL_MS + 1000);
+    queryManager.flushBatch();
+
+    // Only one send should happen (the initial add)
+    expect(send).toBeCalledTimes(1);
+    expect(send).toHaveBeenLastCalledWith([
+      'changeDesiredQueries',
+      {
+        desiredQueriesPatch: [
+          {
+            op: 'put',
+            hash: '12hwg3ihkijhm',
+            ast: {
+              table: 'issues',
+              where: undefined,
+              orderBy: [['id', 'asc']],
+            } satisfies AST,
+            ttl: MAX_TTL_MS, // Already at max TTL
+          },
+        ],
+      },
+    ]);
+  });
+
+  test('updateCustom does not send when TTL is already at max', () => {
+    // Add a custom query with max TTL
+    queryManager.addCustom('customQuery', [1], 'forever');
+    queryManager.flushBatch();
+
+    // Update the query with a larger TTL (should be no-op since already at max)
+    queryManager.updateCustom('customQuery', [1], MAX_TTL_MS + 1000);
+    queryManager.flushBatch();
+
+    // Only one send should happen (the initial add)
+    expect(send).toBeCalledTimes(1);
+    expect(send).toHaveBeenLastCalledWith([
+      'changeDesiredQueries',
+      {
+        desiredQueriesPatch: [
+          {
+            op: 'put',
+            hash: '2l1ig6e3tnu0a',
+            name: 'customQuery',
+            args: [1],
+            ttl: MAX_TTL_MS, // Already at max TTL
+          },
+        ],
+      },
+    ]);
   });
 });

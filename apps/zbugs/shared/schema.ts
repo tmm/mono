@@ -7,7 +7,7 @@ import {
   string,
   table,
   type Row,
-  querify,
+  createBuilder,
   definePermissions,
 } from '@rocicorp/zero';
 import type {Role} from './auth.ts';
@@ -107,6 +107,15 @@ const userPref = table('userPref')
   })
   .primaryKey('userID', 'key');
 
+const issueNotifications = table('issueNotifications')
+  .columns({
+    userID: string(),
+    issueID: string(),
+    subscribed: boolean(),
+    created: number(),
+  })
+  .primaryKey('userID', 'issueID');
+
 // Relationships
 const userRelationships = relationships(user, ({many}) => ({
   createdIssues: many({
@@ -153,6 +162,11 @@ const issueRelationships = relationships(issue, ({many, one}) => ({
     sourceField: ['id'],
     destField: ['subjectID'],
     destSchema: emoji,
+  }),
+  notificationState: one({
+    sourceField: ['id'],
+    destField: ['issueID'],
+    destSchema: issueNotifications,
   }),
 }));
 
@@ -201,7 +215,17 @@ const emojiRelationships = relationships(emoji, ({one}) => ({
 }));
 
 export const schema = createSchema({
-  tables: [user, issue, comment, label, issueLabel, viewState, emoji, userPref],
+  tables: [
+    user,
+    issue,
+    comment,
+    label,
+    issueLabel,
+    viewState,
+    emoji,
+    userPref,
+    issueNotifications,
+  ],
   relationships: [
     userRelationships,
     issueRelationships,
@@ -217,7 +241,7 @@ export type IssueRow = Row<typeof schema.tables.issue>;
 export type CommentRow = Row<typeof schema.tables.comment>;
 export type UserRow = Row<typeof schema.tables.user>;
 
-export const builder = querify(schema);
+export const builder = createBuilder(schema);
 
 export const permissions: ReturnType<typeof definePermissions> =
   definePermissions<unknown, Schema>(schema, () => ({}));

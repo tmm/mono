@@ -55,7 +55,7 @@ export default $config({
       ZERO_APP_PUBLICATIONS: process.env.ZERO_APP_PUBLICATIONS!,
       ZERO_UPSTREAM_DB: process.env.ZERO_UPSTREAM_DB!,
       ZERO_PUSH_URL: process.env.ZERO_PUSH_URL!,
-      ZERO_PULL_URL: process.env.ZERO_PULL_URL!,
+      ZERO_QUERY_URL: process.env.ZERO_QUERY_URL!,
       ZERO_CVR_DB: process.env.ZERO_CVR_DB!,
       ZERO_CHANGE_DB: process.env.ZERO_CHANGE_DB!,
       ZERO_AUTH_JWK: process.env.ZERO_AUTH_JWK!,
@@ -67,6 +67,7 @@ export default $config({
       ZERO_APP_ID: process.env.ZERO_APP_ID || 'zero',
       PGCONNECT_TIMEOUT: '60', // scale-from-zero dbs need more than 30 seconds
       OTEL_TRACES_EXPORTER: 'otlp',
+      OTEL_LOGS_EXPORTER: 'none',
       OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,
       OTEL_RESOURCE_ATTRIBUTES: process.env.OTEL_RESOURCE_ATTRIBUTES,

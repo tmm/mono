@@ -26,8 +26,8 @@ import {useZero} from '../../hooks/use-zero.ts';
 import {recordPageLoad} from '../../page-load-stats.ts';
 import {mark} from '../../perf-log.ts';
 import {preload} from '../../zero-preload.ts';
-import {CACHE_AWHILE, CACHE_NONE} from '../../query-cache-policy.ts';
-import {issueList, type ListContext} from '../../../shared/queries.ts';
+import {CACHE_NAV, CACHE_NONE} from '../../query-cache-policy.ts';
+import {queries, type ListContext} from '../../../shared/queries.ts';
 
 let firstRowRendered = false;
 const itemSize = 56;
@@ -60,7 +60,8 @@ export function ListPage({onReady}: {onReady: () => void}) {
 
   const pageSize = 20;
   const [limit, setLimit] = useState(pageSize);
-  const q = issueList(
+  const q = queries.issueList(
+    login.loginState?.decoded,
     {
       sortDirection,
       sortField,
@@ -84,7 +85,7 @@ export function ListPage({onReady}: {onReady: () => void}) {
   // keystrokes for the URL, so we just reuse that.
   const [issues, issuesResult] = useQuery(
     q,
-    textFilterQuery === textFilter ? CACHE_AWHILE : CACHE_NONE,
+    textFilterQuery === textFilter ? CACHE_NAV : CACHE_NONE,
   );
   const isSearchComplete = issues.length < limit;
 
@@ -97,9 +98,9 @@ export function ListPage({onReady}: {onReady: () => void}) {
   useEffect(() => {
     if (issuesResult.type === 'complete') {
       recordPageLoad('list-page');
-      preload(z);
+      preload(login.loginState?.decoded, z);
     }
-  }, [issuesResult.type, z]);
+  }, [login.loginState?.decoded, issuesResult.type, z]);
 
   let title;
   if (creator || assignee || labels.length > 0 || textFilter) {

@@ -28,6 +28,7 @@ import {
 } from '../../../shared/schema.ts';
 import statusClosed from '../../assets/icons/issue-closed.svg';
 import statusOpen from '../../assets/icons/issue-open.svg';
+import circle from '../../assets/icons/circle.svg';
 import {commentQuery} from '../../comment-query.ts';
 import {AvatarImage} from '../../components/avatar-image.tsx';
 import {Button} from '../../components/button.tsx';
@@ -54,14 +55,17 @@ import {
 } from '../../limits.ts';
 import {LRUCache} from '../../lru-cache.ts';
 import {recordPageLoad} from '../../page-load-stats.ts';
-import {CACHE_AWHILE} from '../../query-cache-policy.ts';
+import {CACHE_NAV} from '../../query-cache-policy.ts';
 import {links, type ZbugsHistoryState} from '../../routes.ts';
 import {CommentComposer} from './comment-composer.tsx';
 import {Comment} from './comment.tsx';
 import {isCtrlEnter} from './is-ctrl-enter.ts';
-import {emojiChange, issueDetail, prevNext} from '../../../shared/queries.ts';
+import {queries} from '../../../shared/queries.ts';
 import {INITIAL_COMMENT_LIMIT} from '../../../shared/consts.ts';
 import {preload} from '../../zero-preload.ts';
+import type {NotificationType} from '../../../shared/mutators.ts';
+
+const {emojiChange, issueDetail, prevNext} = queries;
 
 function softNavigate(path: string, state?: ZbugsHistoryState) {
   navigate(path, {state});
@@ -79,21 +83,20 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   const idStr = must(params.id);
   const idField = /[^\d]/.test(idStr) ? 'id' : 'shortID';
   const id = idField === 'shortID' ? parseInt(idStr) : idStr;
+  const login = useLogin();
 
   const zbugsHistoryState = useHistoryState<ZbugsHistoryState | undefined>();
   const listContext = zbugsHistoryState?.zbugsListContext;
 
   const [issue, issueResult] = useQuery(
-    issueDetail(idField, id, z.userID),
-    CACHE_AWHILE,
+    issueDetail(login.loginState?.decoded, idField, id, z.userID),
+    CACHE_NAV,
   );
   useEffect(() => {
     if (issue || issueResult.type === 'complete') {
       onReady();
     }
   }, [issue, onReady, issueResult.type]);
-
-  const login = useLogin();
 
   const isScrolling = useIsScrolling();
   const [displayed, setDisplayed] = useState(issue);
@@ -139,9 +142,9 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   useEffect(() => {
     if (issueResult.type === 'complete') {
       recordPageLoad('issue-page');
-      preload(z);
+      preload(login.loginState?.decoded, z);
     }
-  }, [issueResult.type, z]);
+  }, [issueResult.type, login.loginState?.decoded, z]);
 
   useEffect(() => {
     // only push viewed forward if the issue has been modified since the last viewing
@@ -198,12 +201,26 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   ) {
     setIssueSnapshot(displayed);
   }
-  const useQueryOptions = {
+  const prevNextOptions = {
     enabled: listContext !== undefined && issueSnapshot !== undefined,
+    ...CACHE_NAV,
   } as const;
+  // Don't need to send entire issue to server, just the sort columns plus PK.
+  const start = displayed
+    ? {
+        id: displayed.id,
+        created: displayed.created,
+        modified: displayed.modified,
+      }
+    : null;
   const [next] = useQuery(
-    prevNext(listContext?.params ?? null, displayed ?? null, 'next'),
-    useQueryOptions,
+    prevNext(
+      login.loginState?.decoded,
+      listContext?.params ?? null,
+      start,
+      'next',
+    ),
+    prevNextOptions,
   );
   useKeypress('j', () => {
     if (next) {
@@ -212,8 +229,13 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   });
 
   const [prev] = useQuery(
-    prevNext(listContext?.params ?? null, displayed ?? null, 'prev'),
-    useQueryOptions,
+    prevNext(
+      login.loginState?.decoded,
+      listContext?.params ?? null,
+      start,
+      'prev',
+    ),
+    prevNextOptions,
   );
   useKeypress('k', () => {
     if (prev) {
@@ -230,7 +252,7 @@ export function IssuePage({onReady}: {onReady: () => void}) {
 
   const [allComments, allCommentsResult] = useQuery(
     commentQuery(z, displayed),
-    {enabled: displayAllComments && displayed !== undefined, ...CACHE_AWHILE},
+    {enabled: displayAllComments && displayed !== undefined, ...CACHE_NAV},
   );
 
   const [comments, hasOlderComments] = useMemo(() => {
@@ -361,6 +383,11 @@ export function IssuePage({onReady}: {onReady: () => void}) {
   }
 
   const rendering = editing ? {...editing, ...edits} : displayed;
+
+  const isSubscribed = issue?.notificationState?.subscribed;
+  const currentState: NotificationType = isSubscribed
+    ? 'subscribe'
+    : 'unsubscribe';
 
   return (
     <div className="issue-detail-container">
@@ -549,6 +576,33 @@ export function IssuePage({onReady}: {onReady: () => void}) {
               />
             </div>
           ) : null}
+
+          <div className="sidebar-item">
+            <p className="issue-detail-label">Notifications</p>
+            <Combobox<NotificationType>
+              disabled={!login.loginState?.decoded?.sub}
+              items={[
+                {
+                  text: 'Subscribed',
+                  value: 'subscribe',
+                  icon: statusClosed,
+                },
+                {
+                  text: 'Unsubscribed',
+                  value: 'unsubscribe',
+                  icon: circle,
+                },
+              ]}
+              selectedValue={currentState}
+              onChange={value =>
+                z.mutate.notification.update({
+                  issueID: displayed.id,
+                  subscribed: value,
+                  created: Date.now(),
+                })
+              }
+            />
+          </div>
 
           <div className="sidebar-item">
             <p className="issue-detail-label">Creator</p>
@@ -906,9 +960,13 @@ function useEmojiChangeListener(
   issue: Issue | undefined,
   cb: (added: readonly Emoji[], removed: readonly Emoji[]) => void,
 ) {
+  const login = useLogin();
   const enabled = issue !== undefined;
   const issueID = issue?.id;
-  const [emojis, result] = useQuery(emojiChange(issueID ?? ''), {enabled});
+  const [emojis, result] = useQuery(
+    emojiChange(login.loginState?.decoded, issueID ?? ''),
+    {enabled},
+  );
 
   const lastEmojis = useRef<Map<string, Emoji> | undefined>();
 

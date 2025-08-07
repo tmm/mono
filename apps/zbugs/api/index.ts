@@ -14,8 +14,7 @@ import {must} from '../../../packages/shared/src/must.ts';
 import {handlePush} from '../server/push-handler.ts';
 import {jwtDataSchema, type JWTData} from '../shared/auth.ts';
 import {getQuery} from '../server/get-query.ts';
-import type {ServerContext} from '../server/server-queries.ts';
-import {processQueries} from '@rocicorp/zero/server';
+import {getQueries} from '@rocicorp/zero/server';
 import {schema} from '../shared/schema.ts';
 
 declare module 'fastify' {
@@ -144,7 +143,7 @@ fastify.post<{
   Querystring: Record<string, string>;
   Body: ReadonlyJSONValue;
 }>('/api/pull', async (request, reply) => {
-  let authData;
+  let authData: JWTData | undefined;
   try {
     authData = await maybeVerifyAuth(request.headers);
   } catch (e) {
@@ -155,16 +154,60 @@ fastify.post<{
     throw e;
   }
 
-  const context: ServerContext = {
-    role: authData?.role,
-  };
   reply.send(
-    await processQueries(
-      async (name, args) => ({query: getQuery(context, name, args)}),
+    await getQueries(
+      async (name, args) => ({query: getQuery(authData, name, args)}),
       schema,
       request.body,
     ),
   );
+});
+
+fastify.get<{
+  Querystring: {id: string; email: string};
+}>('/api/unsubscribe', async (request, reply) => {
+  if (!request.query.email) {
+    reply.status(400).send('Email is required');
+    return;
+  }
+
+  // Look up the actual issue ID from the shortID
+  const shortID = parseInt(request.query.id);
+
+  if (isNaN(shortID)) {
+    reply.status(400).send('Invalid issue ID');
+    return;
+  }
+
+  const existingUserResult =
+    await sql`SELECT id, email FROM "user" WHERE "email" = ${request.query.email}`;
+
+  const existingUser = existingUserResult[0];
+
+  if (!existingUser) {
+    reply.status(401).send('Unauthorized');
+    return;
+  }
+
+  const issueResult =
+    await sql`SELECT id, title FROM "issue" WHERE "shortID" = ${shortID}`;
+
+  const issue = issueResult[0];
+
+  if (!issue) {
+    reply.status(404).send('Issue not found');
+    return;
+  }
+
+  await sql`INSERT INTO "issueNotifications" ("userID", "issueID", "subscribed") 
+    VALUES (${existingUser.id}, ${issue.id}, false)
+    ON CONFLICT ("userID", "issueID") 
+    DO UPDATE SET "subscribed" = false`;
+  reply
+    .type('text/html')
+    .send(
+      `OK! You are unsubscribed from <a href="https://bugs.rocicorp.dev/issue/${shortID}">${issue.title}</a>.`,
+    );
 });
 
 async function maybeVerifyAuth(

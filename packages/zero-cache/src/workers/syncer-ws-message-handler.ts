@@ -119,7 +119,7 @@ export class SyncerWsMessageHandler implements MessageHandler {
             if (mutations[0].type === 'custom') {
               assert(
                 this.#pusher,
-                'A ZERO_PUSH_URL must be set in order to process custom mutations.',
+                'A ZERO_MUTATE_URL must be set in order to process custom mutations.',
               );
               return [
                 this.#pusher.enqueuePush(
@@ -203,6 +203,12 @@ export class SyncerWsMessageHandler implements MessageHandler {
         await startAsyncSpan(tracer, 'connection.inspect', () =>
           viewSyncer.inspect(this.#syncContext, msg),
         );
+        break;
+
+      case 'ackMutationResponses':
+        if (this.#pusher) {
+          await this.#pusher.ackMutationResponses(msg[1]);
+        }
         break;
 
       default:

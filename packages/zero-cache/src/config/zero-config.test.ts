@@ -42,9 +42,15 @@ test('zero-cache --help', () => {
                                                                  Note that this number must allow for at least one connection per                                  
                                                                  sync worker, or zero-cache will fail to start. See num-sync-workers                               
                                                                                                                                                                    
-     --push-url string                                           optional                                                                                          
+     --push-url string[]                                         optional                                                                                          
        ZERO_PUSH_URL env                                                                                                                                           
+                                                                 DEPRECATED. Use mutate-url instead.                                                               
                                                                  The URL of the API server to which zero-cache will push mutations.                                
+                                                                                                                                                                   
+                                                                 * is allowed if you would like to allow the client to specify a subdomain to use.                 
+                                                                 e.g., *.example.com/api/mutate                                                                    
+                                                                 You can specify multiple URLs as well which the client can choose from.                           
+                                                                 e.g., ["https://api1.example.com/mutate", "https://api2.example.com/mutate"]                      
                                                                                                                                                                    
      --push-api-key string                                       optional                                                                                          
        ZERO_PUSH_API_KEY env                                                                                                                                       
@@ -52,27 +58,49 @@ test('zero-cache --help', () => {
                                                                                                                                                                    
      --push-forward-cookies boolean                              default: false                                                                                    
        ZERO_PUSH_FORWARD_COOKIES env                                                                                                                               
-                                                                 If true, zero-cache will forward cookies from the request to the push URL.                        
+                                                                 If true, zero-cache will forward cookies from the request.                                        
                                                                  This is useful for passing authentication cookies to the API server.                              
                                                                  If false, cookies are not forwarded.                                                              
                                                                                                                                                                    
-                                                                 Note that this option is only relevant if the push-url is set.                                    
+     --mutate-url string[]                                       optional                                                                                          
+       ZERO_MUTATE_URL env                                                                                                                                         
                                                                                                                                                                    
-     --pull-url string                                           optional                                                                                          
-       ZERO_PULL_URL env                                                                                                                                           
+                                                                 The URL of the API server to which zero-cache will push mutations.                                
+                                                                                                                                                                   
+                                                                 * is allowed if you would like to allow the client to specify a subdomain to use.                 
+                                                                 e.g., *.example.com/api/mutate                                                                    
+                                                                 You can specify multiple URLs as well which the client can choose from.                           
+                                                                 e.g., ["https://api1.example.com/mutate", "https://api2.example.com/mutate"]                      
+                                                                                                                                                                   
+     --mutate-api-key string                                     optional                                                                                          
+       ZERO_MUTATE_API_KEY env                                                                                                                                     
+                                                                 An optional secret used to authorize zero-cache to call the API server handling writes.           
+                                                                                                                                                                   
+     --mutate-forward-cookies boolean                            default: false                                                                                    
+       ZERO_MUTATE_FORWARD_COOKIES env                                                                                                                             
+                                                                 If true, zero-cache will forward cookies from the request.                                        
+                                                                 This is useful for passing authentication cookies to the API server.                              
+                                                                 If false, cookies are not forwarded.                                                              
+                                                                                                                                                                   
+     --query-url string[]                                        optional                                                                                          
+       ZERO_QUERY_URL env                                                                                                                                          
+                                                                                                                                                                   
                                                                  The URL of the API server to which zero-cache will send named queries.                            
                                                                                                                                                                    
-     --pull-api-key string                                       optional                                                                                          
-       ZERO_PULL_API_KEY env                                                                                                                                       
-                                                                 An optional secret used to authorize zero-cache to call the API server handling reads.            
+                                                                 * is allowed if you would like to allow the client to specify a subdomain to use.                 
+                                                                 e.g., *.example.com/api/mutate                                                                    
+                                                                 You can specify multiple URLs as well which the client can choose from.                           
+                                                                 e.g., ["https://api1.example.com/mutate", "https://api2.example.com/mutate"]                      
                                                                                                                                                                    
-     --pull-forward-cookies boolean                              default: false                                                                                    
-       ZERO_PULL_FORWARD_COOKIES env                                                                                                                               
-                                                                 If true, zero-cache will forward cookies from the request to the pull URL.                        
+     --query-api-key string                                      optional                                                                                          
+       ZERO_QUERY_API_KEY env                                                                                                                                      
+                                                                 An optional secret used to authorize zero-cache to call the API server handling writes.           
+                                                                                                                                                                   
+     --query-forward-cookies boolean                             default: false                                                                                    
+       ZERO_QUERY_FORWARD_COOKIES env                                                                                                                              
+                                                                 If true, zero-cache will forward cookies from the request.                                        
                                                                  This is useful for passing authentication cookies to the API server.                              
                                                                  If false, cookies are not forwarded.                                                              
-                                                                                                                                                                   
-                                                                 Note that this option is only relevant if the pull-url is set.                                    
                                                                                                                                                                    
      --cvr-db string                                             optional                                                                                          
        ZERO_CVR_DB env                                                                                                                                             
@@ -344,14 +372,6 @@ test('zero-cache --help', () => {
                                                                  workers may improve initial sync speed; however, note that local disk throughput                  
                                                                  (i.e. IOPS), upstream CPU, and network bandwidth may also be bottlenecks.                         
                                                                                                                                                                    
-     --target-client-row-count number                            default: 20000                                                                                    
-       ZERO_TARGET_CLIENT_ROW_COUNT env                                                                                                                            
-                                                                 The target number of rows to keep per client in the client side cache.                            
-                                                                 This limit is a soft limit. When the number of rows in the cache exceeds                          
-                                                                 this limit, zero-cache will evict inactive queries in order of ttl-based expiration.              
-                                                                 Active queries, on the other hand, are never evicted and are allowed to use more                  
-                                                                 rows than the limit.                                                                              
-                                                                                                                                                                   
      --lazy-startup boolean                                      default: false                                                                                    
        ZERO_LAZY_STARTUP env                                                                                                                                       
                                                                  Delay starting the majority of zero-cache until first request.                                    
@@ -364,6 +384,13 @@ test('zero-cache --help', () => {
      --server-version string                                     optional                                                                                          
        ZERO_SERVER_VERSION env                                                                                                                                     
                                                                  The version string outputted to logs when the server starts up.                                   
+                                                                                                                                                                   
+     --enable-telemetry boolean                                  default: true                                                                                     
+       ZERO_ENABLE_TELEMETRY env                                                                                                                                   
+                                                                 Set to false to opt out of telemetry collection.                                                  
+                                                                                                                                                                   
+                                                                 This helps us improve Zero by collecting anonymous usage data.                                    
+                                                                 Setting the DO_NOT_TRACK environment variable also disables telemetry.                            
                                                                                                                                                                    
     "
   `);

@@ -4,7 +4,8 @@ import {useCallback, useRef, useState} from 'react';
 import {useClickOutside} from '../hooks/use-click-outside.ts';
 import {Button} from './button.tsx';
 import style from './label-picker.module.css';
-import {allLabels} from '../../shared/queries.ts';
+import {queries} from '../../shared/queries.ts';
+import {useLogin} from '../hooks/use-login.tsx';
 
 const focusInput = (input: HTMLInputElement | null) => {
   if (input) {
@@ -24,7 +25,8 @@ export function LabelPicker({
   onCreateNewLabel: (name: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [labels] = useQuery(allLabels().orderBy('name', 'asc'));
+  const auth = useLogin().loginState?.decoded;
+  const [labels] = useQuery(queries.allLabels(auth).orderBy('name', 'asc'));
   const ref = useRef<HTMLDivElement>(null);
 
   useClickOutside(
