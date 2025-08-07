@@ -14,7 +14,7 @@ export function table<TName extends string>(name: TName) {
 export function string<T extends string = string>() {
   return new ColumnBuilder({
     type: 'string',
-    nullable: false,
+    optional: false,
     customType: null as unknown as T,
   });
 }
@@ -22,7 +22,7 @@ export function string<T extends string = string>() {
 export function number<T extends number = number>() {
   return new ColumnBuilder({
     type: 'number',
-    nullable: false,
+    optional: false,
     customType: null as unknown as T,
   });
 }
@@ -30,7 +30,7 @@ export function number<T extends number = number>() {
 export function boolean<T extends boolean = boolean>() {
   return new ColumnBuilder({
     type: 'boolean',
-    nullable: false,
+    optional: false,
     customType: null as unknown as T,
   });
 }
@@ -38,7 +38,7 @@ export function boolean<T extends boolean = boolean>() {
 export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
   return new ColumnBuilder({
     type: 'json',
-    nullable: false,
+    optional: false,
     customType: null as unknown as T,
   });
 }
@@ -46,7 +46,7 @@ export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
 export function enumeration<T extends string>() {
   return new ColumnBuilder({
     type: 'string',
-    nullable: false,
+    optional: false,
     customType: null as unknown as T,
   });
 }

@@ -101,7 +101,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "creator": {
@@ -115,7 +115,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "cricket": {
@@ -129,7 +129,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "jellyfish": {
@@ -143,11 +143,11 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "lox": {
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "outlaw": {
@@ -161,11 +161,11 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "sanity": {
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
           },
@@ -178,11 +178,11 @@ test('stable generation', () => {
         "chops": {
           "columns": {
             "cleaner": {
-              "nullable": false,
+              "optional": false,
               "type": "json",
             },
             "encouragement": {
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "pension": {
@@ -196,7 +196,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "secrecy": {
@@ -210,7 +210,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
           },
@@ -232,11 +232,11 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "circumference": {
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "community": {
@@ -250,7 +250,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "json",
             },
             "ghost": {
@@ -264,11 +264,11 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "json",
             },
             "language": {
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "lyre": {
@@ -282,11 +282,11 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "pacemaker": {
-              "nullable": false,
+              "optional": false,
               "type": "number",
             },
             "status": {
@@ -300,11 +300,11 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "traffic": {
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
           },
@@ -316,7 +316,7 @@ test('stable generation', () => {
         "elevator": {
           "columns": {
             "appliance": {
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "impostor": {
@@ -330,7 +330,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "legend": {
@@ -344,7 +344,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "json",
             },
             "range": {
@@ -358,7 +358,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
           },
@@ -371,7 +371,7 @@ test('stable generation', () => {
         "habit": {
           "columns": {
             "baseboard": {
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "bench": {
@@ -385,23 +385,23 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "boolean",
             },
             "brush": {
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "cake": {
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "hygienic": {
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "legend": {
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "mechanic": {
@@ -415,7 +415,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "outlaw": {
@@ -429,7 +429,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
           },
@@ -452,7 +452,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "gripper": {
@@ -466,7 +466,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "json",
             },
             "kielbasa": {
@@ -480,7 +480,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "lace": {
@@ -494,11 +494,11 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "lady": {
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "legging": {
@@ -512,7 +512,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
             "noon": {
@@ -526,15 +526,15 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "number",
             },
             "sesame": {
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "swath": {
-              "nullable": false,
+              "optional": false,
               "type": "string",
             },
           },
@@ -556,7 +556,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "json",
             },
             "marathon": {
@@ -570,7 +570,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "mathematics": {
@@ -584,7 +584,7 @@ test('stable generation', () => {
                   "server": "db",
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "string",
             },
             "newsstand": {
@@ -598,7 +598,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
             "other": {
@@ -612,7 +612,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": false,
+              "optional": false,
               "type": "json",
             },
             "unibody": {
@@ -626,7 +626,7 @@ test('stable generation', () => {
                   "server": [Function],
                 },
               },
-              "nullable": true,
+              "optional": true,
               "type": "number",
             },
           },

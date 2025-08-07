@@ -63,12 +63,12 @@ test('getSource', () => {
       "columns": {
         "id": {
           "customType": null,
-          "nullable": false,
+          "optional": false,
           "type": "string",
         },
         "name": {
           "customType": null,
-          "nullable": false,
+          "optional": false,
           "type": "string",
         },
       },
@@ -91,12 +91,12 @@ test('getSource', () => {
       "columns": {
         "stateCode": {
           "customType": null,
-          "nullable": false,
+          "optional": false,
           "type": "string",
         },
         "userID": {
           "customType": null,
-          "nullable": false,
+          "optional": false,
           "type": "string",
         },
       },
