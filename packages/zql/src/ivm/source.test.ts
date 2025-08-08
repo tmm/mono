@@ -3296,7 +3296,7 @@ test('IS and IS NOT comparisons against null', () => {
     'table',
     {
       a: {type: 'number'},
-      s: {type: 'string', nullable: true},
+      s: {type: 'string', optional: true},
     },
     ['a'],
   );

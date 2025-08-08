@@ -7970,7 +7970,7 @@ function takeNoPartitionTest(t: TakeTest) {
         columns: {
           id: {type: 'string'},
           created: {type: 'number'},
-          text: {type: 'string', nullable: true},
+          text: {type: 'string', optional: true},
         },
       },
     },
@@ -8010,7 +8010,7 @@ function takeTestWithPartition(t: TakeTest) {
         id: {type: 'string'},
         issueID: {type: 'string'},
         created: {type: 'number'},
-        text: {type: 'string', nullable: true},
+        text: {type: 'string', optional: true},
       },
       primaryKeys: ['id'],
     },

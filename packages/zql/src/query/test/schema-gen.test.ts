@@ -16,6 +16,21 @@ test('stable generation', () => {
     {
       "relationships": {
         "adrenalin": {
+          "adrenalin": [
+            {
+              "cardinality": "many",
+              "destField": [
+                "privilege",
+              ],
+              "destSchema": "adrenalin",
+              "sourceField": [
+                "fund",
+              ],
+            },
+          ],
+        },
+        "chops": {},
+        "decongestant": {
           "decongestant": [
             {
               "cardinality": "one",
@@ -24,199 +39,194 @@ test('stable generation', () => {
               ],
               "destSchema": "decongestant",
               "sourceField": [
-                "outlaw",
+                "pacemaker",
               ],
             },
           ],
-        },
-        "chops": {
-          "decongestant": [
+          "stranger": [
             {
               "cardinality": "many",
               "destField": [
-                "traffic",
+                "bracelet",
               ],
-              "destSchema": "decongestant",
+              "destSchema": "stranger",
               "sourceField": [
-                "encouragement",
+                "amnesty",
               ],
             },
           ],
         },
-        "decongestant": {},
         "elevator": {
-          "decongestant": [
+          "stranger": [
             {
               "cardinality": "many",
               "destField": [
-                "language",
+                "mathematics",
               ],
-              "destSchema": "decongestant",
+              "destSchema": "stranger",
               "sourceField": [
-                "impostor",
+                "appliance",
               ],
             },
           ],
         },
-        "habit": {},
-        "sanity": {
+        "habit": {
+          "sanity": [
+            {
+              "cardinality": "many",
+              "destField": [
+                "courtroom",
+              ],
+              "destSchema": "sanity",
+              "sourceField": [
+                "schedule",
+              ],
+            },
+          ],
+        },
+        "sanity": {},
+        "stranger": {
+          "adrenalin": [
+            {
+              "cardinality": "many",
+              "destField": [
+                "cricket",
+              ],
+              "destSchema": "adrenalin",
+              "sourceField": [
+                "newsstand",
+              ],
+            },
+          ],
           "elevator": [
             {
               "cardinality": "many",
               "destField": [
-                "range",
+                "planula",
               ],
               "destSchema": "elevator",
               "sourceField": [
-                "noon",
-              ],
-            },
-          ],
-          "habit": [
-            {
-              "cardinality": "many",
-              "destField": [
-                "cake",
-              ],
-              "destSchema": "habit",
-              "sourceField": [
-                "courtroom",
+                "character",
               ],
             },
           ],
         },
-        "stranger": {},
       },
       "tables": {
         "adrenalin": {
           "columns": {
-            "birth": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": "db",
-                },
-              },
-              "optional": true,
-              "type": "number",
+            "apparatus": {
+              "optional": false,
+              "type": "string",
             },
-            "creator": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
-              "optional": true,
-              "type": "number",
+            "bin": {
+              "optional": false,
+              "type": "boolean",
             },
             "cricket": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
-              "optional": true,
-              "type": "string",
-            },
-            "jellyfish": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": "db",
-                },
-              },
-              "optional": false,
-              "type": "string",
-            },
-            "lox": {
-              "optional": true,
-              "type": "string",
-            },
-            "outlaw": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
                 "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
-              "optional": false,
-              "type": "string",
-            },
-            "sanity": {
               "optional": true,
               "type": "number",
+            },
+            "fund": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": false,
+              "type": "string",
+            },
+            "premise": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": false,
+              "type": "string",
+            },
+            "privilege": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": true,
+              "type": "string",
+            },
+            "tennis": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": true,
+              "type": "string",
             },
           },
           "name": "adrenalin",
           "primaryKey": [
-            "sanity",
-            "jellyfish",
+            "cricket",
+            "premise",
           ],
         },
         "chops": {
           "columns": {
-            "cleaner": {
+            "climb": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
               "optional": false,
               "type": "json",
             },
-            "encouragement": {
-              "optional": true,
-              "type": "number",
-            },
-            "pension": {
+            "corral": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
               },
+              "optional": true,
+              "type": "string",
+            },
+            "fort": {
               "optional": false,
               "type": "string",
             },
-            "secrecy": {
+            "understanding": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
               "optional": true,
-              "type": "string",
+              "type": "number",
             },
           },
           "name": "chops",
           "primaryKey": [
-            "secrecy",
+            "corral",
           ],
         },
         "decongestant": {
@@ -224,209 +234,198 @@ test('stable generation', () => {
             "amnesty": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": true,
               "type": "number",
             },
             "circumference": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
               "optional": false,
-              "type": "string",
+              "type": "boolean",
             },
             "community": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
-              "optional": true,
-              "type": "json",
+              "optional": false,
+              "type": "number",
             },
             "ghost": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
                 "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": true,
               "type": "json",
             },
             "language": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
               "optional": true,
-              "type": "string",
+              "type": "number",
             },
             "lyre": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": false,
               "type": "string",
             },
             "pacemaker": {
-              "optional": false,
-              "type": "number",
+              "optional": true,
+              "type": "string",
             },
             "status": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
                 "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
-              "optional": true,
-              "type": "number",
+              "optional": false,
+              "type": "json",
             },
             "traffic": {
-              "optional": true,
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
+              "optional": false,
               "type": "number",
             },
           },
           "name": "decongestant",
           "primaryKey": [
             "lyre",
+            "language",
           ],
         },
         "elevator": {
           "columns": {
             "appliance": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
               "optional": false,
               "type": "string",
+            },
+            "forage": {
+              "optional": true,
+              "type": "boolean",
             },
             "impostor": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
-              "optional": false,
-              "type": "string",
-            },
-            "legend": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
               "optional": true,
-              "type": "json",
+              "type": "number",
             },
-            "range": {
+            "planula": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
                 "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
               "optional": true,
               "type": "number",
             },
+            "range": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
+              "optional": true,
+              "type": "string",
+            },
+            "unique": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": false,
+              "type": "string",
+            },
           },
           "name": "elevator",
           "primaryKey": [
-            "legend",
             "appliance",
           ],
         },
         "habit": {
           "columns": {
-            "baseboard": {
+            "fledgling": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
               "optional": true,
               "type": "string",
             },
-            "bench": {
+            "honesty": {
+              "optional": true,
+              "type": "string",
+            },
+            "hubris": {
+              "optional": true,
+              "type": "string",
+            },
+            "kielbasa": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
                 "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
-              "optional": false,
-              "type": "boolean",
-            },
-            "brush": {
-              "optional": true,
-              "type": "number",
-            },
-            "cake": {
-              "optional": false,
-              "type": "string",
-            },
-            "hygienic": {
-              "optional": false,
-              "type": "string",
-            },
-            "legend": {
               "optional": true,
               "type": "string",
             },
-            "mechanic": {
+            "produce": {
+              "optional": true,
+              "type": "string",
+            },
+            "sarong": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": false,
               "type": "string",
             },
-            "outlaw": {
+            "schedule": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": false,
@@ -435,8 +434,7 @@ test('stable generation', () => {
           },
           "name": "habit",
           "primaryKey": [
-            "brush",
-            "mechanic",
+            "kielbasa",
           ],
         },
         "sanity": {
@@ -444,103 +442,51 @@ test('stable generation', () => {
             "courtroom": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
+              "optional": true,
+              "type": "string",
+            },
+            "gripper": {
               "optional": false,
-              "type": "string",
-            },
-            "gripper": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": "db",
-                },
-              },
-              "optional": true,
-              "type": "json",
-            },
-            "kielbasa": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
-              "optional": true,
-              "type": "string",
+              "type": "boolean",
             },
             "lace": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
               "optional": true,
-              "type": "string",
-            },
-            "lady": {
-              "optional": true,
-              "type": "string",
-            },
-            "legging": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
-              "optional": false,
-              "type": "string",
+              "type": "number",
             },
             "noon": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
                 "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": false,
               "type": "number",
             },
-            "sesame": {
-              "optional": true,
-              "type": "string",
-            },
             "swath": {
-              "optional": false,
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
+              "optional": true,
               "type": "string",
             },
           },
           "name": "sanity",
           "primaryKey": [
-            "kielbasa",
+            "gripper",
+            "courtroom",
           ],
         },
         "stranger": {
@@ -548,39 +494,46 @@ test('stable generation', () => {
             "bracelet": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": "db",
-                },
-              },
-              "optional": false,
-              "type": "json",
-            },
-            "marathon": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
               "optional": true,
-              "type": "string",
+              "type": "number",
+            },
+            "character": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": true,
+              "type": "number",
+            },
+            "marathon": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+                "update": {
+                  "server": "db",
+                },
+              },
+              "optional": true,
+              "type": "boolean",
+            },
+            "markup": {
+              "optional": false,
+              "type": "number",
             },
             "mathematics": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
                 },
                 "update": {
-                  "client": [Function],
                   "server": "db",
                 },
               },
@@ -590,12 +543,7 @@ test('stable generation', () => {
             "newsstand": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
+                  "server": "db",
                 },
               },
               "optional": true,
@@ -604,35 +552,25 @@ test('stable generation', () => {
             "other": {
               "defaultConfig": {
                 "insert": {
-                  "client": [Function],
                   "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
-                },
-              },
-              "optional": false,
-              "type": "json",
-            },
-            "unibody": {
-              "defaultConfig": {
-                "insert": {
-                  "client": [Function],
-                  "server": "db",
-                },
-                "update": {
-                  "client": [Function],
-                  "server": [Function],
                 },
               },
               "optional": true,
               "type": "number",
             },
+            "unibody": {
+              "defaultConfig": {
+                "insert": {
+                  "server": "db",
+                },
+              },
+              "optional": false,
+              "type": "string",
+            },
           },
           "name": "stranger",
           "primaryKey": [
-            "unibody",
+            "character",
           ],
         },
       },

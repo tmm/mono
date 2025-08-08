@@ -87,7 +87,7 @@ export class TableBuilder<TShape extends TableSchema> {
    *
    * @param columns - The column definitions for the table.
    */
-  columns<const TColumns extends Record<string, {schema: SchemaValue}>>(
+  columns<const TColumns extends Record<string, ColumnBuilder<SchemaValue>>>(
     columns: TColumns,
   ): TableBuilderWithColumns<{
     name: TShape['name'];
@@ -153,7 +153,7 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
   }
 }
 
-class ColumnBuilder<TShape extends SchemaValue> {
+class ColumnBuilder<TShape extends SchemaValue<any>> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;

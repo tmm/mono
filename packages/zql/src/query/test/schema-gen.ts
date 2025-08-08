@@ -36,7 +36,7 @@ function generateTable(name: string, rng: Rng, faker: Faker): TableSchema {
   const columns = generateUniqueValues(
     faker.word.noun,
     Math.floor(rng() * 10) + 1,
-  ).map(name => generateColumn(name, rng, faker));
+  ).map(name => generateColumn(name, rng));
   const numPkColumns = Math.min(rng() < 0.5 ? 1 : 2, columns.length);
 
   return {
@@ -110,56 +110,36 @@ function generateRelationshipsForTable(
   return relationships;
 }
 
-function generateColumn(
-  name: string,
-  rng: Rng,
-  faker: Faker,
-): [string, SchemaValue] {
-  const type = selectRandom(rng, [
-    'string',
-    'string',
-    'string',
-    'string',
-    'string',
-    'boolean',
-    'number',
-    'number',
-    'number',
-    'json',
-  ]) as keyof typeof dbTypes;
-
-  const generateDefault =
-    type === 'string'
-      ? () => faker.lorem.word()
-      : type === 'number'
-        ? () => faker.number.int()
-        : type === 'boolean'
-          ? () => faker.datatype.boolean()
-          : type === 'json'
-            ? () =>
-                faker.helpers.arrayElement([
-                  {uno: faker.lorem.word()},
-                  {dos: faker.lorem.word()},
-                  {tres: faker.lorem.word()},
-                ])
-            : null;
-
+function generateColumn(name: string, rng: Rng): [string, SchemaValue] {
   return [
     name,
     {
-      type,
-      nullable: rng() < 0.5,
-      ...(rng() < 0.7 && generateDefault
+      type: selectRandom(rng, [
+        'string',
+        'string',
+        'string',
+        'string',
+        'string',
+        'boolean',
+        'number',
+        'number',
+        'number',
+        'json',
+      ]) as keyof typeof dbTypes,
+      optional: rng() < 0.5,
+      ...(rng() < 0.7
         ? {
             defaultConfig: {
               insert: {
-                client: generateDefault,
-                server: rng() < 0.5 ? 'db' : generateDefault,
+                server: 'db',
               },
-              update: {
-                client: generateDefault,
-                server: rng() < 0.5 ? 'db' : generateDefault,
-              },
+              ...(rng() < 0.5
+                ? {
+                    update: {
+                      server: 'db',
+                    },
+                  }
+                : {}),
             },
           }
         : {}),

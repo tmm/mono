@@ -779,7 +779,28 @@ test('defaults', () => {
     ],
   });
 
-  expect(stringify(clientSchemaFrom(schema))).toMatchInlineSnapshot();
+  expect(stringify(clientSchemaFrom(schema))).toMatchInlineSnapshot(`
+    "{
+      "clientSchema": {
+        "tables": {
+          "issues": {
+            "columns": {
+              "dbCreatedAt": {
+                "type": "number"
+              },
+              "dbUpdatedAt": {
+                "type": "number"
+              },
+              "id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "hash": "1rme450bu8mhu"
+    }"
+  `);
 
   const hashWithoutOn = clientSchemaFrom(schemaWithoutOn).hash;
   const hashWithOn = clientSchemaFrom(schema).hash;

@@ -30,14 +30,13 @@ test('stable generation', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   expect((q as StaticQuery<any, any>).ast).toMatchInlineSnapshot(`
     {
-      "limit": 129,
       "orderBy": [
         [
-          "backburn",
-          "asc",
+          "captain",
+          "desc",
         ],
       ],
-      "table": "unit",
+      "table": "cleaner",
       "where": {
         "conditions": [
           {
@@ -45,69 +44,53 @@ test('stable generation', () => {
             "related": {
               "correlation": {
                 "childField": [
-                  "backburn",
+                  "numeric",
                 ],
                 "parentField": [
-                  "backburn",
+                  "final",
                 ],
               },
               "subquery": {
-                "alias": "zsubq_unit",
-                "limit": 7,
+                "alias": "zsubq_rawhide",
+                "limit": 181,
                 "orderBy": [
                   [
-                    "backburn",
+                    "chapel",
+                    "asc",
+                  ],
+                  [
+                    "hose",
+                    "asc",
+                  ],
+                  [
+                    "elver",
                     "asc",
                   ],
                 ],
-                "table": "unit",
+                "table": "rawhide",
                 "where": {
                   "conditions": [
                     {
                       "left": {
-                        "name": "substitution",
+                        "name": "numeric",
                         "type": "column",
                       },
-                      "op": "LIKE",
+                      "op": "!=",
                       "right": {
                         "type": "literal",
-                        "value": "amo calcar curso",
+                        "value": "confero vilitas commodi",
                       },
                       "type": "simple",
                     },
                     {
                       "left": {
-                        "name": "substitution",
+                        "name": "chapel",
                         "type": "column",
                       },
-                      "op": "ILIKE",
+                      "op": "!=",
                       "right": {
                         "type": "literal",
-                        "value": "cur brevis animadverto",
-                      },
-                      "type": "simple",
-                    },
-                    {
-                      "left": {
-                        "name": "backburn",
-                        "type": "column",
-                      },
-                      "op": "IS NOT",
-                      "right": {
-                        "type": "literal",
-                        "value": 0.7030189588951778,
-                      },
-                      "type": "simple",
-                    },
-                    {
-                      "left": {
-                        "name": "backburn",
-                        "type": "column",
-                      },
-                      "op": "IS NOT",
-                      "right": {
-                        "type": "literal",
-                        "value": 4478816371694966,
+                        "value": 0.25178229582536416,
                       },
                       "type": "simple",
                     },
@@ -120,50 +103,16 @@ test('stable generation', () => {
             "type": "correlatedSubquery",
           },
           {
-            "op": "EXISTS",
-            "related": {
-              "correlation": {
-                "childField": [
-                  "exasperation",
-                ],
-                "parentField": [
-                  "backburn",
-                ],
-              },
-              "subquery": {
-                "alias": "zsubq_negotiation",
-                "limit": 135,
-                "orderBy": [
-                  [
-                    "cash",
-                    "asc",
-                  ],
-                  [
-                    "brace",
-                    "asc",
-                  ],
-                  [
-                    "exasperation",
-                    "asc",
-                  ],
-                ],
-                "table": "negotiation",
-                "where": {
-                  "left": {
-                    "name": "disk",
-                    "type": "column",
-                  },
-                  "op": "!=",
-                  "right": {
-                    "type": "literal",
-                    "value": "voro carbo spectaculum",
-                  },
-                  "type": "simple",
-                },
-              },
-              "system": "permissions",
+            "left": {
+              "name": "captain",
+              "type": "column",
             },
-            "type": "correlatedSubquery",
+            "op": "IS",
+            "right": {
+              "type": "literal",
+              "value": "spectaculum temptatio capio",
+            },
+            "type": "simple",
           },
         ],
         "type": "and",

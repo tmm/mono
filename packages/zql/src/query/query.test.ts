@@ -846,7 +846,7 @@ describe('types', () => {
     q2.where('s', 'IS NOT', null);
 
     // @ts-expect-error - IS cannot compare with undefined, even when field is
-    // nullable.
+    // optional.
     q2.where('s', 'IS', undefined);
     // @ts-expect-error - Same with IS NOT
     q2.where('s', 'IS NOT', undefined);

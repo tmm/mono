@@ -4170,7 +4170,7 @@ describe('edit assignee', () => {
       columns: {
         issueID: {type: 'string'},
         text: {type: 'string'},
-        assigneeID: {type: 'string', nullable: true},
+        assigneeID: {type: 'string', optional: true},
         creatorID: {type: 'string'},
       },
       primaryKeys: ['issueID'],
