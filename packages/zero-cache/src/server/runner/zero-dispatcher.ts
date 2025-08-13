@@ -9,6 +9,7 @@ import {
   installWebSocketHandoff,
   type HandoffSpec,
 } from '../../types/websocket-handoff.ts';
+import {handleRunQueryRequest} from '../../services/queryz.ts';
 
 export class ZeroDispatcher extends HttpService {
   readonly id = 'zero-dispatcher';
@@ -26,6 +27,9 @@ export class ZeroDispatcher extends HttpService {
       );
       fastify.get('/heapz', (req, res) =>
         handleHeapzRequest(lc, config, req, res),
+      );
+      fastify.get('/run-queryz', (req, res) =>
+        handleRunQueryRequest(lc, config, req, res),
       );
       installWebSocketHandoff(lc, this.#handoff, fastify.server);
     });
