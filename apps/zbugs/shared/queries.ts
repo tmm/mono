@@ -112,10 +112,13 @@ export const queries = queriesWithContext({
     > | null,
     dir: 'next' | 'prev',
   ) =>
-    applyIssuePermissions(
-      buildBaseListQuery(builder.issue, listContext, issue, dir).one(),
+    buildBaseListQuery(
+      builder.issue,
+      listContext,
+      issue,
+      dir,
       auth?.role,
-    ),
+    ).one(),
 
   issueList: (
     auth: AuthData | undefined,
@@ -181,7 +184,7 @@ export const queries = queriesWithContext({
         .orderBy(listContext.sortField, listContext.sortDirection)
         .limit(limit)
         .whereExists('issues', q =>
-          buildBaseListQueryFilter(q, restListContext),
+          buildBaseListQueryFilter(q, restListContext, auth?.role),
         )
         .related('issues', q =>
           buildListQuery(q, restListContext, 1, userID, auth),
@@ -216,13 +219,10 @@ function buildListQuery(
   userID: string,
   auth: AuthData | undefined,
 ) {
-  return applyIssuePermissions(
-    buildBaseListQuery(q, listContextSansCreator, null, 'next')
-      .limit(limit)
-      .related('viewState', q => q.where('userID', userID).one())
-      .related('labels'),
-    auth?.role,
-  );
+  return buildBaseListQuery(q, listContextSansCreator, null, 'next', auth?.role)
+    .limit(limit)
+    .related('viewState', q => q.where('userID', userID).one())
+    .related('labels');
 }
 
 function buildBaseListQuery(
@@ -233,6 +233,7 @@ function buildBaseListQuery(
     'id' | 'created' | 'modified'
   > | null,
   dir: 'next' | 'prev',
+  role: Role | undefined,
 ) {
   if (!listContext) {
     return issueQuery.where(({or}) => or());
@@ -251,33 +252,38 @@ function buildBaseListQuery(
   return buildBaseListQueryFilter(
     q.orderBy(sortField, orderByDir),
     listContext,
+    role,
   );
 }
 
 function buildBaseListQueryFilter(
   issueQuery: (typeof builder)['issue'],
   listContext: ListContext['params'],
+  role: Role | undefined,
 ) {
   const {open, creator, assignee, labels, textFilter} = listContext;
-  return issueQuery.where(({and, cmp, exists, or}) =>
-    and(
-      open != null ? cmp('open', open) : undefined,
-      creator ? exists('creator', q => q.where('login', creator)) : undefined,
-      assignee
-        ? exists('assignee', q => q.where('login', assignee))
-        : undefined,
-      textFilter
-        ? or(
-            cmp('title', 'ILIKE', `%${escapeLike(textFilter)}%`),
-            cmp('description', 'ILIKE', `%${escapeLike(textFilter)}%`),
-            exists('comments', q =>
-              q.where('body', 'ILIKE', `%${escapeLike(textFilter)}%`),
-            ),
-          )
-        : undefined,
-      ...(labels ?? []).map(label =>
-        exists('labels', q => q.where('name', label)),
+  return applyIssuePermissions(
+    issueQuery.where(({and, cmp, exists, or}) =>
+      and(
+        open != null ? cmp('open', open) : undefined,
+        creator ? exists('creator', q => q.where('login', creator)) : undefined,
+        assignee
+          ? exists('assignee', q => q.where('login', assignee))
+          : undefined,
+        textFilter
+          ? or(
+              cmp('title', 'ILIKE', `%${escapeLike(textFilter)}%`),
+              cmp('description', 'ILIKE', `%${escapeLike(textFilter)}%`),
+              exists('comments', q =>
+                q.where('body', 'ILIKE', `%${escapeLike(textFilter)}%`),
+              ),
+            )
+          : undefined,
+        ...(labels ?? []).map(label =>
+          exists('labels', q => q.where('name', label)),
+        ),
       ),
     ),
+    role,
   );
 }
