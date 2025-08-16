@@ -4,11 +4,18 @@ import {Panel, PanelGroup, PanelResizeHandle} from 'react-resizable-panels';
 import {QueryEditor} from './components/query-editor.tsx';
 import {ResultsViewer} from './components/results-viewer.tsx';
 import {QueryHistory} from './components/query-history.tsx';
-import {type QueryHistoryItem, type Result} from './types.ts';
+import {CredentialsModal} from './components/credentials-modal.tsx';
+import {
+  type QueryHistoryItem,
+  type RemoteRunResult,
+  type Result,
+} from './types.ts';
 import './App.css';
 import * as zero from '@rocicorp/zero';
 import {VizDelegate} from './query-delegate.ts';
 import * as ts from 'typescript';
+import {clientToServer} from '../../../packages/zero-schema/src/name-mapper.ts';
+import {mapAST} from '../../../packages/zero-protocol/src/ast.ts';
 
 type AnyQuery = zero.Query<any, any, any>;
 const DEFAULT_QUERY = `const {
@@ -25,14 +32,16 @@ const user = table('user')
   .columns({
     id: string(),
     name: string(),
-  });
+  })
+    .primaryKey('id');
 
 const session = table('session')
   .columns({
     id: string(),
     userId: string(),
     createdAt: number(),
-  });
+  })
+    .primaryKey('id');
 
 const userToSession = relationships(user, ({many}) => ({
   sessions: many({
@@ -64,6 +73,13 @@ function App() {
   const [result, setResult] = useState<Result | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const [auth, setAuth] = useState<
+    {username: string; password: string} | undefined
+  >(() => {
+    const savedAuth = localStorage.getItem('zql-auth');
+    return savedAuth ? JSON.parse(savedAuth) : undefined;
+  });
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
   const [history, setHistory] = useState<QueryHistoryItem[]>(() => {
     const savedHistory = localStorage.getItem('zql-history');
     if (savedHistory) {
@@ -84,6 +100,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('zql-history', JSON.stringify(history));
   }, [history]);
+
+  useEffect(() => {
+    if (auth) {
+      localStorage.setItem('zql-auth', JSON.stringify(auth));
+    } else {
+      localStorage.removeItem('zql-auth');
+    }
+  }, [auth]);
 
   const executeQuery = useCallback(async () => {
     setIsLoading(true);
@@ -154,18 +178,51 @@ function App() {
 
     try {
       executeCode(queryCode);
-      const vizDelegate = new VizDelegate(capturedSchema!);
-      capturedQuery = capturedQuery?.delegate(vizDelegate);
-      // TODO: run against a zero instance? run against local sqlite? run against server? so many options.
-      // custom queries is an interesting wrench too. Anyway, I just care about data flow viz at the moment.
-      const rows = (await capturedQuery?.run()) as any;
+      if (capturedSchema === undefined) {
+        throw new Error('Failed to capture the schema definition');
+      }
+      if (capturedQuery === undefined) {
+        throw new Error('Failed to capture the query definition');
+      }
+      const vizDelegate = new VizDelegate(capturedSchema);
+      capturedQuery = capturedQuery.delegate(vizDelegate);
+      (await capturedQuery.run()) as any;
       const graph = vizDelegate.getGraph();
+      const mapper = clientToServer(capturedSchema.tables);
+
+      let remoteRunResult: RemoteRunResult | undefined;
+      try {
+        if (auth) {
+          const credentials = btoa(`${auth?.username}:${auth?.password}`);
+          const response = await fetch(
+            `${import.meta.env.VITE_PUBLIC_SERVER}/analyze-queryz`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`,
+              },
+              body: JSON.stringify({
+                ast: mapAST(capturedQuery.ast, mapper),
+              }),
+            },
+          );
+
+          remoteRunResult = await response.json();
+          console.log('REMOTE RESULT', remoteRunResult);
+        } else {
+          console.warn(
+            'No auth credentials set, will not run the query server side or analyze it server side',
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      }
 
       setResult({
         ast: capturedQuery?.ast,
         graph,
-        plan: undefined,
-        rows,
+        remoteRunResult,
       });
 
       // Check if the current query code is the same as the previous entry
@@ -237,6 +294,21 @@ function App() {
     setHistory([]);
   }, []);
 
+  const handleOpenCredentials = useCallback(() => {
+    setIsCredentialsModalOpen(true);
+  }, []);
+
+  const handleSaveCredentials = useCallback(
+    (username: string, password: string) => {
+      setAuth({username, password});
+    },
+    [],
+  );
+
+  const handleCloseCredentials = useCallback(() => {
+    setIsCredentialsModalOpen(false);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -271,6 +343,8 @@ function App() {
               value={queryCode}
               onChange={setQueryCode}
               onExecute={executeQuery}
+              onOpenCredentials={handleOpenCredentials}
+              hasCredentials={!!auth}
             />
           </Panel>
 
@@ -285,6 +359,13 @@ function App() {
           </Panel>
         </PanelGroup>
       </div>
+      <CredentialsModal
+        isOpen={isCredentialsModalOpen}
+        onClose={handleCloseCredentials}
+        onSave={handleSaveCredentials}
+        initialUsername={auth?.username || ''}
+        initialPassword={auth?.password || ''}
+      />
     </div>
   );
 }
