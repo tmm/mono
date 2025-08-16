@@ -5,6 +5,8 @@ import {QueryEditor} from './components/query-editor.tsx';
 import {ResultsViewer} from './components/results-viewer.tsx';
 import {QueryHistory} from './components/query-history.tsx';
 import {CredentialsModal} from './components/credentials-modal.tsx';
+import {VerticalNav} from './components/vertical-nav.tsx';
+import {ServerStatusModal} from './components/server-status-modal.tsx';
 import {
   type QueryHistoryItem,
   type RemoteRunResult,
@@ -74,12 +76,14 @@ function App() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [auth, setAuth] = useState<
-    {username: string; password: string} | undefined
+    {serverUrl: string; password: string} | undefined
   >(() => {
     const savedAuth = localStorage.getItem('zql-auth');
     return savedAuth ? JSON.parse(savedAuth) : undefined;
   });
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  const [isHistoryVisible, setIsHistoryVisible] = useState(true);
+  const [isServerStatusModalOpen, setIsServerStatusModalOpen] = useState(false);
   const [history, setHistory] = useState<QueryHistoryItem[]>(() => {
     const savedHistory = localStorage.getItem('zql-history');
     if (savedHistory) {
@@ -192,10 +196,11 @@ function App() {
 
       let remoteRunResult: RemoteRunResult | undefined;
       try {
-        if (auth) {
-          const credentials = btoa(`${auth?.username}:${auth?.password}`);
+        if (auth && auth.serverUrl) {
+          console.log('Using server URL:', auth.serverUrl);
+          const credentials = btoa(`:${auth.password}`);
           const response = await fetch(
-            `${import.meta.env.VITE_PUBLIC_SERVER}/analyze-queryz`,
+            `${auth.serverUrl}/analyze-queryz`,
             {
               method: 'POST',
               headers: {
@@ -212,11 +217,12 @@ function App() {
           console.log('REMOTE RESULT', remoteRunResult);
         } else {
           console.warn(
-            'No auth credentials set, will not run the query server side or analyze it server side',
+            'No auth credentials set or server URL missing, will not run the query server side or analyze it server side',
+            auth
           );
         }
       } catch (e) {
-        console.error(e);
+        console.error('Error calling server:', e);
       }
 
       setResult({
@@ -280,7 +286,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [queryCode]);
+  }, [queryCode, auth]);
 
   const handleSelectHistoryQuery = useCallback(
     (historyItem: QueryHistoryItem) => {
@@ -299,14 +305,26 @@ function App() {
   }, []);
 
   const handleSaveCredentials = useCallback(
-    (username: string, password: string) => {
-      setAuth({username, password});
+    (serverUrl: string, password: string) => {
+      setAuth({serverUrl, password});
     },
     [],
   );
 
   const handleCloseCredentials = useCallback(() => {
     setIsCredentialsModalOpen(false);
+  }, []);
+
+  const handleToggleHistory = useCallback(() => {
+    setIsHistoryVisible(prev => !prev);
+  }, []);
+
+  const handleShowServerStatus = useCallback(() => {
+    setIsServerStatusModalOpen(true);
+  }, []);
+
+  const handleCloseServerStatus = useCallback(() => {
+    setIsServerStatusModalOpen(false);
   }, []);
 
   useEffect(() => {
@@ -323,48 +341,64 @@ function App() {
   return (
     <div className="app">
       <div className="app-body">
-        <PanelGroup direction="horizontal">
-          <Panel defaultSize={20} minSize={15}>
-            <PanelGroup direction="vertical">
-              <Panel defaultSize={100} minSize={30}>
-                <QueryHistory
-                  history={history}
-                  onSelectQuery={handleSelectHistoryQuery}
-                  onClearHistory={handleClearHistory}
-                />
-              </Panel>
-            </PanelGroup>
-          </Panel>
+        <VerticalNav
+          onShowHistory={handleToggleHistory}
+          onOpenCredentials={handleOpenCredentials}
+          onShowServerStatus={handleShowServerStatus}
+          hasCredentials={!!auth}
+          isHistoryVisible={isHistoryVisible}
+        />
+        <div className="main-content">
+          <PanelGroup direction="horizontal">
+            {isHistoryVisible && (
+              <>
+                <Panel defaultSize={20} minSize={15}>
+                  <PanelGroup direction="vertical">
+                    <Panel defaultSize={100} minSize={30}>
+                      <QueryHistory
+                        history={history}
+                        onSelectQuery={handleSelectHistoryQuery}
+                        onClearHistory={handleClearHistory}
+                      />
+                    </Panel>
+                  </PanelGroup>
+                </Panel>
+                <PanelResizeHandle className="resize-handle-vertical" />
+              </>
+            )}
 
-          <PanelResizeHandle className="resize-handle-vertical" />
+            <Panel defaultSize={isHistoryVisible ? 40 : 50} minSize={30}>
+              <QueryEditor
+                value={queryCode}
+                onChange={setQueryCode}
+                onExecute={executeQuery}
+              />
+            </Panel>
 
-          <Panel defaultSize={40} minSize={30}>
-            <QueryEditor
-              value={queryCode}
-              onChange={setQueryCode}
-              onExecute={executeQuery}
-              onOpenCredentials={handleOpenCredentials}
-              hasCredentials={!!auth}
-            />
-          </Panel>
+            <PanelResizeHandle className="resize-handle-vertical" />
 
-          <PanelResizeHandle className="resize-handle-vertical" />
-
-          <Panel defaultSize={40} minSize={30}>
-            <ResultsViewer
-              result={result}
-              error={error}
-              isLoading={isLoading}
-            />
-          </Panel>
-        </PanelGroup>
+            <Panel defaultSize={isHistoryVisible ? 40 : 50} minSize={30}>
+              <ResultsViewer
+                result={result}
+                error={error}
+                isLoading={isLoading}
+              />
+            </Panel>
+          </PanelGroup>
+        </div>
       </div>
       <CredentialsModal
         isOpen={isCredentialsModalOpen}
         onClose={handleCloseCredentials}
         onSave={handleSaveCredentials}
-        initialUsername={auth?.username || ''}
+        initialServerUrl={auth?.serverUrl || ''}
         initialPassword={auth?.password || ''}
+      />
+      <ServerStatusModal
+        isOpen={isServerStatusModalOpen}
+        onClose={handleCloseServerStatus}
+        hasCredentials={!!auth}
+        serverUrl={auth?.serverUrl}
       />
     </div>
   );
