@@ -113,7 +113,7 @@ export const queries = queriesWithContext({
     dir: 'next' | 'prev',
   ) =>
     applyIssuePermissions(
-      buildListQuery(listContext, issue, dir).one(),
+      buildBaseListQuery(builder.issue, listContext, issue, dir).one(),
       auth?.role,
     ),
 
@@ -122,14 +122,72 @@ export const queries = queriesWithContext({
     listContext: ListContext['params'],
     userID: string,
     limit: number,
-  ) =>
-    applyIssuePermissions(
-      buildListQuery(listContext, null, 'next')
+  ) => buildListQuery(builder.issue, listContext, limit, userID, auth),
+
+  issueListForAssignee: (
+    auth: AuthData | undefined,
+    listContext: ListContext['params'],
+    userID: string,
+    limit: number,
+  ) => {
+    let q = builder.user;
+    const {assignee, ...listContextSansAssignee} = listContext;
+    if (assignee === null || assignee === undefined) {
+      q = q.where(({or}) => or());
+    } else {
+      q = q.where('login', assignee);
+    }
+    return q.related('assignedIssues', q =>
+      buildListQuery(q, listContextSansAssignee, limit, userID, auth),
+    );
+  },
+
+  issueListForCreator: (
+    auth: AuthData | undefined,
+    listContext: ListContext['params'],
+    userID: string,
+    limit: number,
+  ) => {
+    let q = builder.user;
+    const {creator, ...listContextSansCreator} = listContext;
+    if (creator === null || creator === undefined) {
+      q = q.where(({or}) => or());
+    } else {
+      q = q.where('login', creator);
+    }
+    return q.related('createdIssues', q =>
+      buildListQuery(q, listContextSansCreator, limit, userID, auth),
+    );
+  },
+
+  issueListForLabel: (
+    auth: AuthData | undefined,
+    listContext: ListContext['params'],
+    userID: string,
+    limit: number,
+  ) => {
+    let labelQ = builder.label;
+    const {labels, ...listContextSansLabels} = listContext;
+    if (labels === null || labels == undefined || labels.length === 0) {
+      labelQ = labelQ.where(({or}) => or());
+    } else {
+      labelQ = labelQ.where('name', labels[0]);
+    }
+    const [_, ...restLabels] = labels ?? [];
+    const restListContext = {...listContextSansLabels, labels: restLabels};
+
+    return labelQ.related('issueLabels', q =>
+      q
+        .orderBy(listContext.sortField, listContext.sortDirection)
         .limit(limit)
-        .related('viewState', q => q.where('userID', userID).one())
-        .related('labels'),
-      auth?.role,
-    ),
+        .whereExists('issues', q =>
+          buildBaseListQueryFilter(q, restListContext),
+        )
+        .related('issues', q =>
+          buildListQuery(q, restListContext, 1, userID, auth),
+        ),
+    );
+  },
 
   emojiChange: (_auth: AuthData | undefined, subjectID: string) =>
     builder.emoji
@@ -152,6 +210,23 @@ export type ListContext = {
 };
 
 function buildListQuery(
+  q: (typeof builder)['issue'],
+  listContextSansCreator: ListContext['params'] | null,
+  limit: number,
+  userID: string,
+  auth: AuthData | undefined,
+) {
+  return applyIssuePermissions(
+    buildBaseListQuery(q, listContextSansCreator, null, 'next')
+      .limit(limit)
+      .related('viewState', q => q.where('userID', userID).one())
+      .related('labels'),
+    auth?.role,
+  );
+}
+
+function buildBaseListQuery(
+  issueQuery: (typeof builder)['issue'],
   listContext: ListContext['params'] | null,
   start: Pick<
     Row<Schema['tables']['issue']>,
@@ -160,28 +235,31 @@ function buildListQuery(
   dir: 'next' | 'prev',
 ) {
   if (!listContext) {
-    return builder.issue.where(({or}) => or());
+    return issueQuery.where(({or}) => or());
   }
 
-  const {
-    open,
-    creator,
-    assignee,
-    labels,
-    textFilter,
-    sortField,
-    sortDirection,
-  } = listContext;
+  const {sortField, sortDirection} = listContext;
 
   const orderByDir =
     dir === 'next' ? sortDirection : sortDirection === 'asc' ? 'desc' : 'asc';
 
-  let q = builder.issue;
+  let q = issueQuery;
   if (start) {
     q = q.start(start);
   }
 
-  return q.orderBy(sortField, orderByDir).where(({and, cmp, exists, or}) =>
+  return buildBaseListQueryFilter(
+    q.orderBy(sortField, orderByDir),
+    listContext,
+  );
+}
+
+function buildBaseListQueryFilter(
+  issueQuery: (typeof builder)['issue'],
+  listContext: ListContext['params'],
+) {
+  const {open, creator, assignee, labels, textFilter} = listContext;
+  return issueQuery.where(({and, cmp, exists, or}) =>
     and(
       open != null ? cmp('open', open) : undefined,
       creator ? exists('creator', q => q.where('login', creator)) : undefined,
