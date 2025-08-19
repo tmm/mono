@@ -21,15 +21,15 @@ function getPackages() {
 }
 
 const projects = [
-  ...getPackages(),
+  // ...getPackages(),
   'apps/zbugs/vitest.config.*.ts',
   'apps/otel-proxy/vitest.config.ts',
   'tools/*',
 
   'packages/zero-cache/vitest.config.no-pg.ts',
   // Running 15, 16 and 17 breaks change-streamer tests
-  // 'packages/zero-cache/vitest.config.pg-15.ts',
-  // 'packages/zero-cache/vitest.config.pg-16.ts',
+  'packages/zero-cache/vitest.config.pg-15.ts',
+  'packages/zero-cache/vitest.config.pg-16.ts',
   'packages/zero-cache/vitest.config.pg-17.ts',
 
   // Running 15, 16 and 17 breaks change-streamer tests
