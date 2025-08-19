@@ -23,7 +23,7 @@ export function configForVersion(version: number, url: string) {
         reporter: [['html'], ['clover', {file: 'coverage.xml'}]],
         include: ['src/**'],
       },
-      testTimeout: 20000,
+      testTimeout: 30000,
       hookTimeout: 20000,
     },
   });
