@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754598300136,
+  "lastUpdate": 1755703111942,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52925,6 +52925,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/f90fee6acb8f93908461481376b1eab8435bf7f9"
         },
         "date": 1754598282351,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300641,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54264,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110834,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31692,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0dba5a8e113082677ead4aea6152cbdc54e21b8b",
+          "message": "chore: Split the PG tests into its own action (#4782)\n\nChange the root vitest.config,ts to walk the directory structure to find all the vitest.config*.ts files.\n\nThen filter these base on an env var.\n\nUse two different jobs in the GH action.",
+          "timestamp": "2025-08-20T17:17:04+02:00",
+          "tree_id": "9b42f02c70e0f7e2013c06308c6094285f9e2c6d",
+          "url": "https://github.com/rocicorp/mono/commit/0dba5a8e113082677ead4aea6152cbdc54e21b8b"
+        },
+        "date": 1755703099732,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
