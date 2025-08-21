@@ -1,6 +1,5 @@
 {
   "name": "@rocicorp/mono",
-  "packageManager": "npm@10.9.2",
   "version": "0.0.0",
   "private": true,
   "workspaces": [
