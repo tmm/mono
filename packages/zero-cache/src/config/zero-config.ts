@@ -240,6 +240,22 @@ export const zeroOptions = {
   push: pushOptions,
   mutate: mutateOptions,
   getQueries: queryOptions,
+  enableLegacyQueries: {
+    type: v.boolean().default(true),
+    desc: [
+      `When this is true, old-style queries that do not require server side implementations will be enabled`,
+      `This will flip to false in the future and what we currently call "custom queries" will become "queries" and`,
+      `the only option for reading data.`,
+    ],
+  },
+  enableLegacyMutations: {
+    type: v.boolean().default(true),
+    desc: [
+      `When this is true, old-style mutations that do not require server side implementations will be enabled`,
+      `This will flip to false in the future and what we currently call "custom mutations" will become "mutations" and`,
+      `the only option for writing data.`,
+    ],
+  },
 
   cvr: {
     db: {
