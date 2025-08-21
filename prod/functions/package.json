@@ -9,9 +9,7 @@
     "check-format": "prettier --check .",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/"
   },
-  "dependencies": {
-
-  },
+  "dependencies": {},
   "devDependencies": {
     "@rocicorp/prettier-config": "^0.3.0"
   },
