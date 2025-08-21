@@ -19,8 +19,8 @@
   "devDependencies": {
     "@rocicorp/eslint-config": "^0.7.0",
     "@rocicorp/prettier-config": "^0.3.0",
-    "shared": "0.0.0",
-    "zero-protocol": "0.0.0"
+    "shared": "workspace:*",
+    "zero-protocol": "workspace:*"
   },
   "eslintConfig": {
     "extends": "../../eslint-config.json"

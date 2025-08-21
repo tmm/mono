@@ -1,6 +1,15 @@
 packages:
-  - 'packages/*'
-  - 'apps/*'
-  - 'prod/**'
-  - 'tools/*'
-  - 'shared/*'
+  - packages/*
+  - apps/*
+  - prod/**
+  - tools/*
+  - shared/*
+
+onlyBuiltDependencies:
+  - '@rocicorp/zero-sqlite3'
+  - core-js
+  - core-js-pure
+  - cpu-features
+  - esbuild
+  - protobufjs
+  - ssh2

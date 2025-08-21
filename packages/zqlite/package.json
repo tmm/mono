@@ -23,9 +23,9 @@
     "@rocicorp/prettier-config": "^0.3.0",
     "fast-check": "^3.18.0",
     "nanoid": "^5.1.2",
-    "shared": "0.0.0",
+    "shared": "workspace:*",
     "typescript": "~5.8.2",
-    "zql": "0.0.0"
+    "zql": "workspace:*"
   },
   "eslintConfig": {
     "extends": "../../eslint-config.json"
@@ -36,6 +36,6 @@
     "@databases/sql": "^3.3.0",
     "@rocicorp/logger": "^5.4.0",
     "@rocicorp/zero-sqlite3": "^1.0.8",
-    "zql": "0.0.0"
+    "zql": "workspace:*"
   }
 }

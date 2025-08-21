@@ -24,7 +24,7 @@
     "idb": "^7.0.1",
     "playwright": "^1.53.2",
     "replicache": "15.2.1",
-    "shared": "0.0.0",
+    "shared": "workspace:*",
     "tsx": "^4.19.1",
     "typescript": "~5.8.2",
     "vite": "6.2.1",

@@ -56,9 +56,9 @@
     "tsx": "^4.19.1",
     "url-pattern": "^1.0.3",
     "ws": "^8.18.1",
-    "zero-protocol": "0.0.0",
-    "zql": "0.0.0",
-    "zqlite": "0.0.0"
+    "zero-protocol": "workspace:*",
+    "zql": "workspace:*",
+    "zqlite": "workspace:*"
   },
   "devDependencies": {
     "@rocicorp/eslint-config": "^0.7.0",
@@ -71,13 +71,13 @@
     "@vitest/runner": "3.2.4",
     "concurrently": "^8.2.1",
     "nock": "^14.0.4",
-    "shared": "0.0.0",
+    "shared": "workspace:*",
     "typescript": "~5.8.2",
     "vitest": "3.2.4",
-    "zero-events": "0.0.0",
-    "zero-protocol": "0.0.0",
-    "zero-schema": "0.0.0",
-    "zql": "0.0.0"
+    "zero-events": "workspace:*",
+    "zero-protocol": "workspace:*",
+    "zero-schema": "workspace:*",
+    "zql": "workspace:*"
   },
   "eslintConfig": {
     "extends": "../../eslint-config.json"

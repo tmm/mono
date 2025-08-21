@@ -11,7 +11,7 @@
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/"
   },
   "dependencies": {
-    "shared": "0.0.0"
+    "shared": "workspace:*"
   },
   "devDependencies": {
     "@rocicorp/eslint-config": "^0.7.0",

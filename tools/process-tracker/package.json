@@ -19,7 +19,7 @@
     "@rocicorp/eslint-config": "^0.7.0",
     "@rocicorp/prettier-config": "^0.3.0",
     "@types/pidusage": "^2.0.5",
-    "shared": "0.0.0"
+    "shared": "workspace:*"
   },
   "eslintConfig": {
     "extends": "../../eslint-config.json"

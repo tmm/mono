@@ -1,5 +1,6 @@
 {
   "name": "@rocicorp/mono",
+  "packageManager": "pnpm@10.15.0",
   "version": "0.0.0",
   "private": true,
   "workspaces": [
@@ -37,5 +38,10 @@
   "eslintConfig": {
     "extends": "./eslint-config.json"
   },
-  "prettier": "@rocicorp/prettier-config"
+  "prettier": "@rocicorp/prettier-config",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@rocicorp/zero-sqlite3"
+    ]
+  }
 }
