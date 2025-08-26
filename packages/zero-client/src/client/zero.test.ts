@@ -1,5 +1,13 @@
 import {resolver} from '@rocicorp/resolver';
-import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  test,
+  vi,
+} from 'vitest';
 import {setDeletedClients} from '../../../replicache/src/deleted-clients.ts';
 import {ReplicacheImpl} from '../../../replicache/src/replicache-impl.ts';
 import type {
@@ -46,7 +54,7 @@ import {refCountSymbol} from '../../../zql/src/ivm/view-apply-change.ts';
 import type {Transaction} from '../../../zql/src/mutate/custom.ts';
 import {nanoid} from '../util/nanoid.ts';
 import * as ConnectionState from './connection-state-enum.ts';
-import type {CustomMutatorDefs} from './custom.ts';
+import type {CustomMutatorDefs, MakeCustomMutatorInterfaces} from './custom.ts';
 import type {DeleteClientsManager} from './delete-clients-manager.ts';
 import type {WSString} from './http-string.ts';
 import type {UpdateNeededReason, ZeroOptions} from './options.ts';
@@ -71,6 +79,7 @@ import {
   PULL_TIMEOUT_MS,
   RUN_LOOP_INTERVAL_MS,
 } from './zero.ts';
+import type {DBMutator} from './crud.ts';
 
 const startTime = 1678829450000;
 
@@ -3031,34 +3040,37 @@ test('the type of collection should be inferred from options with parse', () => 
 });
 
 describe('CRUD', () => {
+  const makeSchema = () =>
+    createSchema({
+      tables: [
+        table('issue')
+          .from('issues')
+          .columns({
+            id: string(),
+            title: string().optional(),
+          })
+          .primaryKey('id'),
+        table('comment')
+          .from('comments')
+          .columns({
+            id: string(),
+            issueID: string().from('issue_id'),
+            text: string().optional(),
+          })
+          .primaryKey('id'),
+        table('compoundPKTest')
+          .columns({
+            id1: string(),
+            id2: string(),
+            text: string(),
+          })
+          .primaryKey('id1', 'id2'),
+      ],
+    });
+
   const makeZero = () =>
     zeroForTest({
-      schema: createSchema({
-        tables: [
-          table('issue')
-            .from('issues')
-            .columns({
-              id: string(),
-              title: string().optional(),
-            })
-            .primaryKey('id'),
-          table('comment')
-            .from('comments')
-            .columns({
-              id: string(),
-              issueID: string().from('issue_id'),
-              text: string().optional(),
-            })
-            .primaryKey('id'),
-          table('compoundPKTest')
-            .columns({
-              id1: string(),
-              id2: string(),
-              text: string(),
-            })
-            .primaryKey('id1', 'id2'),
-        ],
-      }),
+      schema: makeSchema(),
     });
 
   test('create', async () => {
@@ -3094,6 +3106,12 @@ describe('CRUD', () => {
       {id: 'c', title: null, [refCountSymbol]: 1},
       {id: 'd', title: null, [refCountSymbol]: 1},
     ]);
+  });
+
+  test('types', () => {
+    expectTypeOf(makeZero().mutate).toEqualTypeOf<
+      DBMutator<ReturnType<typeof makeSchema>>
+    >();
   });
 
   test('set', async () => {
@@ -3579,6 +3597,43 @@ test('mutate is a function for batching', async () => {
   expect(
     (z.mutate as unknown as Record<string, unknown>)._zero_crud,
   ).toBeUndefined();
+});
+
+test('custom mutations override crud types', () => {
+  const schema = createSchema({
+    tables: [
+      table('issues').columns({id: string(), value: number()}).primaryKey('id'),
+    ],
+  });
+  const mutators = {
+    issues: {
+      foo: (tx: Transaction<typeof schema>, {foo}: {foo: number}) =>
+        tx.mutate.issues.insert({id: foo.toString(), value: foo}),
+    },
+  } as const;
+  const z = zeroForTest({
+    schema,
+    mutators,
+  });
+
+  expectTypeOf(z.mutate).toEqualTypeOf<
+    MakeCustomMutatorInterfaces<typeof schema, typeof mutators>
+  >();
+});
+
+test('empty custom mutations fall back to crud types', () => {
+  const schema = createSchema({
+    tables: [
+      table('issues').columns({id: string(), value: number()}).primaryKey('id'),
+    ],
+  });
+  const mutators = {} as const;
+  const z = zeroForTest({
+    schema,
+    mutators,
+  });
+
+  expectTypeOf(z.mutate).toEqualTypeOf<DBMutator<typeof schema>>();
 });
 
 test('custom mutations get pushed', async () => {

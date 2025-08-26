@@ -24,7 +24,6 @@ import {
   getBrowserGlobal,
   mustGetBrowserGlobal,
 } from '../../../shared/src/browser-env.ts';
-import type {DeepMerge} from '../../../shared/src/deep-merge.ts';
 import {getDocumentVisibilityWatcher} from '../../../shared/src/document-visible.ts';
 import type {Enum} from '../../../shared/src/enum.ts';
 import {must} from '../../../shared/src/must.ts';
@@ -916,7 +915,12 @@ export class Zero<
   }
 
   /**
-   * Provides simple "CRUD" mutations for the tables in the schema.
+   * Provides access to mutators.
+   *
+   * If `options.mutators` is provided, the mutators defined in it will be
+   * available here.
+   *
+   * Otherwise, this will have "CRUD" mutators for each table in the schema.
    *
    * Each table has `create`, `set`, `update`, and `delete` methods.
    *
@@ -934,7 +938,9 @@ export class Zero<
    * ```
    */
   readonly mutate: MD extends CustomMutatorDefs
-    ? DeepMerge<DBMutator<S>, MakeCustomMutatorInterfaces<S, MD>>
+    ? keyof MD extends never
+      ? DBMutator<S>
+      : MakeCustomMutatorInterfaces<S, MD>
     : DBMutator<S>;
 
   /**
