@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755703111942,
+  "lastUpdate": 1756363290665,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -52989,6 +52989,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 31692,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jonlambert@icloud.com",
+            "name": "Jon Lambert",
+            "username": "jonlambert"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "97273d3a129705305be698adca6108e6727e105f",
+          "message": "fix(replicache): react native error when checking if the user agent is firefox",
+          "timestamp": "2025-08-27T20:40:04-10:00",
+          "tree_id": "1efc91ff108cdc61629880990ef6b3e7373f1347",
+          "url": "https://github.com/rocicorp/mono/commit/97273d3a129705305be698adca6108e6727e105f"
+        },
+        "date": 1756363279104,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300642,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54233,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110835,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31677,
             "unit": "bytes"
           }
         ]
