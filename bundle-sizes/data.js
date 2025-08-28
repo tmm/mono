@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756363290665,
+  "lastUpdate": 1756369705012,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53013,6 +53013,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/97273d3a129705305be698adca6108e6727e105f"
         },
         "date": 1756363279104,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300642,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54233,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110835,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31677,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5fc02aa8dbeb681eba505f2ade5e3186efcf6a35",
+          "message": "chore(replicache): Retry time based test up to 3 times (#4829)\n\nThe \"pull mutate options\" test is sometimes off by 10ms. Retry it 3 times.",
+          "timestamp": "2025-08-28T08:27:03Z",
+          "tree_id": "76808e0bea087781fb1dee7bc02e154e28a3ddce",
+          "url": "https://github.com/rocicorp/mono/commit/5fc02aa8dbeb681eba505f2ade5e3186efcf6a35"
+        },
+        "date": 1756369693183,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
