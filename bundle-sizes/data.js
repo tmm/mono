@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756369705012,
+  "lastUpdate": 1756465577844,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53077,6 +53077,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 31677,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1dfb2726a2bdb265b53fa437cc1f327bd5846c98",
+          "message": "feat(replicache): Add React Native/Expo Support (#4832)\n\n## feat(replicache): Add React Native/Expo Support\n\nThis PR adds official support for using Replicache in Expo (React Native) environments.\n\n### Key changes\n\n- **Automatic kvStore selection:** Replicache now defaults to `kvStore: 'expo-sqlite'` when running in React Native/Expo. On web, it defaults to IndexedDB as before. This means most Expo users do not need to configure storage manually.\n- **New `ExpoStore` class:** Introduces an `ExpoStore` that uses dynamic imports to load `createSQLiteStore` and the `expoDbManagerInstance` only when needed, ensuring these modules are not bundled or loaded on web/other platforms.\n- **New `replicache/expo` export:** Adds a `/expo` entrypoint, exposing the `expoSQLiteStoreProvider` for advanced use cases requiring direct control over the expo-sqlite instance.\n- **Expo SQLite integration:** Replicache leverages the `expo-sqlite` package for persistent local storage in Expo apps via a custom SQLite store provider.\n\n### Usage\n\nFor most Expo/React Native projects, you can use Replicache as usual:\n\n```js\nimport {Replicache} from 'replicache';\nconst rep = new Replicache({name: 'hi'});\n// kvStore defaults to 'expo-sqlite' automatically on React Native/Expo\n```\n\nIf you need advanced control, you can import from the new `/expo` entrypoint:\n\n```js\nimport {Replicache} from 'replicache';\nimport {expoSQLiteStoreProvider} from 'replicache/expo';\nconst rep = new Replicache({\n  name: 'hi',\n  kvStore: expoSQLiteStoreProvider(...),\n});\n```\n\n### Motivation\n\nThis enables seamless offline sync and persistent local data storage for Expo apps using Replicache, with zero manual configuration for most users.\n\n### Notes\n\n- This implementation avoids conditional exports in `package.json`; detection and configuration are handled at runtime.\n- The API surface for web and React Native remains unchanged.\n- The `/expo` export is intended for advanced usage; most users can rely on the new default behavior.",
+          "timestamp": "2025-08-29T11:04:47Z",
+          "tree_id": "4111ee5f37ff63592adaa51fc6487ecd733a3e6c",
+          "url": "https://github.com/rocicorp/mono/commit/1dfb2726a2bdb265b53fa437cc1f327bd5846c98"
+        },
+        "date": 1756465565033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 316634,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 57061,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 116384,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 33393,
             "unit": "bytes"
           }
         ]
