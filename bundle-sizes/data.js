@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756465577844,
+  "lastUpdate": 1756475479468,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53121,6 +53121,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 33393,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ede23ffd36366738ec7b59f65599afa8cbe024e",
+          "message": "Revert \"feat(replicache): Add React Native/Expo Support (#4832)\" (#4836)\n\nThis reverts commit 1dfb2726a2bdb265b53fa437cc1f327bd5846c98.",
+          "timestamp": "2025-08-29T15:49:58+02:00",
+          "tree_id": "bb5fc92d66824cd5a72e917b3bc13738064096c4",
+          "url": "https://github.com/rocicorp/mono/commit/7ede23ffd36366738ec7b59f65599afa8cbe024e"
+        },
+        "date": 1756475467227,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300642,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54233,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110835,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31677,
             "unit": "bytes"
           }
         ]
