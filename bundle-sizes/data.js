@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756475479468,
+  "lastUpdate": 1756478160309,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53165,6 +53165,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 31677,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d981ea6721a1247d1a8f73839e61bb0b33b6327a",
+          "message": "feat(replicache): Add support for React Native using Expo SQLite (#4837)\n\nThis is a minimal change to Replicache to ensure less disruptions.\n\nTo use you have to get the `expoSQLiteStoreProvider` from the `replicache/expo` package.\n\nUsage:\n\n```js\nimport {Replicache} from 'replicache';\nimport {expoSQLiteStoreProvider} from 'replicache/expo';\n\nconst rep = new Replicache({\n  name: 'user',\n  kvStore: expoSQLiteStoreProvider(),\n});\n```",
+          "timestamp": "2025-08-29T14:34:34Z",
+          "tree_id": "c6c38ebcd77aae1038ebe7de3fe6376babf4d928",
+          "url": "https://github.com/rocicorp/mono/commit/d981ea6721a1247d1a8f73839e61bb0b33b6327a"
+        },
+        "date": 1756478148080,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300711,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54272,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110807,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31757,
             "unit": "bytes"
           }
         ]
