@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756478160309,
+  "lastUpdate": 1756821808574,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53209,6 +53209,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 31757,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "908db02a2ef30f6879b85eaa151f61bcb9ac9aa3",
+          "message": "fix(react-native): Fix bugs in close and destroy (#4842)\n\nThis fixes a few issues around close and destroy for the SQLite KV store and the Expo wrapper for it.\n\nThe expo wrapper now makes sure it does not call close on an already closed database.\n\nThe database manager manages multiple instances to ensure the database behaves as a RWLock. It use multiple connections to do this. These connections are handled by the `SQLiteReadConnectionManager` and the `SQLiteWriteConnectionManager`. However, there was a confusion who owned what and the code ended up trying to finalize (cleanup) prepared statements that belonged to a closed db. The database manager now manages all the cleanup and closing.\n\nThe instances managed by the database manager can be in one of two states; open or closed. Since we keep the instances around until the database is destroyed we need to keep track of this state so that we do not try to finalize/close an already closed database.\n\nAdded more tests around closing and destroying the database instances.",
+          "timestamp": "2025-09-02T16:01:57+02:00",
+          "tree_id": "68b5393b883e22936ef5448591a543d56c8be0d7",
+          "url": "https://github.com/rocicorp/mono/commit/908db02a2ef30f6879b85eaa151f61bcb9ac9aa3"
+        },
+        "date": 1756821795791,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300680,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54267,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110801,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31840,
             "unit": "bytes"
           }
         ]
