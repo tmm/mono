@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756821808574,
+  "lastUpdate": 1756890666214,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53233,6 +53233,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/908db02a2ef30f6879b85eaa151f61bcb9ac9aa3"
         },
         "date": 1756821795791,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300680,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54267,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110801,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31840,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5da745f49508a4098aba1650f17dfe5e7e888448",
+          "message": "chore: Simplify the SQLiteStore constructions (#4849)\n\nToo many indirections...",
+          "timestamp": "2025-09-03T11:09:39+02:00",
+          "tree_id": "3254a0a96d42415d7672675352696ea0ef9f213b",
+          "url": "https://github.com/rocicorp/mono/commit/5da745f49508a4098aba1650f17dfe5e7e888448"
+        },
+        "date": 1756890654128,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
