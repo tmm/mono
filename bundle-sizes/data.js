@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756890666214,
+  "lastUpdate": 1756932055471,
   "repoUrl": "https://github.com/rocicorp/mono",
   "entries": {
     "Bundle Sizes": [
@@ -53277,6 +53277,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/mono/commit/5da745f49508a4098aba1650f17dfe5e7e888448"
         },
         "date": 1756890654128,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.mjs",
+            "value": 300680,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 54267,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 110801,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 31840,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matt.wonlaw@gmail.com",
+            "name": "Matt Wonlaw",
+            "username": "tantaman"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cbdfefe899f984c82d07aeb414d43981fb33b048",
+          "message": "fix(expo-sqlite): do not close a db we're trying to open (#4851)\n\nThe `SQLiteDatabaseManager` has a map of instances that it keys by database name. When someone tells the SQLiteDBManager to close a db by name, it looks up all connections that exist for that DB and closes them.\n\nThis was a problem when one Zero instance was being destroyed and another was being created. Both instances use the `replicache_dbs_v0`. What was happening is:\n\nZero Instance 1 would be closing.\nZero Instance 2 would be opening.\n\n(note: zero.close is async but it is not / can not be awaited in useEffect in ZeroProvider)\n\nThe `replicache_dbs_v0` would be opened by Zero Instance 2.\nThe close from Zero Instance 1 would come in.\nThe SQLiteDBManager would close all connections associated with `replicache_dbs_v0` which included Zero Instance 2's connections.\n\nWe would then fail when making any call to SQLite on that connection.\n\n```\n🟠 FunctionCallException: Calling the 'runSync' function has failed (at ExpoModulesCore/SyncFunctionDefinition.swift:137)\n🟠 → Caused by: AccessClosedResourceException: Access to closed resource (at ExpoSQLite/SQLiteModule.swift:625)\n```\n\nThis error does not show in the Expo logs but does show when:\n\na. running the app in xcode or\nb. opening `Console.app` and selecting your simulator\n\n---\n\nThe fix is to not have a single `SQLiteDBManager` but to create one for each Store. When the store is closed it then only closes its own connections to SQLite rather than the connections of other stores.\n\nhttps://rocicorp.slack.com/archives/C013XFG80JC/p1756914030938379",
+          "timestamp": "2025-09-03T16:38:05-04:00",
+          "tree_id": "5ca2c2018008929fbc261dffba310e97299982d6",
+          "url": "https://github.com/rocicorp/mono/commit/cbdfefe899f984c82d07aeb414d43981fb33b048"
+        },
+        "date": 1756932043359,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
