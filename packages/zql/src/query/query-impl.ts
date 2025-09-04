@@ -172,6 +172,10 @@ export abstract class AbstractQuery<
     );
   }
 
+  delegate(delegate: QueryDelegate): Query<TSchema, TTable, TReturn> {
+    return this[delegateSymbol](delegate);
+  }
+
   nameAndArgs(
     name: string,
     args: ReadonlyArray<ReadonlyJSONValue>,

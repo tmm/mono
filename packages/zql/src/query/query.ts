@@ -176,6 +176,7 @@ export interface Query<
     name: string,
     args: ReadonlyArray<ReadonlyJSONValue>,
   ): Query<TSchema, TTable, TReturn>;
+  delegate(delegate: QueryDelegate): Query<TSchema, TTable, TReturn>;
   [delegateSymbol](delegate: QueryDelegate): Query<TSchema, TTable, TReturn>;
 
   /**

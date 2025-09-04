@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {useState, useCallback, useEffect} from 'react';
 import {Panel, PanelGroup, PanelResizeHandle} from 'react-resizable-panels';
@@ -204,7 +205,7 @@ function App() {
         throw new Error('Failed to capture the query definition');
       }
       const vizDelegate = new VizDelegate(capturedSchema);
-      capturedQuery = capturedQuery.delegate(vizDelegate);
+      capturedQuery = capturedQuery.delegate(vizDelegate) as AnyQuery;
       (await capturedQuery.run()) as any;
       const graph = vizDelegate.getGraph();
       const mapper = clientToServer(capturedSchema.tables);
@@ -218,6 +219,7 @@ function App() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               'Authorization': `Basic ${credentials}`,
             },
             body: JSON.stringify({
@@ -253,17 +255,16 @@ function App() {
             result: capturedQuery, // Update result too
           };
           return updatedHistory;
-        } else {
-          // Add new history entry
-          const historyItem: QueryHistoryItem = {
-            id: Date.now().toString(),
-            query: historyPreviewText || queryCode,
-            fullCode: queryCode,
-            timestamp: new Date(),
-            result: capturedQuery,
-          };
-          return [historyItem, ...prev].slice(0, 150);
         }
+        // Add new history entry
+        const historyItem: QueryHistoryItem = {
+          id: Date.now().toString(),
+          query: historyPreviewText || queryCode,
+          fullCode: queryCode,
+          timestamp: new Date(),
+          result: capturedQuery,
+        };
+        return [historyItem, ...prev].slice(0, 150);
       });
     } catch (err) {
       const errorMessage =
@@ -282,17 +283,16 @@ function App() {
             result: undefined, // Clear result since there's an error
           };
           return updatedHistory;
-        } else {
-          // Add new history entry
-          const historyItem: QueryHistoryItem = {
-            id: Date.now().toString(),
-            query: historyPreviewText || queryCode,
-            fullCode: queryCode,
-            timestamp: new Date(),
-            error: errorMessage,
-          };
-          return [historyItem, ...prev].slice(0, 150);
         }
+        // Add new history entry
+        const historyItem: QueryHistoryItem = {
+          id: Date.now().toString(),
+          query: historyPreviewText || queryCode,
+          fullCode: queryCode,
+          timestamp: new Date(),
+          error: errorMessage,
+        };
+        return [historyItem, ...prev].slice(0, 150);
       });
     } finally {
       setIsLoading(false);
@@ -341,7 +341,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        executeQuery();
+        void executeQuery();
       }
     };
 
