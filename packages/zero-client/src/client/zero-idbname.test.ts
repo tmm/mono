@@ -66,6 +66,21 @@ test('idbName generation with URL configuration', async () => {
       },
       storageKey: 'different-storage-key',
     },
+    {
+      name: 'legacy push.url parameter',
+      config: {
+        push: {url: 'https://example.com/mutate'},
+        getQueriesURL: 'https://example.com/query',
+      },
+    },
+    {
+      name: 'push.url is overridden by mutateURL',
+      config: {
+        push: {url: 'https://old.com/mutate'},
+        mutateURL: 'https://new.com/mutate',
+        getQueriesURL: 'https://example.com/query',
+      },
+    },
   ];
 
   for (const testCase of testCases) {
@@ -82,7 +97,7 @@ test('idbName generation with URL configuration', async () => {
     const expectedName = `rep:zero-${userID}-${h64(
       JSON.stringify({
         storageKey: testStorageKey,
-        mutateUrl: testCase.config.mutateURL ?? '',
+        mutateUrl: testCase.config.mutateURL ?? testCase.config.push?.url ?? '',
         queryUrl: testCase.config.getQueriesURL ?? '',
       }),
     ).toString(36)}`;

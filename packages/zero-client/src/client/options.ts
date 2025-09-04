@@ -98,6 +98,17 @@ export interface ZeroOptions<
   mutators?: MD | undefined;
 
   /**
+   * Custom mutations are pushed to zero-cache and then to
+   * your API server.
+   *
+   * push.url can be used to specify a custom URL
+   * for mutation requests.
+   *
+   * @deprecated Use `mutateURL` instead.
+   */
+  push?: {url?: string | undefined} | undefined;
+
+  /**
    * Custom URL for mutation requests sent to your API server.
    * If not provided, uses the default configured in zero-cache.
    */

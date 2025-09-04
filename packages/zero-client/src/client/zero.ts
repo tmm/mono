@@ -413,6 +413,7 @@ export class Zero<
   #totalToConnectStart: number | undefined = undefined;
 
   readonly #options: ZeroOptions<S, MD>;
+  readonly #effectiveMutateURL: string | undefined;
 
   readonly query: MakeEntityQueriesFromSchema<S>;
 
@@ -473,6 +474,7 @@ export class Zero<
     }
 
     this.#options = options;
+    this.#effectiveMutateURL = options.mutateURL ?? options.push?.url;
 
     this.#logOptions = this.#createLogOptions({
       consoleLogLevel: options.logLevel ?? 'warn',
@@ -566,7 +568,7 @@ export class Zero<
     // Create a hash that includes storage key, URL configuration, and query parameters
     const nameKey = JSON.stringify({
       storageKey: this.storageKey,
-      mutateUrl: options.mutateURL ?? '',
+      mutateUrl: this.#effectiveMutateURL ?? '',
       queryUrl: options.getQueriesURL ?? '',
     });
     const hashedKey = h64(nameKey).toString(36);
@@ -1247,7 +1249,7 @@ export class Zero<
           // The clientSchema only needs to be sent for the very first request.
           // Henceforth it is stored with the CVR and verified automatically.
           ...(this.#connectCookie === null ? {clientSchema} : {}),
-          userPushURL: this.#options.mutateURL,
+          userPushURL: this.#effectiveMutateURL,
           userQueryURL: this.#options.getQueriesURL,
         },
       ]);
@@ -1343,7 +1345,7 @@ export class Zero<
       wsid,
       this.#options.logLevel === 'debug',
       lc,
-      this.#options.mutateURL,
+      this.#effectiveMutateURL,
       this.#options.getQueriesURL,
       this.#options.maxHeaderLength,
       additionalConnectParams,
