@@ -1,9 +1,7 @@
 import {Lock, RWLock} from '@rocicorp/lock';
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
-import {
-  promiseUndefined,
-  promiseVoid,
-} from '../../../shared/src/resolved-promises.ts';
+import {promiseVoid} from '../../../shared/src/resolved-promises.ts';
+import {sleep} from '../../../shared/src/sleep.ts';
 import {deepFreeze} from '../frozen-json.ts';
 import type {Read, Store, Write} from './store.ts';
 
@@ -15,8 +13,8 @@ import type {Read, Store, Write} from './store.ts';
  * `finalize` releases the statement.
  */
 export interface PreparedStatement {
-  run(...params: unknown[]): void;
-  all<T>(...params: unknown[]): T[];
+  run(...params: unknown[]): Promise<void>;
+  all<T>(...params: unknown[]): Promise<T[]>;
   finalize(): void;
 }
 
@@ -92,34 +90,41 @@ type SQLitePreparedStatementPoolEntry = {
  * connection and must invoke the provided `release` callback when they are
  * finished.
  *
- * The pool eagerly creates the configured number of connections up-front so
- * that the first `acquire` call never has to pay the connection setup cost.
+ * The connection pool is eagerly created during instantiation to ensure
+ * connections are ready for immediate use.
+ *
+ * Use the static `create` method to create instances of this class.
  */
 class SQLiteReadConnectionManager implements SQLiteConnectionManager {
-  #pool: SQLitePreparedStatementPoolEntry[] = [];
+  readonly #pool: SQLitePreparedStatementPoolEntry[] = [];
   #nextIndex = 0;
   readonly #rwLock: RWLock;
 
-  constructor(
+  private constructor(
+    rwLock: RWLock,
+    pool: SQLitePreparedStatementPoolEntry[],
+  ) {
+    this.#rwLock = rwLock;
+    this.#pool = pool;
+  }
+
+  static async create(
     name: string,
     manager: SQLiteDatabaseManager,
     rwLock: RWLock,
     opts: SQLiteDatabaseManagerOptions,
-  ) {
-    if (opts.readPoolSize <= 1) {
-      throw new Error('readPoolSize must be greater than 1');
-    }
-
-    this.#rwLock = rwLock;
-
+  ): Promise<SQLiteReadConnectionManager> {
+    const pool: SQLitePreparedStatementPoolEntry[] = [];
     for (let i = 0; i < opts.readPoolSize; i++) {
       // create a new readonly SQLiteDatabase for each instance in the pool
-      const {preparedStatements} = manager.open(name, opts);
-      this.#pool.push({
+      const {preparedStatements} = await manager.open(name, opts);
+      pool.push({
         lock: new Lock(),
         preparedStatements,
       });
     }
+
+    return new SQLiteReadConnectionManager(rwLock, pool);
   }
 
   /**
@@ -156,20 +161,29 @@ class SQLiteReadConnectionManager implements SQLiteConnectionManager {
 
 /**
  * Manages a single write connection with an external RWLock.
+ *
+ * Use the static `create` method to create instances of this class.
  */
 class SQLiteWriteConnectionManager implements SQLiteConnectionManager {
   readonly #rwLock: RWLock;
   readonly #preparedStatements: SQLitePreparedStatements;
 
-  constructor(
+  private constructor(
+    rwLock: RWLock,
+    preparedStatements: SQLitePreparedStatements,
+  ) {
+    this.#preparedStatements = preparedStatements;
+    this.#rwLock = rwLock;
+  }
+
+  static async create(
     name: string,
     manager: SQLiteDatabaseManager,
     rwLock: RWLock,
     opts: SQLiteDatabaseManagerOptions,
-  ) {
-    const {preparedStatements} = manager.open(name, opts);
-    this.#preparedStatements = preparedStatements;
-    this.#rwLock = rwLock;
+  ): Promise<SQLiteWriteConnectionManager> {
+    const {preparedStatements} = await manager.open(name, opts);
+    return new SQLiteWriteConnectionManager(rwLock, preparedStatements);
   }
 
   async acquire(): Promise<{
@@ -195,9 +209,10 @@ class SQLiteWriteConnectionManager implements SQLiteConnectionManager {
 export class SQLiteStore implements Store {
   readonly #name: string;
   readonly #dbm: SQLiteDatabaseManager;
-  readonly #writeConnectionManager: SQLiteConnectionManager;
-  readonly #readConnectionManager: SQLiteConnectionManager;
+  #writeConnectionManager!: SQLiteConnectionManager;
+  #readConnectionManager!: SQLiteConnectionManager;
   readonly #rwLock = new RWLock();
+  readonly #initialized: Promise<void>;
 
   #closed = false;
 
@@ -206,16 +221,34 @@ export class SQLiteStore implements Store {
     dbm: SQLiteDatabaseManager,
     opts: SQLiteDatabaseManagerOptions,
   ) {
+    if (opts.readPoolSize <= 1) {
+      throw new Error('readPoolSize must be greater than 1');
+    }
+
     this.#name = name;
     this.#dbm = dbm;
 
-    this.#writeConnectionManager = new SQLiteWriteConnectionManager(
+    // Initialize connections sequentially to avoid concurrent schema creation
+    this.#initialized = this.#initialize(name, dbm, opts);
+  }
+
+  async #initialize(
+    name: string,
+    dbm: SQLiteDatabaseManager,
+    opts: SQLiteDatabaseManagerOptions,
+  ): Promise<void> {
+    // Initialize write connection first (this creates the schema)
+    // We need to ensure the write connection is fully created before read connections
+    // to avoid race conditions where read connections try to access tables that don't exist yet
+    this.#writeConnectionManager = await SQLiteWriteConnectionManager.create(
       name,
       dbm,
       this.#rwLock,
       opts,
     );
-    this.#readConnectionManager = new SQLiteReadConnectionManager(
+
+    // Then initialize read connections
+    this.#readConnectionManager = await SQLiteReadConnectionManager.create(
       name,
       dbm,
       this.#rwLock,
@@ -224,15 +257,17 @@ export class SQLiteStore implements Store {
   }
 
   async read(): Promise<Read> {
+    await this.#initialized;
     const {preparedStatements, release} =
       await this.#readConnectionManager.acquire();
-    return new SQLiteStoreRead(preparedStatements, release);
+    return SQLiteStoreRead.create(preparedStatements, release);
   }
 
   async write(): Promise<Write> {
+    await this.#initialized;
     const {preparedStatements, release} =
       await this.#writeConnectionManager.acquire();
-    return new SQLiteStoreWrite(preparedStatements, release);
+    return SQLiteStoreWrite.create(preparedStatements, release);
   }
 
   close(): Promise<void> {
@@ -252,7 +287,7 @@ class SQLiteStoreRWBase {
   readonly #release: () => void;
   #closed = false;
 
-  constructor(
+  protected constructor(
     preparedStatements: SQLitePreparedStatements,
     release: () => void,
   ) {
@@ -260,21 +295,21 @@ class SQLiteStoreRWBase {
     this.#release = release;
   }
 
-  has(key: string): Promise<boolean> {
-    const unsafeValue = this.#getSql(key);
-    return Promise.resolve(unsafeValue !== undefined);
+  async has(key: string): Promise<boolean> {
+    const unsafeValue = await this.#getSql(key);
+    return unsafeValue !== undefined;
   }
 
-  get(key: string): Promise<ReadonlyJSONValue | undefined> {
-    const unsafeValue = this.#getSql(key);
-    if (unsafeValue === undefined) return promiseUndefined;
+  async get(key: string): Promise<ReadonlyJSONValue | undefined> {
+    const unsafeValue = await this.#getSql(key);
+    if (unsafeValue === undefined) return undefined;
     const parsedValue = JSON.parse(unsafeValue) as ReadonlyJSONValue;
     const frozenValue = deepFreeze(parsedValue);
-    return Promise.resolve(frozenValue);
+    return frozenValue;
   }
 
-  #getSql(key: string): string | undefined {
-    const rows = this._preparedStatements.get.all<{value: string}>(key);
+  async #getSql(key: string): Promise<string | undefined> {
+    const rows = await this._preparedStatements.get.all<{value: string}>(key);
     if (rows.length === 0) return undefined;
     return rows[0].value;
   }
@@ -289,61 +324,56 @@ class SQLiteStoreRWBase {
   }
 }
 
-export class SQLiteStoreRead extends SQLiteStoreRWBase implements Read {
-  constructor(
+class SQLiteStoreRead extends SQLiteStoreRWBase implements Read {
+  static async create(
     preparedStatements: SQLitePreparedStatements,
     release: () => void,
-  ) {
-    super(preparedStatements, release);
-
-    // BEGIN
-    this._preparedStatements.begin.run();
+  ): Promise<SQLiteStoreRead> {
+    const instance = new SQLiteStoreRead(preparedStatements, release);
+    // BEGIN transaction
+    await instance._preparedStatements.begin.run();
+    return instance;
   }
 
   release(): void {
-    // COMMIT
-    this._preparedStatements.commit.run();
-
+    // COMMIT the read transaction
+    void this._preparedStatements.commit.run();
     this._release();
   }
 }
 
-export class SQLiteStoreWrite extends SQLiteStoreRWBase implements Write {
+class SQLiteStoreWrite extends SQLiteStoreRWBase implements Write {
   #committed = false;
 
-  constructor(
+  static async create(
     preparedStatements: SQLitePreparedStatements,
     release: () => void,
-  ) {
-    super(preparedStatements, release);
-
+  ): Promise<SQLiteStoreWrite> {
+    const instance = new SQLiteStoreWrite(preparedStatements, release);
     // BEGIN IMMEDIATE grabs a RESERVED lock
-    this._preparedStatements.beginImmediate.run();
+    await instance._preparedStatements.beginImmediate.run();
+    return instance;
   }
 
   put(key: string, value: ReadonlyJSONValue): Promise<void> {
-    this._preparedStatements.put.run(key, JSON.stringify(value));
-    return promiseVoid;
+    return this._preparedStatements.put.run(key, JSON.stringify(value));
   }
 
   del(key: string): Promise<void> {
-    this._preparedStatements.del.run(key);
-    return promiseVoid;
+    return this._preparedStatements.del.run(key);
   }
 
-  commit(): Promise<void> {
+  async commit(): Promise<void> {
     // COMMIT
-    this._preparedStatements.commit.run();
+    await this._preparedStatements.commit.run();
     this.#committed = true;
-    return promiseVoid;
   }
 
   release(): void {
     if (!this.#committed) {
       // ROLLBACK if not committed
-      this._preparedStatements.rollback.run();
+      void this._preparedStatements.rollback.run();
     }
-
     this._release();
   }
 }
@@ -397,48 +427,77 @@ export class SQLiteDatabaseManager {
     }
   }
 
-  open(
+  async open(
     name: string,
     opts: Omit<SQLiteDatabaseManagerOptions, 'poolSize'>,
-  ): {db: SQLiteDatabase; preparedStatements: SQLitePreparedStatements} {
+  ): Promise<{
+    db: SQLiteDatabase;
+    preparedStatements: SQLitePreparedStatements;
+  }> {
     const dbInstance = this.#dbInstances.get(name);
-
     const fileName = safeFilename(name);
     const newDb = this.#dbm.open(fileName);
 
     const txPreparedStatements = getTransactionPreparedStatements(newDb);
 
-    const exec = (sql: string) => {
+    const exec = async (sql: string) => {
       const statement = newDb.prepare(sql);
-      statement.run();
+      await statement.run();
       statement.finalize();
     };
 
-    if (!dbInstance) {
-      // we only ensure the schema for the first open
-      // the schema is the same for all connections
-      this.#ensureSchema(exec, txPreparedStatements);
-    }
-
     if (opts.busyTimeout !== undefined) {
       // we set a busy timeout to wait for write locks to be released
-      exec(`PRAGMA busy_timeout = ${opts.busyTimeout}`);
+      await exec(`PRAGMA busy_timeout = ${opts.busyTimeout}`);
     }
     if (opts.journalMode !== undefined) {
       // WAL allows concurrent readers (improves write throughput ~15x and read throughput ~1.5x)
       // but does not work on all platforms (e.g. Expo)
-      exec(`PRAGMA journal_mode = ${opts.journalMode}`);
+      await exec(`PRAGMA journal_mode = ${opts.journalMode}`);
     }
     if (opts.synchronous !== undefined) {
-      exec(`PRAGMA synchronous = ${opts.synchronous}`);
+      await exec(`PRAGMA synchronous = ${opts.synchronous}`);
     }
     if (opts.readUncommitted !== undefined) {
-      exec(
+      await exec(
         `PRAGMA read_uncommitted = ${opts.readUncommitted ? 'true' : 'false'}`,
       );
     }
 
-    // we prepare these after the schema is created
+    // If this is the first connection for this database, create the schema
+    if (!dbInstance) {
+      await this.#ensureSchema(exec, txPreparedStatements);
+    } else {
+      // For subsequent connections, do a simple verification that the table exists
+      // SQLite sometimes has timing issues with different database handles,
+      // so we retry a few times if needed.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          const checkStmt = newDb.prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='entry'",
+          );
+          const result = await checkStmt.all();
+          checkStmt.finalize();
+
+          if (result.length > 0) {
+            break; // Table exists, we're good
+          }
+
+          if (attempt === 9) {
+            throw new Error("Table 'entry' does not exist after 10 attempts");
+          }
+
+          await sleep(1);
+        } catch (e) {
+          if (attempt === 9) {
+            throw e;
+          }
+          await sleep(1);
+        }
+      }
+    }
+
+    // we prepare these after the schema is created and all pragmas are set
     const rwPreparedStatements = getRWPreparedStatements(newDb);
 
     const preparedStatements = {
@@ -490,20 +549,24 @@ export class SQLiteDatabaseManager {
     this.#dbInstances.delete(name);
   }
 
-  #ensureSchema(
-    exec: (sql: string) => void,
+  async #ensureSchema(
+    exec: (sql: string) => Promise<void>,
     preparedStatements: SQLiteTransactionPreparedStatements,
-  ): void {
-    preparedStatements.begin.run();
+  ): Promise<void> {
+    await preparedStatements.begin.run();
 
     try {
       // WITHOUT ROWID increases write throughput
-      exec(
+      await exec(
         'CREATE TABLE IF NOT EXISTS entry (key TEXT PRIMARY KEY, value TEXT NOT NULL) WITHOUT ROWID',
       );
-      preparedStatements.commit.run();
+      await preparedStatements.commit.run();
+
+      // Verify the table was created successfully
+      // This verification is done once during schema creation
+      await exec('SELECT 1 FROM entry LIMIT 0');
     } catch (e) {
-      preparedStatements.rollback.run();
+      await preparedStatements.rollback.run();
       throw e;
     }
   }
