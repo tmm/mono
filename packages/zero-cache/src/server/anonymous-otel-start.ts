@@ -1,6 +1,8 @@
 import type {ObservableResult} from '@opentelemetry/api';
 import {type Meter} from '@opentelemetry/api';
 import {OTLPMetricExporter} from '@opentelemetry/exporter-metrics-otlp-http';
+import type {ExportResult, PushMetricExporter, ResourceMetrics} from '@opentelemetry/sdk-metrics';
+import {ExportResultCode} from '@opentelemetry/core';
 import {resourceFromAttributes} from '@opentelemetry/resources';
 import {
   MeterProvider,
@@ -18,6 +20,37 @@ import {
   getZeroConfig,
   type ZeroConfig,
 } from '../config/zero-config.js';
+
+class TimeoutAwareOTLPExporter implements PushMetricExporter {
+  private readonly _exporter: OTLPMetricExporter;
+  private readonly _lc: LogContext | undefined;
+
+  constructor(config: {url: string}, lc?: LogContext) {
+    this._exporter = new OTLPMetricExporter(config);
+    this._lc = lc;
+  }
+
+  async export(metrics: ResourceMetrics, resultCallback: (result: ExportResult) => void): Promise<void> {
+    this._exporter.export(metrics, (result) => {
+      if (result.code === ExportResultCode.FAILED && result.error?.message.includes('Request Timeout')) {
+        this._lc?.warn?.('telemetry: metrics export timeout, will retry on next interval');
+        resultCallback({code: ExportResultCode.SUCCESS}); // Treat timeout as success to avoid SDK error logging
+      } else {
+        resultCallback(result);
+      }
+    });
+  }
+
+  async forceFlush(): Promise<void> {
+    return this._exporter.forceFlush();
+  }
+
+  async shutdown(): Promise<void> {
+    return this._exporter.shutdown();
+  }
+
+  selectAggregationTemporality = this._exporter.selectAggregationTemporality.bind(this._exporter);
+}
 
 class AnonymousTelemetryManager {
   static #instance: AnonymousTelemetryManager;
@@ -95,9 +128,9 @@ class AnonymousTelemetryManager {
 
     const metricReader = new PeriodicExportingMetricReader({
       exportIntervalMillis: 60000 * this.#viewSyncerCount,
-      exporter: new OTLPMetricExporter({
+      exporter: new TimeoutAwareOTLPExporter({
         url: 'https://metrics.rocicorp.dev',
-      }),
+      }, this.#lc),
     });
 
     this.#meterProvider = new MeterProvider({
