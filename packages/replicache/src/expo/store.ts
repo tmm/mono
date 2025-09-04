@@ -37,12 +37,16 @@ export function expoSQLiteStoreProvider(
             prepare(sql: string) {
               const stmt = db.prepareSync(sql);
               return {
-                run: (...params: unknown[]): void => {
-                  stmt.executeSync(params as SQLiteBindParams);
+                run: async (...params: unknown[]): Promise<void> => {
+                  await stmt.executeForRawResultAsync(
+                    params as SQLiteBindParams,
+                  );
                 },
-                all: <T>(...params: unknown[]): T[] => {
-                  const result = stmt.executeSync(params as SQLiteBindParams);
-                  return result.getAllSync() as unknown as T[];
+                all: async <T>(...params: unknown[]): Promise<T[]> => {
+                  const result = await stmt.executeAsync(
+                    params as SQLiteBindParams,
+                  );
+                  return result.getAllAsync() as unknown as T[];
                 },
                 finalize: () => stmt.finalizeSync(),
               };
