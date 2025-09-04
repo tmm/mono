@@ -202,3 +202,119 @@ describe('plain read', () => {
     },
   );
 });
+
+describe('bulk operations', () => {
+  bench(
+    `default journal mode - 100 key/value pairs`,
+    async () => {
+      await withWrite(defaultStore, async wt => {
+        // Add 100 key/value pairs in a single transaction
+        for (let i = 0; i < 100; i++) {
+          await wt.put(`key-${i}`, {
+            id: i,
+            name: `test-item-${i}`,
+            value: Math.random() * 1000,
+            metadata: {
+              created: new Date().toISOString(),
+              type: 'benchmark',
+              batch: 'bulk-test',
+            },
+          });
+        }
+      });
+    },
+    {
+      throws: true,
+      setup: async () => {
+        // Clean up any existing test data before this benchmark task runs
+        await withWrite(defaultStore, async wt => {
+          for (let i = 0; i < 100; i++) {
+            await wt.del(`key-${i}`);
+          }
+        });
+      },
+    },
+  );
+
+  bench(
+    `WAL journal mode - 100 key/value pairs`,
+    async () => {
+      await withWrite(walStore, async wt => {
+        // Add 100 key/value pairs in a single transaction
+        for (let i = 0; i < 100; i++) {
+          await wt.put(`key-${i}`, {
+            id: i,
+            name: `test-item-${i}`,
+            value: Math.random() * 1000,
+            metadata: {
+              created: new Date().toISOString(),
+              type: 'benchmark',
+              batch: 'bulk-test',
+            },
+          });
+        }
+      });
+    },
+    {
+      throws: true,
+      setup: async () => {
+        // Clean up any existing test data before this benchmark task runs
+        await withWrite(walStore, async wt => {
+          for (let i = 0; i < 100; i++) {
+            await wt.del(`key-${i}`);
+          }
+        });
+      },
+    },
+  );
+
+  bench(
+    `mixed operations - 50 puts + 25 updates + 25 deletes`,
+    async () => {
+      await withWrite(walStore, async wt => {
+        // First, add 75 items
+        for (let i = 0; i < 75; i++) {
+          await wt.put(`mixed-key-${i}`, {
+            id: i,
+            operation: 'initial',
+            value: i * 10,
+          });
+        }
+
+        // Update 25 existing items (0-24)
+        for (let i = 0; i < 25; i++) {
+          await wt.put(`mixed-key-${i}`, {
+            id: i,
+            operation: 'updated',
+            value: i * 100,
+          });
+        }
+
+        // Add 50 new items (75-124)
+        for (let i = 75; i < 125; i++) {
+          await wt.put(`mixed-key-${i}`, {
+            id: i,
+            operation: 'new',
+            value: i * 5,
+          });
+        }
+
+        // Delete 25 items (50-74)
+        for (let i = 50; i < 75; i++) {
+          await wt.del(`mixed-key-${i}`);
+        }
+      });
+    },
+    {
+      throws: true,
+      setup: async () => {
+        // Clean up any existing test data before this benchmark task runs
+        await withWrite(walStore, async wt => {
+          for (let i = 0; i < 125; i++) {
+            await wt.del(`mixed-key-${i}`);
+          }
+        });
+      },
+    },
+  );
+});
