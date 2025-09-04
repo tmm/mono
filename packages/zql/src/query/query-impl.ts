@@ -239,17 +239,16 @@ export abstract class AbstractQuery<
 
   whereExists = (
     relationship: string,
-    cbOrOptions?: 
-      | ((q: AnyQuery) => AnyQuery)
-      | {flip?: boolean | undefined},
-    options?: {flip?: boolean | undefined},
+    cbOrOptions?: ((q: AnyQuery) => AnyQuery) | {root?: boolean | undefined},
+    options?: {root?: boolean | undefined},
   ): Query<TSchema, TTable, TReturn> => {
     // Handle overloads
     if (typeof cbOrOptions === 'function') {
-      return this.where(({exists}) => exists(relationship, cbOrOptions, options));
-    } else {
-      return this.where(({exists}) => exists(relationship, cbOrOptions));
+      return this.where(({exists}) =>
+        exists(relationship, cbOrOptions, options),
+      );
     }
+    return this.where(({exists}) => exists(relationship, cbOrOptions));
   };
 
   related = (
@@ -534,7 +533,7 @@ export abstract class AbstractQuery<
   protected _exists = (
     relationship: string,
     cb: (query: AnyQuery) => AnyQuery = q => q,
-    options?: {flip?: boolean | undefined},
+    options?: {root?: boolean | undefined},
   ): Condition => {
     const related = this.#schema.relationships[this.#tableName][relationship];
     assert(related, 'Invalid relationship');
@@ -573,8 +572,8 @@ export abstract class AbstractQuery<
         },
         op: 'EXISTS',
       };
-      if (options?.flip !== undefined) {
-        (condition as any).flip = options.flip;
+      if (options?.root !== undefined) {
+        condition.root = true;
       }
       return condition;
     }
@@ -617,10 +616,10 @@ export abstract class AbstractQuery<
         },
         op: 'EXISTS',
       };
-      if (options?.flip !== undefined) {
-        (innerCondition as any).flip = options.flip;
+      if (options?.root !== undefined) {
+        innerCondition.root = options.root;
       }
-      
+
       const outerCondition: Condition = {
         type: 'correlatedSubquery',
         related: {
@@ -641,8 +640,8 @@ export abstract class AbstractQuery<
         },
         op: 'EXISTS',
       };
-      if (options?.flip !== undefined) {
-        (outerCondition as any).flip = options.flip;
+      if (options?.root !== undefined) {
+        outerCondition.root = options.root;
       }
       return outerCondition;
     }
