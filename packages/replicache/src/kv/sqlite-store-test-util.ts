@@ -27,14 +27,17 @@ export const getTestSQLiteDatabaseManager = (logging: boolean = false) =>
             console.log('prepare', sql);
           }
           return {
-            all: <T>(...params: unknown[]): T[] => {
+            // eslint-disable-next-line require-await
+            all: async <T>(...params: unknown[]): Promise<T[]> => {
               const result = params.length ? stmt.all(...params) : stmt.all();
               if (logging) {
                 console.log('all', sql, params, result);
               }
+
               return result as T[];
             },
-            run: (...params: unknown[]): void => {
+            // eslint-disable-next-line require-await
+            run: async (...params: unknown[]): Promise<void> => {
               if (logging) {
                 console.log('run', sql, params);
               }
