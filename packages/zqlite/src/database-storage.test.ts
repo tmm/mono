@@ -2,7 +2,10 @@ import {afterEach} from 'node:test';
 import {beforeEach, describe, expect, test} from 'vitest';
 import {createSilentLogContext} from '../../shared/src/logging-test-utils.ts';
 import {Database} from '../../zqlite/src/db.ts';
-import {CREATE_STORAGE_TABLE, DatabaseStorage} from './database-storage.ts';
+import {
+  CREATE_STORAGE_TABLE,
+  DatabaseStorage,
+} from '../../zqlite/src/database-storage.ts';
 
 describe('view-syncer/database-storage', () => {
   let db: Database;
