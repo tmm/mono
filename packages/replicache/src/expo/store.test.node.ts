@@ -99,12 +99,12 @@ vi.mock('expo-sqlite', () => {
 import {
   clearAllNamedExpoSQLiteStoresForTesting,
   ExpoSQLiteStore,
-  expoSQLiteStoreProvider2,
-} from './store2.ts';
+  expoSQLiteStoreProvider,
+} from './store.ts';
 
 function createStore(
   name: string,
-  opts?: Parameters<typeof expoSQLiteStoreProvider2>[0],
+  opts?: Parameters<typeof expoSQLiteStoreProvider>[0],
 ) {
   return new ExpoSQLiteStore(name, opts);
 }
@@ -356,7 +356,7 @@ test('safe filename generation', async () => {
 });
 
 test('store provider drop functionality', async () => {
-  const provider = expoSQLiteStoreProvider2();
+  const provider = expoSQLiteStoreProvider();
   const storeName = 'drop-test';
 
   const store1 = provider.create(storeName);
