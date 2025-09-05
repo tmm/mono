@@ -9,16 +9,16 @@ import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import {deepFreeze} from '../frozen-json.ts';
 import type {Read, Store, StoreProvider, Write} from '../kv/store.ts';
 
-function safeFilename(name: string): string {
-  return name.replace(/[^a-zA-Z0-9]/g, '_');
-}
-
 export type ExpoSQLiteStoreOptions = {
   busyTimeout?: number | undefined;
   journalMode?: 'WAL' | 'DELETE' | undefined;
   synchronous?: 'NORMAL' | 'FULL' | undefined;
   readUncommitted?: boolean | undefined;
 };
+
+function safeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]/g, '_');
+}
 
 type Statements = {
   has: SQLiteStatement;
