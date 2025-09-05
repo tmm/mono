@@ -113,7 +113,7 @@ class AnonymousTelemetryManager {
 
     this.#setupMetrics();
     this.#lc?.info?.(
-      `telemetry: started (exports every ${exportIntervalMillis} seconds for ${this.#viewSyncerCount} view-syncers)`,
+      `telemetry: started (exports every ${exportIntervalMillis} ms for ${this.#viewSyncerCount} view-syncers)`,
     );
   }
 
