@@ -15,10 +15,12 @@ import {
   shutdownAnonymousTelemetry,
   startAnonymousTelemetry,
 } from './anonymous-otel-start.js';
+import {TimeoutAwareOTLPExporter} from './timeout-aware-otlp-exporter.ts';
 
 // Mock the OTLP exporter and related OpenTelemetry components
 vi.mock('@opentelemetry/exporter-metrics-otlp-http');
 vi.mock('@opentelemetry/sdk-metrics');
+vi.mock('./timeout-aware-otlp-exporter.ts');
 
 // Mock the config
 vi.mock('../config/zero-config.js', () => ({
@@ -104,6 +106,7 @@ describe('Anonymous Telemetry Integration Tests', () => {
 
     // Setup mocks
     vi.mocked(OTLPMetricExporter).mockImplementation(() => mockExporter);
+    vi.mocked(TimeoutAwareOTLPExporter).mockImplementation(() => mockExporter);
     vi.mocked(PeriodicExportingMetricReader).mockImplementation(
       () => mockMetricReader,
     );
@@ -201,15 +204,18 @@ describe('Anonymous Telemetry Integration Tests', () => {
 
       startAnonymousTelemetry(lc);
 
-      // Verify OTLP exporter was created with correct configuration
-      expect(OTLPMetricExporter).toHaveBeenCalledWith({
-        url: 'https://metrics.rocicorp.dev',
-      });
+      // Verify TimeoutAwareOTLPExporter was created with correct configuration
+      expect(TimeoutAwareOTLPExporter).toHaveBeenCalledWith(
+        {
+          url: 'https://metrics.rocicorp.dev',
+        },
+        expect.any(Object), // LogContext
+      );
 
       // Verify metric reader was created with TimeoutAwareOTLPExporter
       expect(PeriodicExportingMetricReader).toHaveBeenCalledWith(
         expect.objectContaining({
-          exportIntervalMillis: 60000,
+          exportIntervalMillis: expect.any(Number), // Now includes random delay
           exporter: expect.any(Object), // Should be TimeoutAwareOTLPExporter instance
         }),
       );
@@ -644,82 +650,6 @@ describe('Anonymous Telemetry Integration Tests', () => {
         );
         expect(secondRowsValue).toBeGreaterThanOrEqual(firstRowsValue + 10);
       }
-    });
-  });
-
-  describe('TimeoutAwareOTLPExporter', () => {
-    test('should handle request timeout and convert to success', () => {
-      const lc = createSilentLogContext();
-      const mockCallback = vi.fn();
-
-      startAnonymousTelemetry(lc);
-
-      const readerCall = vi.mocked(PeriodicExportingMetricReader).mock.calls[0];
-      const timeoutAwareExporter = readerCall[0].exporter;
-
-      const mockTimeoutResult = {
-        code: 1, // ExportResultCode.FAILED
-        error: new Error('Request Timeout occurred'),
-      };
-
-      vi.mocked(mockExporter.export).mockImplementation(
-        (_metrics: any, callback: any) => {
-          callback(mockTimeoutResult);
-        },
-      );
-
-      timeoutAwareExporter.export({} as any, mockCallback);
-
-      expect(mockCallback).toHaveBeenCalledWith({code: 0}); // ExportResultCode.SUCCESS
-    });
-
-    test('should pass through non-timeout errors unchanged', () => {
-      const mockCallback = vi.fn();
-
-      // Get the exporter instance
-      const readerCall = vi.mocked(PeriodicExportingMetricReader).mock.calls[0];
-      const timeoutAwareExporter = readerCall[0].exporter;
-
-      // Mock a different type of error
-      const mockErrorResult = {
-        code: 1, // ExportResultCode.FAILED
-        error: new Error('Some other error'),
-      };
-
-      vi.mocked(mockExporter.export).mockImplementation(
-        (_metrics: any, callback: any) => {
-          callback(mockErrorResult);
-        },
-      );
-
-      timeoutAwareExporter.export({} as any, mockCallback);
-
-      expect(mockCallback).toHaveBeenCalledWith(mockErrorResult);
-    });
-
-    test('should pass through successful results unchanged', () => {
-      const mockCallback = vi.fn();
-
-      // Get the exporter instance
-      const readerCall = vi.mocked(PeriodicExportingMetricReader).mock.calls[0];
-      const timeoutAwareExporter = readerCall[0].exporter;
-
-      // Mock a successful result
-      const mockSuccessResult = {
-        code: 0, // ExportResultCode.SUCCESS
-      };
-
-      vi.mocked(mockExporter.export).mockImplementation(
-        (_metrics: any, callback: any) => {
-          callback(mockSuccessResult);
-        },
-      );
-
-      // Test that success results pass through
-      timeoutAwareExporter.export({} as any, mockCallback);
-
-      // Should pass through the original success result
-      expect(mockCallback).toHaveBeenCalledWith(mockSuccessResult);
     });
   });
 });

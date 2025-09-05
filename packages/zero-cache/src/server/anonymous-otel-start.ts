@@ -1,13 +1,5 @@
 import type {ObservableResult} from '@opentelemetry/api';
 import {type Meter} from '@opentelemetry/api';
-import {OTLPMetricExporter} from '@opentelemetry/exporter-metrics-otlp-http';
-import type {
-  PushMetricExporter,
-  ResourceMetrics,
-  AggregationTemporality,
-  InstrumentType,
-} from '@opentelemetry/sdk-metrics';
-import {ExportResultCode, type ExportResult} from '@opentelemetry/core';
 import {resourceFromAttributes} from '@opentelemetry/resources';
 import {
   MeterProvider,
@@ -25,49 +17,7 @@ import {
   getZeroConfig,
   type ZeroConfig,
 } from '../config/zero-config.js';
-
-class TimeoutAwareOTLPExporter implements PushMetricExporter {
-  private readonly _exporter: OTLPMetricExporter;
-  private readonly _lc: LogContext | undefined;
-
-  constructor(config: {url: string}, lc?: LogContext) {
-    this._exporter = new OTLPMetricExporter(config);
-    this._lc = lc;
-  }
-
-  export(
-    metrics: ResourceMetrics,
-    resultCallback: (result: ExportResult) => void,
-  ): void {
-    this._exporter.export(metrics, result => {
-      if (
-        result.code === ExportResultCode.FAILED &&
-        result.error?.message.includes('Request Timeout')
-      ) {
-        this._lc?.warn?.(
-          'telemetry: metrics export timeout, will retry on next interval',
-        );
-        resultCallback({code: ExportResultCode.SUCCESS}); // Treat timeout as success to avoid SDK error logging
-      } else {
-        resultCallback(result);
-      }
-    });
-  }
-
-  forceFlush(): Promise<void> {
-    return this._exporter.forceFlush();
-  }
-
-  shutdown(): Promise<void> {
-    return this._exporter.shutdown();
-  }
-
-  selectAggregationTemporality(
-    instrumentType: InstrumentType,
-  ): AggregationTemporality {
-    return this._exporter.selectAggregationTemporality(instrumentType);
-  }
-}
+import {TimeoutAwareOTLPExporter} from './timeout-aware-otlp-exporter.ts';
 
 class AnonymousTelemetryManager {
   static #instance: AnonymousTelemetryManager;
@@ -142,9 +92,11 @@ class AnonymousTelemetryManager {
     }
 
     const resource = resourceFromAttributes(this.#getAttributes());
-
+    // Add a random delay between 1 and 10 seconds to the export interval to avoid all clients exporting at the same time
+    const exportIntervalMillis =
+      60000 * this.#viewSyncerCount + Math.floor(Math.random() * 10000) + 1000;
     const metricReader = new PeriodicExportingMetricReader({
-      exportIntervalMillis: 60000 * this.#viewSyncerCount,
+      exportIntervalMillis,
       exporter: new TimeoutAwareOTLPExporter(
         {
           url: 'https://metrics.rocicorp.dev',
@@ -161,7 +113,7 @@ class AnonymousTelemetryManager {
 
     this.#setupMetrics();
     this.#lc?.info?.(
-      `telemetry: started (exports every ${60 * this.#viewSyncerCount} seconds for ${this.#viewSyncerCount} view-syncers)`,
+      `telemetry: started (exports every ${exportIntervalMillis} seconds for ${this.#viewSyncerCount} view-syncers)`,
     );
   }
 
