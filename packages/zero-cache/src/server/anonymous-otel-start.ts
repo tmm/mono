@@ -1,8 +1,13 @@
 import type {ObservableResult} from '@opentelemetry/api';
 import {type Meter} from '@opentelemetry/api';
 import {OTLPMetricExporter} from '@opentelemetry/exporter-metrics-otlp-http';
-import type {ExportResult, PushMetricExporter, ResourceMetrics} from '@opentelemetry/sdk-metrics';
-import {ExportResultCode} from '@opentelemetry/core';
+import type {
+  PushMetricExporter,
+  ResourceMetrics,
+  AggregationTemporality,
+  InstrumentType,
+} from '@opentelemetry/sdk-metrics';
+import {ExportResultCode, type ExportResult} from '@opentelemetry/core';
 import {resourceFromAttributes} from '@opentelemetry/resources';
 import {
   MeterProvider,
@@ -30,10 +35,18 @@ class TimeoutAwareOTLPExporter implements PushMetricExporter {
     this._lc = lc;
   }
 
-  async export(metrics: ResourceMetrics, resultCallback: (result: ExportResult) => void): Promise<void> {
-    this._exporter.export(metrics, (result) => {
-      if (result.code === ExportResultCode.FAILED && result.error?.message.includes('Request Timeout')) {
-        this._lc?.warn?.('telemetry: metrics export timeout, will retry on next interval');
+  export(
+    metrics: ResourceMetrics,
+    resultCallback: (result: ExportResult) => void,
+  ): void {
+    this._exporter.export(metrics, result => {
+      if (
+        result.code === ExportResultCode.FAILED &&
+        result.error?.message.includes('Request Timeout')
+      ) {
+        this._lc?.warn?.(
+          'telemetry: metrics export timeout, will retry on next interval',
+        );
         resultCallback({code: ExportResultCode.SUCCESS}); // Treat timeout as success to avoid SDK error logging
       } else {
         resultCallback(result);
@@ -41,15 +54,19 @@ class TimeoutAwareOTLPExporter implements PushMetricExporter {
     });
   }
 
-  async forceFlush(): Promise<void> {
+  forceFlush(): Promise<void> {
     return this._exporter.forceFlush();
   }
 
-  async shutdown(): Promise<void> {
+  shutdown(): Promise<void> {
     return this._exporter.shutdown();
   }
 
-  selectAggregationTemporality = this._exporter.selectAggregationTemporality.bind(this._exporter);
+  selectAggregationTemporality(
+    instrumentType: InstrumentType,
+  ): AggregationTemporality {
+    return this._exporter.selectAggregationTemporality(instrumentType);
+  }
 }
 
 class AnonymousTelemetryManager {
@@ -128,9 +145,12 @@ class AnonymousTelemetryManager {
 
     const metricReader = new PeriodicExportingMetricReader({
       exportIntervalMillis: 60000 * this.#viewSyncerCount,
-      exporter: new TimeoutAwareOTLPExporter({
-        url: 'https://metrics.rocicorp.dev',
-      }, this.#lc),
+      exporter: new TimeoutAwareOTLPExporter(
+        {
+          url: 'https://metrics.rocicorp.dev',
+        },
+        this.#lc,
+      ),
     });
 
     this.#meterProvider = new MeterProvider({

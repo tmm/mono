@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {OTLPMetricExporter} from '@opentelemetry/exporter-metrics-otlp-http';
 import {
   MeterProvider,
@@ -94,7 +95,12 @@ describe('Anonymous Telemetry Integration Tests', () => {
     mockMetricReader = vi.fn();
 
     // Mock exporter
-    mockExporter = vi.fn();
+    mockExporter = {
+      export: vi.fn(),
+      forceFlush: vi.fn().mockResolvedValue(undefined),
+      shutdown: vi.fn().mockResolvedValue(undefined),
+      selectAggregationTemporality: vi.fn(),
+    };
 
     // Setup mocks
     vi.mocked(OTLPMetricExporter).mockImplementation(() => mockExporter);
@@ -200,11 +206,13 @@ describe('Anonymous Telemetry Integration Tests', () => {
         url: 'https://metrics.rocicorp.dev',
       });
 
-      // Verify metric reader was created
-      expect(PeriodicExportingMetricReader).toHaveBeenCalledWith({
-        exportIntervalMillis: 60000,
-        exporter: mockExporter,
-      });
+      // Verify metric reader was created with TimeoutAwareOTLPExporter
+      expect(PeriodicExportingMetricReader).toHaveBeenCalledWith(
+        expect.objectContaining({
+          exportIntervalMillis: 60000,
+          exporter: expect.any(Object), // Should be TimeoutAwareOTLPExporter instance
+        }),
+      );
 
       // Verify meter provider was created
       expect(MeterProvider).toHaveBeenCalled();
@@ -636,6 +644,82 @@ describe('Anonymous Telemetry Integration Tests', () => {
         );
         expect(secondRowsValue).toBeGreaterThanOrEqual(firstRowsValue + 10);
       }
+    });
+  });
+
+  describe('TimeoutAwareOTLPExporter', () => {
+    test('should handle request timeout and convert to success', () => {
+      const lc = createSilentLogContext();
+      const mockCallback = vi.fn();
+
+      startAnonymousTelemetry(lc);
+
+      const readerCall = vi.mocked(PeriodicExportingMetricReader).mock.calls[0];
+      const timeoutAwareExporter = readerCall[0].exporter;
+
+      const mockTimeoutResult = {
+        code: 1, // ExportResultCode.FAILED
+        error: new Error('Request Timeout occurred'),
+      };
+
+      vi.mocked(mockExporter.export).mockImplementation(
+        (_metrics: any, callback: any) => {
+          callback(mockTimeoutResult);
+        },
+      );
+
+      timeoutAwareExporter.export({} as any, mockCallback);
+
+      expect(mockCallback).toHaveBeenCalledWith({code: 0}); // ExportResultCode.SUCCESS
+    });
+
+    test('should pass through non-timeout errors unchanged', () => {
+      const mockCallback = vi.fn();
+
+      // Get the exporter instance
+      const readerCall = vi.mocked(PeriodicExportingMetricReader).mock.calls[0];
+      const timeoutAwareExporter = readerCall[0].exporter;
+
+      // Mock a different type of error
+      const mockErrorResult = {
+        code: 1, // ExportResultCode.FAILED
+        error: new Error('Some other error'),
+      };
+
+      vi.mocked(mockExporter.export).mockImplementation(
+        (_metrics: any, callback: any) => {
+          callback(mockErrorResult);
+        },
+      );
+
+      timeoutAwareExporter.export({} as any, mockCallback);
+
+      expect(mockCallback).toHaveBeenCalledWith(mockErrorResult);
+    });
+
+    test('should pass through successful results unchanged', () => {
+      const mockCallback = vi.fn();
+
+      // Get the exporter instance
+      const readerCall = vi.mocked(PeriodicExportingMetricReader).mock.calls[0];
+      const timeoutAwareExporter = readerCall[0].exporter;
+
+      // Mock a successful result
+      const mockSuccessResult = {
+        code: 0, // ExportResultCode.SUCCESS
+      };
+
+      vi.mocked(mockExporter.export).mockImplementation(
+        (_metrics: any, callback: any) => {
+          callback(mockSuccessResult);
+        },
+      );
+
+      // Test that success results pass through
+      timeoutAwareExporter.export({} as any, mockCallback);
+
+      // Should pass through the original success result
+      expect(mockCallback).toHaveBeenCalledWith(mockSuccessResult);
     });
   });
 });
