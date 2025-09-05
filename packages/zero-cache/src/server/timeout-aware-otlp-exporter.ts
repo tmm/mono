@@ -9,9 +9,9 @@ import {ExportResultCode, type ExportResult} from '@opentelemetry/core';
 import type {LogContext} from '@rocicorp/logger';
 
 /**
- * A wrapper around OTLPMetricExporter that handles timeout and 502 errors gracefully.
- * Instead of failing the export on timeout or 502 errors, it logs a warning and treats
- * them as success to avoid SDK error logging.
+ * A wrapper around OTLPMetricExporter that handles recoverable errors gracefully.
+ * Instead of failing the export on timeout, 502, or retryable errors, it logs a warning
+ * and treats them as success to avoid SDK error logging.
  */
 export class TimeoutAwareOTLPExporter implements PushMetricExporter {
   readonly #exporter: OTLPMetricExporter;
@@ -52,6 +52,9 @@ export class TimeoutAwareOTLPExporter implements PushMetricExporter {
     }
     if (errorMessage.includes('Unexpected server response: 502')) {
       return '502';
+    }
+    if (errorMessage.includes('Export failed with retryable status')) {
+      return 'retryable';
     }
     return null;
   }

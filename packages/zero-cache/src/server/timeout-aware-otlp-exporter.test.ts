@@ -76,6 +76,32 @@ describe('TimeoutAwareOTLPExporter', () => {
     expect(mockCallback).toHaveBeenCalledWith({code: ExportResultCode.SUCCESS});
   });
 
+  test('should handle retryable export errors and convert to success', () => {
+    const lc = createSilentLogContext();
+    const timeoutAwareExporter = new TimeoutAwareOTLPExporter(
+      {url: 'https://test.example.com'},
+      lc,
+    );
+    const mockCallback = vi.fn();
+
+    const mockRetryableResult = {
+      code: ExportResultCode.FAILED,
+      error: new Error(
+        'PeriodicExportingMetricReader: metrics export failed (error OTLPExporterError: Export failed with retryable status)',
+      ),
+    };
+
+    vi.mocked(mockExporter.export).mockImplementation(
+      (_metrics: any, callback: any) => {
+        callback(mockRetryableResult);
+      },
+    );
+
+    timeoutAwareExporter.export({} as any, mockCallback);
+
+    expect(mockCallback).toHaveBeenCalledWith({code: ExportResultCode.SUCCESS});
+  });
+
   test('should pass through non-timeout errors unchanged', () => {
     const lc = createSilentLogContext();
     const timeoutAwareExporter = new TimeoutAwareOTLPExporter(
