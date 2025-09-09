@@ -113,12 +113,27 @@ export function indexDefinitionsQuery(publications: readonly string[]) {
       CASE WHEN pg_index.indoption[index_column.pos-1] & 1 = 1 THEN 'DESC' ELSE 'ASC' END as "dir",
       pg_index.indisunique as "unique",
       pg_index.indisreplident as "isReplicaIdentity",
-      pg_index.indimmediate as "isImmediate"
+      pg_index.indimmediate as "isImmediate",
+      -- Detect fulltext indices: GIN/GiST with text search expressions
+      CASE 
+        WHEN pg_am.amname IN ('gin', 'gist') AND (
+          pg_get_expr(pg_index.indexprs, pg_index.indrelid) LIKE '%tsvector%' 
+          OR pg_get_expr(pg_index.indexprs, pg_index.indrelid) LIKE '%tsquery%'
+          OR EXISTS (
+            SELECT 1 FROM pg_attribute 
+            WHERE attrelid = pg_index.indrelid 
+            AND attnum = ANY(pg_index.indkey::smallint[])
+            AND atttypid = 'tsvector'::regtype::oid
+          )
+        ) THEN 'fulltext'
+        ELSE 'btree'
+      END as "indexType"
     FROM pg_indexes
     JOIN pg_namespace ON pg_indexes.schemaname = pg_namespace.nspname
     JOIN pg_class pc ON
       pc.relname = pg_indexes.indexname
       AND pc.relnamespace = pg_namespace.oid
+    JOIN pg_am ON pg_am.oid = pc.relam
     JOIN pg_publication_tables as pb ON 
       pb.schemaname = pg_indexes.schemaname AND 
       pb.tablename = pg_indexes.tablename
@@ -133,13 +148,23 @@ export function indexDefinitionsQuery(publications: readonly string[]) {
         FROM UNNEST( (pg_index.indkey::smallint[])[:pg_index.indnkeyatts - 1] ) 
           WITH ORDINALITY as col(table_pos, index_pos)
         JOIN pg_attribute ON attrelid = pg_index.indrelid AND attnum = col.table_pos
+        WHERE col.table_pos > 0 -- Skip expression columns (0 or negative)
     ) AS index_column ON true
     LEFT JOIN pg_constraint ON pg_constraint.conindid = pc.oid
     WHERE pb.pubname IN (${literal(publications)})
-      AND pg_index.indexprs IS NULL
+      -- Include fulltext indices (GIN/GiST) even if they have expressions
+      AND (
+        pg_index.indexprs IS NULL 
+        OR pg_am.amname IN ('gin', 'gist')
+      )
       AND pg_index.indpred IS NULL
       AND (pg_constraint.contype IS NULL OR pg_constraint.contype IN ('p', 'u'))
-      AND indexed.attnames <@ pb.attnames
+      AND (
+        -- For regular indexes, check that columns are in the published set
+        (pg_index.indexprs IS NULL AND indexed.attnames <@ pb.attnames)
+        -- For expression indexes (like fulltext), we'll include them anyway
+        OR pg_index.indexprs IS NOT NULL
+      )
       AND false = ALL(indexed.generated)
     ORDER BY
       pg_indexes.schemaname,
@@ -154,9 +179,10 @@ export function indexDefinitionsQuery(publications: readonly string[]) {
       'unique', "unique",
       'isReplicaIdentity', "isReplicaIdentity",
       'isImmediate', "isImmediate",
+      'indexType', "indexType",
       'columns', json_object_agg("col", "dir")
     ) AS index FROM indexed_columns 
-      GROUP BY "schema", "tableName", "name", "unique", "isReplicaIdentity", "isImmediate")
+      GROUP BY "schema", "tableName", "name", "unique", "isReplicaIdentity", "isImmediate", "indexType")
 
     SELECT COALESCE(json_agg("index"), '[]'::json) as "indexes" FROM indexes
   `;

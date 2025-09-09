@@ -42,6 +42,18 @@ export function createTableStatement(spec: TableSpec | LiteTableSpec): string {
 }
 
 export function createIndexStatement(index: LiteIndexSpec): string {
+  // TODO: Handle fulltext indices when index.indexType === 'fulltext'
+  // For SQLite FTS5, we need to:
+  // 1. Create an FTS5 virtual table that mirrors the main table
+  // 2. Set up triggers to keep the FTS table in sync with the main table
+  // 3. Handle the column mapping (PostgreSQL tsvector -> SQLite FTS5)
+  // For now, skip fulltext index creation and log a warning
+  if (index.indexType === 'fulltext') {
+    // Returning a comment instead of a CREATE INDEX statement
+    // This will be logged but won't fail the replication
+    return `-- TODO: Fulltext index ${index.name} detected but not yet supported in SQLite`;
+  }
+
   const columns = Object.entries(index.columns)
     .map(([name, dir]) => `${id(name)} ${dir}`)
     .join(',');

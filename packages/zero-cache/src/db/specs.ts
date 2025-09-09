@@ -97,11 +97,14 @@ export type PublishedTableSpec = Readonly<v.Infer<typeof publishedTableSpec>>;
 
 export const directionSchema = v.literalUnion('ASC', 'DESC');
 
+export const indexTypeSchema = v.literalUnion('btree', 'fulltext');
+
 export const liteIndexSpec = v.object({
   name: v.string(),
   tableName: v.string(),
   unique: v.boolean(),
   columns: v.record(directionSchema),
+  indexType: indexTypeSchema.optional(), // defaults to 'btree' if not specified
 });
 
 export type MutableLiteIndexSpec = v.Infer<typeof liteIndexSpec>;

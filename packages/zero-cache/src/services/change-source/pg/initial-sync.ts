@@ -206,7 +206,7 @@ export async function initialSync(
         5000,
       );
       const indexStart = performance.now();
-      createLiteIndices(tx, indexes);
+      createLiteIndices(lc, tx, indexes);
       const index = performance.now() - indexStart;
       lc.info?.(`Created indexes (${index.toFixed(3)} ms)`);
 
@@ -361,9 +361,18 @@ function createLiteTables(
   }
 }
 
-function createLiteIndices(tx: Database, indices: IndexSpec[]) {
+function createLiteIndices(lc: LogContext, tx: Database, indices: IndexSpec[]) {
   for (const index of indices) {
-    tx.exec(createIndexStatement(mapPostgresToLiteIndex(index)));
+    const liteIndex = mapPostgresToLiteIndex(index);
+    // Log fulltext indices that are detected but not yet fully supported
+    if (liteIndex.indexType === 'fulltext') {
+      // The createIndexStatement will return a comment for fulltext indices
+      // Log this so users know the index was detected
+      lc.info?.(
+        `Detected fulltext index ${liteIndex.name} on table ${liteIndex.tableName} - SQLite FTS creation not yet implemented`,
+      );
+    }
+    tx.exec(createIndexStatement(liteIndex));
   }
 }
 

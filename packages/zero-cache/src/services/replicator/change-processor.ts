@@ -628,6 +628,12 @@ class TransactionProcessor {
 
   processCreateIndex(create: IndexCreate) {
     const index = mapPostgresToLiteIndex(create.spec);
+    
+    // Log when we encounter a fulltext index
+    if (index.indexType === 'fulltext') {
+      this.#lc.info?.(`Detected fulltext index ${index.name} - SQLite FTS creation not yet implemented`);
+    }
+    
     this.#db.db.exec(createIndexStatement(index));
 
     // indexes affect tables visibility (e.g. sync-ability is gated on
