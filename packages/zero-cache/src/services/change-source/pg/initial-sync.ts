@@ -9,6 +9,7 @@ import {pipeline} from 'node:stream/promises';
 import postgres from 'postgres';
 import {Database} from '../../../../../zqlite/src/db.ts';
 import {
+  createFTS5Statements,
   createIndexStatement,
   createTableStatement,
 } from '../../../db/create.ts';
@@ -362,17 +363,46 @@ function createLiteTables(
 }
 
 function createLiteIndices(lc: LogContext, tx: Database, indices: IndexSpec[]) {
+  // Group fulltext indices by table to create one FTS table per base table
+  const ftsTablesByTable = new Map<string, Set<string>>();
+  const regularIndices: IndexSpec[] = [];
+
   for (const index of indices) {
     const liteIndex = mapPostgresToLiteIndex(index);
-    // Log fulltext indices that are detected but not yet fully supported
+    
     if (liteIndex.indexType === 'fulltext') {
-      // The createIndexStatement will return a comment for fulltext indices
-      // Log this so users know the index was detected
+      // Collect all fulltext-indexed columns per table
+      const columns = Object.keys(liteIndex.columns);
+      if (!ftsTablesByTable.has(liteIndex.tableName)) {
+        ftsTablesByTable.set(liteIndex.tableName, new Set());
+      }
+      const tableColumns = ftsTablesByTable.get(liteIndex.tableName)!;
+      columns.forEach(col => tableColumns.add(col));
+      
       lc.info?.(
-        `Detected fulltext index ${liteIndex.name} on table ${liteIndex.tableName} - SQLite FTS creation not yet implemented`,
+        `Detected fulltext index ${liteIndex.name} on table ${liteIndex.tableName} with columns: ${columns.join(', ')}`,
       );
+    } else {
+      regularIndices.push(index);
     }
-    tx.exec(createIndexStatement(liteIndex));
+  }
+
+  // Create regular indices first
+  for (const index of regularIndices) {
+    tx.exec(createIndexStatement(mapPostgresToLiteIndex(index)));
+  }
+
+  // Create FTS5 tables and triggers for each table with fulltext indices
+  for (const [tableName, columns] of ftsTablesByTable) {
+    if (columns.size > 0) {
+      lc.info?.(
+        `Creating FTS5 table for ${tableName} with columns: ${Array.from(columns).join(', ')}`,
+      );
+      const ftsStatements = createFTS5Statements(tableName, Array.from(columns));
+      for (const stmt of ftsStatements) {
+        tx.exec(stmt);
+      }
+    }
   }
 }
 

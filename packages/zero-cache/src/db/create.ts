@@ -41,17 +41,70 @@ export function createTableStatement(spec: TableSpec | LiteTableSpec): string {
   return [createStmt, defs.join(',\n'), ');'].join('\n');
 }
 
+/**
+ * Creates FTS5 virtual table and sync triggers for fulltext search.
+ * Returns an array of SQL statements to execute.
+ */
+export function createFTS5Statements(
+  tableName: string,
+  columns: string[],
+): string[] {
+  const ftsTableName = `${tableName}_fts`;
+  const columnList = columns.join(', ');
+  const statements: string[] = [];
+
+  // Create FTS5 virtual table
+  statements.push(
+    `CREATE VIRTUAL TABLE IF NOT EXISTS ${id(ftsTableName)} USING fts5(` +
+      `${columnList}, ` +
+      `content='${tableName}', ` +
+      `tokenize='unicode61'` +
+      `);`,
+  );
+
+  // Create INSERT trigger
+  const insertColumns = columns.map(col => `new.${id(col)}`).join(', ');
+  statements.push(
+    `CREATE TRIGGER IF NOT EXISTS ${id(`${ftsTableName}_insert`)} ` +
+      `AFTER INSERT ON ${id(tableName)} BEGIN ` +
+      `INSERT INTO ${id(ftsTableName)}(rowid, ${columnList}) ` +
+      `VALUES (new.rowid, ${insertColumns}); ` +
+      `END;`,
+  );
+
+  // Create UPDATE trigger
+  const updateSetters = columns
+    .map(col => `${id(col)} = new.${id(col)}`)
+    .join(', ');
+  statements.push(
+    `CREATE TRIGGER IF NOT EXISTS ${id(`${ftsTableName}_update`)} ` +
+      `AFTER UPDATE ON ${id(tableName)} BEGIN ` +
+      `UPDATE ${id(ftsTableName)} SET ${updateSetters} ` +
+      `WHERE rowid = new.rowid; ` +
+      `END;`,
+  );
+
+  // Create DELETE trigger
+  statements.push(
+    `CREATE TRIGGER IF NOT EXISTS ${id(`${ftsTableName}_delete`)} ` +
+      `AFTER DELETE ON ${id(tableName)} BEGIN ` +
+      `DELETE FROM ${id(ftsTableName)} WHERE rowid = old.rowid; ` +
+      `END;`,
+  );
+
+  return statements;
+}
+
 export function createIndexStatement(index: LiteIndexSpec): string {
-  // TODO: Handle fulltext indices when index.indexType === 'fulltext'
-  // For SQLite FTS5, we need to:
-  // 1. Create an FTS5 virtual table that mirrors the main table
-  // 2. Set up triggers to keep the FTS table in sync with the main table
-  // 3. Handle the column mapping (PostgreSQL tsvector -> SQLite FTS5)
-  // For now, skip fulltext index creation and log a warning
+  // Handle fulltext indices by creating FTS5 virtual table
   if (index.indexType === 'fulltext') {
-    // Returning a comment instead of a CREATE INDEX statement
-    // This will be logged but won't fail the replication
-    return `-- TODO: Fulltext index ${index.name} detected but not yet supported in SQLite`;
+    const columns = Object.keys(index.columns);
+    if (columns.length === 0) {
+      return `-- Fulltext index ${index.name} has no columns to index`;
+    }
+    // Return all FTS5 statements joined
+    const ftsStatements = createFTS5Statements(index.tableName, columns);
+    return ftsStatements.join('\n');
   }
 
   const columns = Object.entries(index.columns)

@@ -6,6 +6,7 @@ import {stringify} from '../../../../shared/src/bigint-json.ts';
 import {must} from '../../../../shared/src/must.ts';
 import {
   columnDef,
+  createFTS5Statements,
   createIndexStatement,
   createTableStatement,
 } from '../../db/create.ts';
@@ -629,12 +630,38 @@ class TransactionProcessor {
   processCreateIndex(create: IndexCreate) {
     const index = mapPostgresToLiteIndex(create.spec);
     
-    // Log when we encounter a fulltext index
+    // Handle fulltext indices specially
     if (index.indexType === 'fulltext') {
-      this.#lc.info?.(`Detected fulltext index ${index.name} - SQLite FTS creation not yet implemented`);
+      this.#lc.info?.(`Creating FTS5 table for fulltext index ${index.name} on table ${index.tableName}`);
+      
+      // Check if FTS table already exists (from another fulltext index on same table)
+      const ftsTableName = `${index.tableName}_fts`;
+      const existing = this.#db.db
+        .prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name = ?`,
+        )
+        .get(ftsTableName);
+      
+      if (existing) {
+        // FTS table already exists, just log that we're adding to it
+        this.#lc.info?.(
+          `FTS5 table ${ftsTableName} already exists, fulltext index ${index.name} will use it`,
+        );
+      } else {
+        // Create new FTS5 table and triggers
+        const columns = Object.keys(index.columns);
+        if (columns.length > 0) {
+          const ftsStatements = createFTS5Statements(index.tableName, columns);
+          for (const stmt of ftsStatements) {
+            this.#db.db.exec(stmt);
+          }
+          this.#lc.info?.(`Created FTS5 table ${ftsTableName} with columns: ${columns.join(', ')}`);
+        }
+      }
+    } else {
+      // Regular index creation
+      this.#db.db.exec(createIndexStatement(index));
     }
-    
-    this.#db.db.exec(createIndexStatement(index));
 
     // indexes affect tables visibility (e.g. sync-ability is gated on
     // having a unique index), so reset pipelines to refresh table schemas.
