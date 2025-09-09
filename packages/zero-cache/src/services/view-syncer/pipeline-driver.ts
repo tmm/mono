@@ -93,6 +93,7 @@ export class PipelineDriver {
   readonly #shardID: ShardID;
   readonly #logConfig: LogConfig;
   readonly #tableSpecs = new Map<string, LiteAndZqlSpec>();
+  readonly #availableViews = new Map<string, string>(); // table -> view name mapping
   #streamer: Streamer | null = null;
   #replicaVersion: string | null = null;
   #permissions: LoadedPermissions | null = null;
@@ -122,6 +123,28 @@ export class PipelineDriver {
   }
 
   /**
+   * Detects available FTS views by querying sqlite_master.
+   * Views ending with '_view' are assumed to be FTS views corresponding to their base table.
+   */
+  #detectAvailableViews() {
+    this.#availableViews.clear();
+    
+    const {db} = this.#snapshotter.current();
+    const stmt = db.db.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type = 'view' AND name LIKE '%_view'
+    `);
+    
+    for (const row of stmt.iterate()) {
+      const viewName = (row as {name: string}).name;
+      // Extract the base table name by removing '_view' suffix
+      const tableName = viewName.slice(0, -5); // Remove '_view'
+      this.#availableViews.set(tableName, viewName);
+      this.#lc.debug?.(`Detected FTS view: ${tableName} -> ${viewName}`);
+    }
+  }
+
+  /**
    * Initializes the PipelineDriver to the current head of the database.
    * Queries can then be added (i.e. hydrated) with {@link addQuery()}.
    *
@@ -144,6 +167,9 @@ export class PipelineDriver {
 
     const {replicaVersion} = getSubscriptionState(db);
     this.#replicaVersion = replicaVersion;
+    
+    // Detect available FTS views
+    this.#detectAvailableViews();
   }
 
   /**
@@ -232,6 +258,9 @@ export class PipelineDriver {
     }
     const {replicaVersion} = getSubscriptionState(db);
     this.#replicaVersion = replicaVersion;
+    
+    // Detect available FTS views
+    this.#detectAvailableViews();
   }
 
   /**
@@ -525,16 +554,20 @@ export class PipelineDriver {
     const {primaryKey} = tableSpec.tableSpec;
 
     const {db} = this.#snapshotter.current();
+    // Use view name if available, otherwise use table name
+    const viewName = this.#availableViews.get(tableName);
+    const sourceTableName = viewName ?? tableName;
+    
     source = new TableSource(
       this.#lc,
       this.#logConfig,
       db.db,
-      tableName,
+      sourceTableName, // Use view name if available
       tableSpec.zqlSpec,
       primaryKey,
     );
-    this.#tables.set(tableName, source);
-    this.#lc.debug?.(`created TableSource for ${tableName}`);
+    this.#tables.set(tableName, source); // Still indexed by original table name
+    this.#lc.debug?.(`created TableSource for ${tableName}${viewName ? ` (using view ${viewName})` : ''}`);
     return source;
   }
 
