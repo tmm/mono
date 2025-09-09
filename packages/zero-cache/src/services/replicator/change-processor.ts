@@ -648,14 +648,28 @@ class TransactionProcessor {
           `FTS5 table ${ftsTableName} already exists, fulltext index ${index.name} will use it`,
         );
       } else {
-        // Create new FTS5 table and triggers
+        // Create new FTS5 table, triggers, and view
         const columns = Object.keys(index.columns);
+        
+        // Get all table columns from cached spec
+        const tableSpec = this.#tableSpecs.get(index.tableName);
+        const allColumns = tableSpec
+          ? Object.keys(tableSpec.columns).filter(col => col !== '_0_version')
+          : undefined;
+        
         if (columns.length > 0) {
-          const ftsStatements = createFTS5Statements(index.tableName, columns);
+          const ftsStatements = createFTS5Statements(
+            index.tableName,
+            columns,
+            allColumns,
+          );
           for (const stmt of ftsStatements) {
             this.#db.db.exec(stmt);
           }
           this.#lc.info?.(`Created FTS5 table ${ftsTableName} with columns: ${columns.join(', ')}`);
+          if (allColumns) {
+            this.#lc.info?.(`Created view ${index.tableName}_view for fulltext search`);
+          }
         }
       }
     } else {

@@ -207,7 +207,7 @@ export async function initialSync(
         5000,
       );
       const indexStart = performance.now();
-      createLiteIndices(lc, tx, indexes);
+      createLiteIndices(lc, tx, indexes, tables);
       const index = performance.now() - indexStart;
       lc.info?.(`Created indexes (${index.toFixed(3)} ms)`);
 
@@ -362,7 +362,23 @@ function createLiteTables(
   }
 }
 
-function createLiteIndices(lc: LogContext, tx: Database, indices: IndexSpec[]) {
+function createLiteIndices(
+  lc: LogContext,
+  tx: Database,
+  indices: IndexSpec[],
+  tables: PublishedTableSpec[],
+) {
+  // Build a map of table names to their full column lists
+  const tableColumnMap = new Map<string, string[]>();
+  for (const table of tables) {
+    const liteTable = mapPostgresToLite(table, ''); // version not needed for column names
+    // Filter out the version column
+    const columns = Object.keys(liteTable.columns).filter(
+      col => col !== '_0_version',
+    );
+    tableColumnMap.set(liteTable.name, columns);
+  }
+
   // Group fulltext indices by table to create one FTS table per base table
   const ftsTablesByTable = new Map<string, Set<string>>();
   const regularIndices: IndexSpec[] = [];
@@ -392,13 +408,22 @@ function createLiteIndices(lc: LogContext, tx: Database, indices: IndexSpec[]) {
     tx.exec(createIndexStatement(mapPostgresToLiteIndex(index)));
   }
 
-  // Create FTS5 tables and triggers for each table with fulltext indices
-  for (const [tableName, columns] of ftsTablesByTable) {
-    if (columns.size > 0) {
+  // Create FTS5 tables, triggers, and views for each table with fulltext indices
+  for (const [tableName, ftsColumns] of ftsTablesByTable) {
+    if (ftsColumns.size > 0) {
       lc.info?.(
-        `Creating FTS5 table for ${tableName} with columns: ${Array.from(columns).join(', ')}`,
+        `Creating FTS5 table for ${tableName} with columns: ${Array.from(ftsColumns).join(', ')}`,
       );
-      const ftsStatements = createFTS5Statements(tableName, Array.from(columns));
+      
+      // Get all columns for this table to create the view properly
+      const allColumns = tableColumnMap.get(tableName);
+      
+      const ftsStatements = createFTS5Statements(
+        tableName,
+        Array.from(ftsColumns),
+        allColumns,
+      );
+      
       for (const stmt of ftsStatements) {
         tx.exec(stmt);
       }

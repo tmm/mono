@@ -48,8 +48,10 @@ export function createTableStatement(spec: TableSpec | LiteTableSpec): string {
 export function createFTS5Statements(
   tableName: string,
   columns: string[],
+  allTableColumns?: string[],
 ): string[] {
   const ftsTableName = `${tableName}_fts`;
+  const viewName = `${tableName}_view`;
   const columnList = columns.join(', ');
   const statements: string[] = [];
 
@@ -91,6 +93,24 @@ export function createFTS5Statements(
       `DELETE FROM ${id(ftsTableName)} WHERE rowid = old.rowid; ` +
       `END;`,
   );
+
+  // Create view for easy querying if we know all table columns
+  if (allTableColumns && allTableColumns.length > 0) {
+    const ftsColumnSet = new Set(columns);
+    const nonFtsColumns = allTableColumns.filter(col => !ftsColumnSet.has(col));
+    
+    const viewColumns = [
+      ...nonFtsColumns.map(col => `t.${id(col)}`),
+      ...columns.map(col => `fts.${id(col)}`),
+    ].join(', ');
+    
+    statements.push(
+      `CREATE VIEW IF NOT EXISTS ${id(viewName)} AS ` +
+        `SELECT ${viewColumns} ` +
+        `FROM ${id(tableName)} t ` +
+        `JOIN ${id(ftsTableName)} fts ON t.rowid = fts.rowid;`,
+    );
+  }
 
   return statements;
 }
