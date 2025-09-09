@@ -57,11 +57,12 @@ export function createFTS5Statements(
 
   // Create FTS5 virtual table
   statements.push(
-    `CREATE VIRTUAL TABLE IF NOT EXISTS ${id(ftsTableName)} USING fts5(` +
-      `${columnList}, ` +
-      `content='${tableName}', ` +
-      `tokenize='unicode61'` +
-      `);`,
+    `CREATE VIRTUAL TABLE IF NOT EXISTS ${id(ftsTableName)} USING fts5(
+      ${columnList},
+      content='${tableName}',
+      tokenize='trigram',
+      detail='none'
+    );`,
   );
 
   // Create INSERT trigger
@@ -98,12 +99,12 @@ export function createFTS5Statements(
   if (allTableColumns && allTableColumns.length > 0) {
     const ftsColumnSet = new Set(columns);
     const nonFtsColumns = allTableColumns.filter(col => !ftsColumnSet.has(col));
-    
+
     const viewColumns = [
       ...nonFtsColumns.map(col => `t.${id(col)}`),
       ...columns.map(col => `fts.${id(col)}`),
     ].join(', ');
-    
+
     statements.push(
       `CREATE VIEW IF NOT EXISTS ${id(viewName)} AS ` +
         `SELECT ${viewColumns} ` +
