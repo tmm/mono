@@ -8,6 +8,7 @@ import {
   type TransformRequestMessage,
 } from '../../../zero-protocol/src/custom-queries.ts';
 import {fetchFromAPIServer, type HeaderOptions} from '../custom/fetch.ts';
+import {recordQuery} from '../server/anonymous-otel-start.ts';
 import type {ShardID} from '../types/shards.ts';
 import * as v from '../../../shared/src/valita.ts';
 import {hashOfAST} from '../../../zero-protocol/src/query-hash.ts';
@@ -131,6 +132,9 @@ export class CustomQueryTransformer {
 
     const body = await response.json();
     const msg = v.parse(body, transformResponseMessageSchema);
+
+    // Record custom query processing for telemetry (regardless of success/failure)
+    recordQuery('custom', request.length);
 
     const newResponses = msg[1].map(transformed => {
       if ('error' in transformed) {
