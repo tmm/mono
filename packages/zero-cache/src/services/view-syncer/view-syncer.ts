@@ -37,7 +37,6 @@ import {
 } from '../../auth/read-authorizer.ts';
 import {getServerVersion, type ZeroConfig} from '../../config/zero-config.ts';
 import {CustomQueryTransformer} from '../../custom-queries/transform-query.ts';
-import {recordQuery} from '../../server/anonymous-otel-start.ts';
 import {
   getOrCreateCounter,
   getOrCreateHistogram,
@@ -1068,11 +1067,6 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
       if (transformed.transformationHash === q.transformationHash) {
         // only processing unchanged queries here
         transformedQueries.push(transformed);
-
-        // Record CRUD query processing for telemetry (for non-internal queries)
-        if (q.type !== 'internal') {
-          recordQuery('crud');
-        }
       }
     }
 
@@ -1244,11 +1238,6 @@ export class ViewSyncerService implements ViewSyncer, ActivityBasedService {
           origQuery,
           transformed,
         });
-
-        // Record CRUD query processing for telemetry (for non-internal queries)
-        if (origQuery.type !== 'internal') {
-          recordQuery('crud');
-        }
       }
 
       if (customQueries.size > 0 && !this.#customQueryTransformer) {
