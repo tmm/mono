@@ -41,6 +41,8 @@ import {id} from '../../../types/sql.ts';
 import {ReplicationStatusPublisher} from '../../replicator/replication-status.ts';
 import {initChangeLog} from '../../replicator/schema/change-log.ts';
 import {initReplicationState} from '../../replicator/schema/replication-state.ts';
+import {loadIndices} from '../../../indices/load-indices.ts';
+import {StatementRunner} from '../../../db/statements.ts';
 import {toLexiVersion} from './lsn.ts';
 import {ensureShardSchema} from './schema/init.ts';
 import {getPublicationInfo} from './schema/published.ts';
@@ -200,6 +202,13 @@ export async function initialSync(
         {rows: 0, flushTime: 0},
       );
 
+      // Load indices configuration
+      const {indices: indicesConfig} = loadIndices(
+        lc,
+        new StatementRunner(tx),
+        shard.appID,
+      );
+
       statusPublisher.publish(
         lc,
         'Indexing',
@@ -207,7 +216,7 @@ export async function initialSync(
         5000,
       );
       const indexStart = performance.now();
-      createLiteIndices(lc, tx, indexes, tables);
+      createLiteIndices(lc, tx, indexes, tables, indicesConfig, shard.appID);
       const index = performance.now() - indexStart;
       lc.info?.(`Created indexes (${index.toFixed(3)} ms)`);
 
@@ -367,6 +376,10 @@ function createLiteIndices(
   tx: Database,
   indices: IndexSpec[],
   tables: PublishedTableSpec[],
+  indicesConfig:
+    | import('../../../indices/indices-config.ts').IndicesConfig
+    | null,
+  appID: string,
 ) {
   // Build a map of table names to their full column lists
   const tableColumnMap = new Map<string, string[]>();
@@ -379,55 +392,60 @@ function createLiteIndices(
     tableColumnMap.set(liteTable.name, columns);
   }
 
-  // Group fulltext indices by table to create one FTS table per base table
-  const ftsTablesByTable = new Map<string, Set<string>>();
-  const regularIndices: IndexSpec[] = [];
-
+  // Create regular indices from PostgreSQL
   for (const index of indices) {
     const liteIndex = mapPostgresToLiteIndex(index);
-    
-    if (liteIndex.indexType === 'fulltext') {
-      // Collect all fulltext-indexed columns per table
-      const columns = Object.keys(liteIndex.columns);
-      if (!ftsTablesByTable.has(liteIndex.tableName)) {
-        ftsTablesByTable.set(liteIndex.tableName, new Set());
-      }
-      const tableColumns = ftsTablesByTable.get(liteIndex.tableName)!;
-      columns.forEach(col => tableColumns.add(col));
-      
-      lc.info?.(
-        `Detected fulltext index ${liteIndex.name} on table ${liteIndex.tableName} with columns: ${columns.join(', ')}`,
-      );
-    } else {
-      regularIndices.push(index);
-    }
+    tx.exec(createIndexStatement(liteIndex));
   }
 
-  // Create regular indices first
-  for (const index of regularIndices) {
-    tx.exec(createIndexStatement(mapPostgresToLiteIndex(index)));
-  }
+  // Create FTS5 tables based on indices configuration
+  if (indicesConfig && indicesConfig.tables) {
+    for (const [tableName, tableIndices] of Object.entries(
+      indicesConfig.tables,
+    )) {
+      // Map PostgreSQL table name to lite table name
+      const liteTable = tables.find(t => t.name === tableName);
+      if (!liteTable) {
+        lc.warn?.(
+          `Table ${tableName} in indices config not found in published tables`,
+        );
+        continue;
+      }
 
-  // Create FTS5 tables, triggers, and views for each table with fulltext indices
-  for (const [tableName, ftsColumns] of ftsTablesByTable) {
-    if (ftsColumns.size > 0) {
-      lc.info?.(
-        `Creating FTS5 table for ${tableName} with columns: ${Array.from(ftsColumns).join(', ')}`,
-      );
-      
-      // Get all columns for this table to create the view properly
-      const allColumns = tableColumnMap.get(tableName);
-      
-      const ftsStatements = createFTS5Statements(
-        tableName,
-        Array.from(ftsColumns),
-        allColumns,
-      );
-      
-      for (const stmt of ftsStatements) {
-        tx.exec(stmt);
+      const mappedTableName = liteTableName({schema: appID, name: tableName});
+
+      if (tableIndices.fulltext && tableIndices.fulltext.length > 0) {
+        // Collect all columns to index from all fulltext configurations for this table
+        const ftsColumns = new Set<string>();
+        let tokenizer = 'unicode61'; // default tokenizer
+
+        for (const ftConfig of tableIndices.fulltext) {
+          ftConfig.columns.forEach(col => ftsColumns.add(col));
+          if (ftConfig.tokenizer) {
+            tokenizer = ftConfig.tokenizer;
+          }
+        }
+
+        lc.info?.(
+          `Creating FTS5 table for ${mappedTableName} with columns: ${Array.from(ftsColumns).join(', ')} (tokenizer: ${tokenizer})`,
+        );
+
+        // Get all columns for this table to create the view properly
+        const allColumns = tableColumnMap.get(mappedTableName);
+
+        const ftsStatements = createFTS5Statements(
+          mappedTableName,
+          Array.from(ftsColumns),
+          allColumns,
+        );
+
+        for (const stmt of ftsStatements) {
+          tx.exec(stmt);
+        }
       }
     }
+  } else {
+    lc.info?.('No indices configuration found, skipping FTS5 table creation');
   }
 }
 

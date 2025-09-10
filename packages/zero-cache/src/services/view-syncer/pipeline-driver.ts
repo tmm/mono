@@ -26,14 +26,20 @@ import {
   reloadPermissionsIfChanged,
   type LoadedPermissions,
 } from '../../auth/load-permissions.ts';
+import {
+  reloadIndicesIfChanged,
+  type LoadedIndices,
+} from '../../indices/load-indices.ts';
 import type {LogConfig} from '../../config/zero-config.ts';
 import {computeZqlSpecs, mustGetTableSpec} from '../../db/lite-tables.ts';
 import type {LiteAndZqlSpec, LiteTableSpec} from '../../db/specs.ts';
+import {StatementRunner} from '../../db/statements.ts';
 import {getOrCreateHistogram} from '../../observability/metrics.ts';
 import type {InspectorDelegate} from '../../server/inspector-delegate.ts';
 import type {RowKey} from '../../types/row-key.ts';
 import type {SchemaVersions} from '../../types/schema-versions.ts';
 import type {ShardID} from '../../types/shards.ts';
+import {liteTableName} from '../../types/names.ts';
 import {getSubscriptionState} from '../replicator/schema/replication-state.ts';
 import {checkClientSchema} from './client-schema.ts';
 import type {ClientGroupStorage} from '../../../../zqlite/src/database-storage.ts';
@@ -97,6 +103,7 @@ export class PipelineDriver {
   #streamer: Streamer | null = null;
   #replicaVersion: string | null = null;
   #permissions: LoadedPermissions | null = null;
+  #indices: LoadedIndices | null = null;
 
   readonly #advanceTime = getOrCreateHistogram('sync', 'ivm.advance-time', {
     description:
@@ -123,24 +130,57 @@ export class PipelineDriver {
   }
 
   /**
-   * Detects available FTS views by querying sqlite_master.
-   * Views ending with '_view' are assumed to be FTS views corresponding to their base table.
+   * Detects available FTS views based on indices configuration.
+   * Tables with fulltext indices will have corresponding views.
    */
   #detectAvailableViews() {
     this.#availableViews.clear();
-    
-    const {db} = this.#snapshotter.current();
-    const stmt = db.db.prepare(`
-      SELECT name FROM sqlite_master 
-      WHERE type = 'view' AND name LIKE '%_view'
-    `);
-    
-    for (const row of stmt.iterate()) {
-      const viewName = (row as {name: string}).name;
-      // Extract the base table name by removing '_view' suffix
-      const tableName = viewName.slice(0, -5); // Remove '_view'
-      this.#availableViews.set(tableName, viewName);
-      this.#lc.debug?.(`Detected FTS view: ${tableName} -> ${viewName}`);
+
+    // Load current indices configuration
+    const res = reloadIndicesIfChanged(
+      this.#lc,
+      new StatementRunner(this.#snapshotter.current().db.db),
+      this.#shardID.appID,
+      this.#indices,
+    );
+
+    if (res.changed) {
+      this.#indices = res.indices;
+      this.#lc.debug?.('Reloaded indices configuration');
+    }
+
+    if (!this.#indices?.indices?.tables) {
+      this.#lc.debug?.('No indices configuration found');
+      return;
+    }
+
+    // Detect views from indices configuration
+    for (const [tableName, tableIndices] of Object.entries(
+      this.#indices.indices.tables,
+    )) {
+      if (tableIndices.fulltext && tableIndices.fulltext.length > 0) {
+        // Map to lite table name
+        const mappedTableName = liteTableName({
+          schema: this.#shardID.appID,
+          name: tableName,
+        });
+        const viewName = `${mappedTableName}_view`;
+
+        // Check if the view actually exists in SQLite
+        const viewExists = this.#snapshotter
+          .current()
+          .db.db.prepare(
+            `SELECT name FROM sqlite_master WHERE type='view' AND name = ?`,
+          )
+          .get(viewName);
+
+        if (viewExists) {
+          this.#availableViews.set(mappedTableName, viewName);
+          this.#lc.debug?.(
+            `Detected FTS view: ${mappedTableName} -> ${viewName}`,
+          );
+        }
+      }
     }
   }
 
@@ -167,7 +207,7 @@ export class PipelineDriver {
 
     const {replicaVersion} = getSubscriptionState(db);
     this.#replicaVersion = replicaVersion;
-    
+
     // Detect available FTS views
     this.#detectAvailableViews();
   }
@@ -258,7 +298,7 @@ export class PipelineDriver {
     }
     const {replicaVersion} = getSubscriptionState(db);
     this.#replicaVersion = replicaVersion;
-    
+
     // Detect available FTS views
     this.#detectAvailableViews();
   }
@@ -557,7 +597,7 @@ export class PipelineDriver {
     // Use view name if available, otherwise use table name
     const viewName = this.#availableViews.get(tableName);
     const sourceTableName = viewName ?? tableName;
-    
+
     source = new TableSource(
       this.#lc,
       this.#logConfig,
@@ -567,7 +607,9 @@ export class PipelineDriver {
       primaryKey,
     );
     this.#tables.set(tableName, source); // Still indexed by original table name
-    this.#lc.debug?.(`created TableSource for ${tableName}${viewName ? ` (using view ${viewName})` : ''}`);
+    this.#lc.debug?.(
+      `created TableSource for ${tableName}${viewName ? ` (using view ${viewName})` : ''}`,
+    );
     return source;
   }
 

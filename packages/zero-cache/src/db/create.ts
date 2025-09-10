@@ -117,17 +117,6 @@ export function createFTS5Statements(
 }
 
 export function createIndexStatement(index: LiteIndexSpec): string {
-  // Handle fulltext indices by creating FTS5 virtual table
-  if (index.indexType === 'fulltext') {
-    const columns = Object.keys(index.columns);
-    if (columns.length === 0) {
-      return `-- Fulltext index ${index.name} has no columns to index`;
-    }
-    // Return all FTS5 statements joined
-    const ftsStatements = createFTS5Statements(index.tableName, columns);
-    return ftsStatements.join('\n');
-  }
-
   const columns = Object.entries(index.columns)
     .map(([name, dir]) => `${id(name)} ${dir}`)
     .join(',');
