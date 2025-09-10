@@ -27,7 +27,7 @@ const queries = {
           listContext: listContext ?? undefined,
           limit: 1,
           start: issue ?? undefined,
-          dir,
+          dir: dir === 'next' ? 'forward' : 'backward',
           role: auth?.role,
         },
         buildBaseListQuery,
@@ -43,6 +43,22 @@ const queries = {
           limit,
           userID,
           role: auth?.role,
+        },
+        buildListQuery,
+      ),
+  ),
+  issueListV2: syncedQueryWithContext(
+    sharedQueries.issueListV2.queryName,
+    sharedQueries.issueListV2.parse,
+    (auth: AuthData | undefined, listContext, userID, limit, start, dir) =>
+      serverOptimizedListQuery(
+        {
+          listContext,
+          limit: limit ?? undefined,
+          userID,
+          role: auth?.role,
+          start: start ?? undefined,
+          dir,
         },
         buildListQuery,
       ),
@@ -125,7 +141,7 @@ function serverOptimizedListQuery(
 
         const {sortDirection} = listContext;
         const orderByDir =
-          args.dir === 'next'
+          args.dir === 'forward'
             ? sortDirection
             : sortDirection === 'asc'
               ? 'desc'
@@ -134,7 +150,11 @@ function serverOptimizedListQuery(
           .orderBy(listContext.sortField, orderByDir)
           .orderBy('issueID', orderByDir);
         if (args.start) {
-          q = q.start(args.start);
+          const {id, ...rest} = args.start;
+          q = q.start({
+            issueID: id,
+            ...rest,
+          });
         }
         if (args.limit) {
           q = q.limit(args.limit);

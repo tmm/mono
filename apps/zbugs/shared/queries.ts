@@ -155,7 +155,7 @@ export const queries = {
       buildBaseListQuery({
         listContext: listContext ?? undefined,
         start: issue ?? undefined,
-        dir,
+        dir: dir === 'next' ? 'forward' : 'backward',
         role: auth?.role,
       }).one(),
   ),
@@ -165,6 +165,30 @@ export const queries = {
     z.tuple([listContextParams, z.string(), z.number()]),
     (auth: AuthData | undefined, listContext, userID, limit) =>
       buildListQuery({listContext, limit, userID, role: auth?.role}),
+  ),
+
+  issueListV2: syncedQueryWithContext(
+    'issueListV2',
+    z.tuple([
+      listContextParams,
+      z.string(),
+      z.number().nullable(),
+      issueRowSort.nullable(),
+      z.union([z.literal('forward'), z.literal('backward')]),
+    ]),
+    (auth: AuthData | undefined, listContext, userID, limit, start, dir) => {
+      return applyIssuePermissions(
+        buildListQuery({
+          listContext,
+          limit: limit ?? undefined,
+          userID,
+          role: auth?.role,
+          start: start ?? undefined,
+          dir,
+        }),
+        auth?.role,
+      );
+    },
   ),
 
   issueById: syncedQueryWithContext(
@@ -193,9 +217,7 @@ export type ListQueryArgs = {
   userID?: string;
   role?: Role | undefined;
   limit?: number | undefined;
-  start?:
-    | Pick<Row<Schema['tables']['issue']>, 'id' | 'created' | 'modified'>
-    | undefined;
+  start?: IssueRowSort | undefined;
   dir?: 'forward' | 'backward' | undefined;
 };
 
@@ -215,7 +237,7 @@ export function buildBaseListQuery(args: ListQueryArgs) {
     limit,
     listContext,
     role,
-    dir = 'next',
+    dir = 'forward',
     start,
   } = args;
   if (!listContext) {
